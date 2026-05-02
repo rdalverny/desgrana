@@ -1,0 +1,23 @@
+{
+  "active_scene": "I:/TEST_SHOW/Test_Scene.snap",
+  "ae_data": {
+    "ch": {
+      "1": {
+        "name": "Kick",
+        "clink": false
+      },
+      "2": {
+        "name": "Snare",
+        "clink": false
+      },
+      "3": {
+        "name": "OH_L",
+        "clink": true
+      },
+      "4": {
+        "name": "OH_R",
+        "clink": false
+      }
+    }
+  }
+}

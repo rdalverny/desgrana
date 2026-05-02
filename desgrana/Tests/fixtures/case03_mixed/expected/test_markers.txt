@@ -1,0 +1,8 @@
+# Markers exported from Behringer Wing/X-Live session
+# Session: test
+# Sample rate: 48000 Hz
+#
+# Marker	Time		Sample
+  1		00:00.500		24000
+  2		00:01.000		48000
+  3		00:01.500		72000

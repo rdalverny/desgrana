@@ -1,0 +1,5 @@
+{
+  "version": "1.6.3",
+  "notes": "Now checks for updates and opens session in Logic/Reaper",
+  "url": "https://github.com/rdalverny/desgrana"
+}

@@ -1,0 +1,8 @@
+Desgrana.app
+desgrana/.build
+icon-source.png
+var/
+dist/
+.claude/
+localdocs/
+Makefile.local
