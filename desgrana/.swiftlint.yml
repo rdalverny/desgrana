@@ -1,0 +1,15 @@
+excluded:
+  - .build
+  - Sources/CWav
+
+disabled_rules:
+  - identifier_name
+  - function_parameter_count
+  - file_length
+  - type_body_length
+  - function_body_length
+  - for_where
+
+line_length:
+  warning: 140
+  error: 200
