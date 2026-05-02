@@ -106,11 +106,11 @@ shipit: release
 	sed -i '' \
 		-e 's|href="[^"]*Desgrana-[0-9.]*\.dmg"|href="$(GITHUB_BASE)/v$(VERSION)/Desgrana-$(VERSION).dmg"|' \
 		-e 's|Download Desgrana [0-9.]* ([^)]*)|Download Desgrana $(VERSION) ($(DATE))|' \
-		web/index.html
-	@echo "web/index.html → $(VERSION) ($(DATE))"
+		docs/index.html
+	@echo "docs/index.html → $(VERSION) ($(DATE))"
 
-	python3 -c "import json; f='web/version.json'; d=json.load(open(f)); d['version']='$(VERSION)'; d['url']='https://github.com/$(GITHUB_REPO)/releases/tag/v$(VERSION)'; json.dump(d, open(f,'w'), indent=2); open(f,'a').write('\n')"
-	@echo "web/version.json → $(VERSION)"
+	python3 -c "import json; f='docs/version.json'; d=json.load(open(f)); d['version']='$(VERSION)'; d['url']='https://github.com/$(GITHUB_REPO)/releases/tag/v$(VERSION)'; json.dump(d, open(f,'w'), indent=2); open(f,'a').write('\n')"
+	@echo "docs/version.json → $(VERSION)"
 
 	@echo "var/shipit/ contains: $$(ls $(SHIPIT))"
 
