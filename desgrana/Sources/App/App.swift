@@ -80,12 +80,36 @@ struct AboutView: View {
     }
 }
 
+// MARK: - Cursor modifier
+
+struct RowCursorModifier: ViewModifier {
+    let kind: OutputRow.Kind
+    func body(content: Content) -> some View {
+        if #available(macOS 15, *) {
+            content.pointerStyle(pointerStyle15)
+        } else {
+            content
+        }
+    }
+    @available(macOS 15, *)
+    private var pointerStyle15: PointerStyle {
+        switch kind {
+        case .stereo:                          return .columnResize
+        case .monoLinkable, .monoLinkablePrev: return .link
+        case .mono:                            return .default
+        }
+    }
+}
+
 // MARK: - View
 
 struct ContentView: View {
     @StateObject private var vm = SplitViewModel()
     @EnvironmentObject private var appDelegate: AppDelegate
     @State private var isTargeted = false
+    @State private var hoveredGroupIDs: Set<Int> = []
+    @State private var sessionNameHovered = false
+    @State private var destHovered = false
     @State private var updateInfo: UpdateInfo?
     @State private var showUpdateSheet = false
     @State private var showUpToDateAlert = false
@@ -111,7 +135,8 @@ struct ContentView: View {
         .fixedSize()
         .onAppear {
             let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-            NSApp.windows.first?.title = "Desgrana \(v)"
+            NSApp.windows.first?.title = "Desgrana"
+            UserDefaults.standard.set(600, forKey: "NSInitialToolTipDelay")
             handlePendingURL()
             Task.detached(priority: .background) {
                 if let info = await UpdateCheck.checkIfDue(current: v) {
@@ -155,13 +180,17 @@ struct ContentView: View {
                 )
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isTargeted ? Color.accentColor.opacity(0.05) : Color.clear)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(isTargeted ? Color.accentColor.opacity(0.08) : Color.clear)
+                        )
                 )
                 .padding(16)
 
             VStack(spacing: 12) {
                 Image(systemName: "waveform.badge.plus")
-                    .font(.system(size: 48, weight: .light))
+                    .font(.system(size: 40))
                     .foregroundStyle(.secondary)
                 Text("Drop a session folder here")
                     .font(.title3)
@@ -238,8 +267,8 @@ struct ContentView: View {
 
             case .error(let msg):
                 VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40, weight: .light))
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
                         .foregroundStyle(.red)
                     Text(msg)
                         .font(.caption)
@@ -260,39 +289,55 @@ struct ContentView: View {
 
     func readyView(sessionDir: URL) -> some View {
         VStack(spacing: 0) {
-            // Header
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    TextField("Session name", text: $vm.sessionName)
-                        .font(.headline)
-                        .textFieldStyle(.plain)
-                        .lineLimit(1)
-                    Text(sessionDir.path)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+                TextField("Session name", text: $vm.sessionName)
+                    .font(.headline)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1)
+                    .onChange(of: vm.sessionName) { v in
+                        if v.count > 300 { vm.sessionName = String(v.prefix(300)) }
+                    }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.secondary.opacity(sessionNameHovered ? 0.22 : 0), lineWidth: 1)
+                    )
+                    .onHover { sessionNameHovered = $0 }
+                    .padding(.horizontal, -5)
                 Spacer()
-                Button("Reset") { vm.reset() }
+                Button("Clear session") { vm.reset() }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.bottom, 12)
 
             Divider()
 
-            VStack(spacing: 10) {
-                if let info = vm.sessionInfo {
-                    inputSection(info: info)
+            VStack(alignment: .leading, spacing: 10) {
+                trackListView
+                    .padding(.horizontal, -4)
+                statusLine(sessionDir: sessionDir)
+                    .padding(.bottom, 6)
+                destinationLine(sessionDir: sessionDir)
+
+                if vm.snapInfo == nil {
+                    Button { browseSnap() } label: {
+                        Label("Add Wing snapshot…", systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .font(.caption)
                 }
 
-                snapSection(sessionDir: sessionDir)
-                outputSummary(sessionDir: sessionDir)
-
-                HStack {
+                HStack(alignment: .center) {
+                    Button("Choose a different folder…") {
+                        chooseOutputDir(sessionDir: sessionDir)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     Spacer()
                     Button("Extract") { vm.split(sessionDir: sessionDir) }
                         .buttonStyle(.borderedProminent)
@@ -300,7 +345,7 @@ struct ContentView: View {
                         .keyboardShortcut(.defaultAction)
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
@@ -308,84 +353,199 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Input section
+    // MARK: - Track list
 
-    func inputSection(info: SessionInfo) -> some View {
-        let foundNames = Set(vm.wavFiles.map {
-            $0.deletingPathExtension().lastPathComponent.lowercased()
-        })
-        let ch = max(info.numChannels, 1)
-        let sr = Double(info.sampleRate)
-        let missing = info.numTakes - vm.wavFiles.count
-        let showTakes = info.numTakes > 1 || missing > 0
-        let filesLabel = missing > 0
-            ? "\(vm.wavFiles.count)/\(info.numTakes)"
-            : "\(info.numTakes) file\(info.numTakes == 1 ? "" : "s")"
+    private func buildRows() -> [OutputRow] {
+        let pairs          = vm.effectivePairs
+        let names          = vm.snapInfo?.channelNames ?? [:]
+        let total          = vm.sessionInfo?.numChannels ?? 0
+        let pairedChannels = Set(pairs.flatMap { [$0.left, $0.right] })
+        var rows: [OutputRow] = []
 
-        return GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                // Labels row then values row
-                Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 2) {
-                    GridRow {
-                        Text("channels").foregroundStyle(.secondary)
-                        Text("sampling").foregroundStyle(.secondary)
-                        Text("bit depth").foregroundStyle(.secondary)
-                        if info.markerSamples.count > 0 {
-                            Text("markers").foregroundStyle(.secondary)
-                        }
-                    }
-                    GridRow {
-                        Text("\(info.numChannels)").monospacedDigit().bold()
-                        Text("\(info.sampleRate) Hz").monospacedDigit().bold()
-                        Text("\(vm.outputBits)-bit").bold()
-                        if info.markerSamples.count > 0 {
-                            Text("\(info.markerSamples.count)").monospacedDigit().bold()
-                        }
-                    }
-                }
-                .font(.caption)
+        for pair in pairs {
+            let l = names[pair.left] ?? ""
+            let r = names[pair.right] ?? ""
+            let nameStr = [l, r].filter { !$0.isEmpty }.joined(separator: " & ")
+            rows.append(OutputRow(
+                id: pair.left,
+                chLabel: String(format: "ch %02d–%02d", pair.left, pair.right),
+                nameLabel: nameStr,
+                kind: .stereo(left: pair.left)
+            ))
+        }
+        if total > 0 {
+            for ch in 1...total where !pairedChannels.contains(ch) {
+                let nextFree = ch + 1 <= total && !pairedChannels.contains(ch + 1)
+                let prevFree = ch - 1 >= 1 && !pairedChannels.contains(ch - 1)
+                let kind: OutputRow.Kind = nextFree ? .monoLinkable(ch: ch)
+                    : prevFree ? .monoLinkablePrev(ch: ch)
+                    : .mono
+                rows.append(OutputRow(
+                    id: ch,
+                    chLabel: String(format: "ch %02d", ch),
+                    nameLabel: names[ch] ?? "",
+                    kind: kind
+                ))
+            }
+        }
+        return rows.sorted { $0.id < $1.id }
+    }
 
-                // Duration + per-take breakdown, columns aligned
-                Grid(horizontalSpacing: 16, verticalSpacing: 2) {
-                    GridRow {
-                        Text("duration")
-                            .foregroundStyle(.secondary)
-                            .gridColumnAlignment(.leading)
-                        Text(formatDuration(info.totalDuration))
-                            .monospacedDigit()
-                            .bold()
-                            .gridColumnAlignment(.trailing)
-                        Text(filesLabel)
-                            .foregroundStyle(missing > 0 ? .orange : .secondary)
-                            .gridColumnAlignment(.trailing)
-                    }
-                    if showTakes {
-                        ForEach(0 ..< info.numTakes, id: \.self) { i in
-                            let hex = String(format: "%08x", i + 1)
-                            let present = foundNames.contains(hex)
-                            let interleaved: UInt32 = i < info.takeSizes.count ? info.takeSizes[i] : 0
-                            let frames = interleaved / UInt32(ch)
-                            let dur = sr > 0 ? formatDuration(Double(frames) / sr) : "?"
-                            GridRow {
-                                Text("take \(i + 1)").foregroundStyle(.secondary)
-                                Text(present ? dur : "—").monospacedDigit()
-                                Group {
-                                    if present {
-                                        Image(systemName: "checkmark").foregroundStyle(.tertiary)
-                                    } else {
-                                        Text("missing").foregroundStyle(.orange)
-                                    }
-                                }
+    var trackListView: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: 0) {
+                Color.clear.frame(height: 6)
+                ForEach(buildRows()) { row in
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Group {
+                            switch row.kind {
+                            case .stereo: Text("stereo")
+                            default:      Text("mono")
                             }
                         }
+                        .font(.caption)
+                        .fontDesign(.monospaced)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 46, alignment: .leading)
+                        .padding(.leading, 3)
+                        Text(row.nameLabel.isEmpty ? row.chLabel : row.nameLabel)
+                            .foregroundStyle(row.nameLabel.isEmpty ? .tertiary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text(row.chLabel)
+                            .font(.caption)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 84, alignment: .trailing)
                     }
+                    .font(.callout)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(hoveredGroupIDs.contains(row.id) ? Color.primary.opacity(0.06) : Color.clear)
+                            .padding(.leading, -4)
+                            .padding(.trailing, -4)
+                    )
+                    .modifier(RowCursorModifier(kind: row.kind))
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        switch row.kind {
+                        case .stereo(let left): vm.unlinkPair(left: left)
+                        case .monoLinkable(let ch): vm.linkChannels(ch, ch + 1)
+                        case .monoLinkablePrev(let ch): vm.linkChannels(ch - 1, ch)
+                        case .mono: break
+                        }
+                    }
+                    .onHover { hovered in
+                        guard hovered else { return }
+                        switch row.kind {
+                        case .stereo:
+                            hoveredGroupIDs = [row.id]
+                        case .monoLinkable(let ch):
+                            hoveredGroupIDs = [ch, ch + 1]
+                        case .monoLinkablePrev(let ch):
+                            hoveredGroupIDs = [ch - 1, ch]
+                        case .mono:
+                            hoveredGroupIDs = []
+                        }
+                    }
+                    .help({
+                        switch row.kind {
+                        case .stereo: return "Click to split into two mono channels"
+                        case .monoLinkable(let ch): return "Click to pair with ch\(String(format: "%02d", ch + 1)) as stereo"
+                        case .monoLinkablePrev(let ch): return "Click to pair with ch\(String(format: "%02d", ch - 1)) as stereo"
+                        case .mono: return ""
+                        }
+                    }())
                 }
-                .font(.caption)
+                Color.clear.frame(height: 6)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text("Input").font(.caption.bold())
+            .onHover { if !$0 { hoveredGroupIDs = [] } }
         }
+        .frame(maxHeight: 200)
+        .mask(
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black, location: 0.06),
+                    .init(color: .black, location: 0.94),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+    }
+
+    // MARK: - Status + destination
+
+    func statusLine(sessionDir: URL) -> some View {
+        HStack(spacing: 6) {
+            if let info = vm.sessionInfo {
+                Text(formatDuration(info.totalDuration)).monospacedDigit()
+                Text("·").foregroundStyle(.tertiary)
+                let missing = info.numTakes - vm.wavFiles.count
+                if missing > 0 {
+                    Text("\(vm.wavFiles.count)/\(info.numTakes) files")
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text("\(missing) missing").foregroundStyle(.orange)
+                } else {
+                    Text("\(info.numTakes) file\(info.numTakes == 1 ? "" : "s")")
+                }
+            }
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .onTapGesture { NSWorkspace.shared.open(sessionDir) }
+        .help("Show session folder in Finder")
+    }
+
+    func destinationLine(sessionDir: URL) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text("Output folder")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "pencil")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .opacity(destHovered ? 0.6 : 0)
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "folder")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Text(String(displayPath(vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)).prefix(300)))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if vm.customOutputDir != nil {
+                    Button {
+                        vm.customOutputDir = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .font(.callout)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .background(
+            destHovered
+                ? RoundedRectangle(cornerRadius: 5).fill(Color.primary.opacity(0.04))
+                : nil
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { chooseOutputDir(sessionDir: sessionDir) }
+        .onHover { hovered in
+            destHovered = hovered
+            if hovered { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+        .help("Click to change the output folder")
+        .padding(.horizontal, -4)
     }
 
     func formatDuration(_ seconds: Double) -> String {
@@ -398,199 +558,6 @@ struct ContentView: View {
             return String(format: "%dmin %06.3f", m, s)
         } else {
             return String(format: "%.3f s", s)
-        }
-    }
-
-    // MARK: - Output summary
-
-    func outputSummary(sessionDir: URL) -> some View {
-        let pairs          = vm.effectivePairs
-        let names          = vm.snapInfo?.channelNames ?? [:]
-        let total          = vm.sessionInfo?.numChannels ?? 0
-        let pairedChannels = Set(pairs.flatMap { [$0.left, $0.right] })
-        let monoCount      = total - pairedChannels.count
-        let stereoCount    = pairs.count
-        let markerCount    = vm.sessionInfo?.markerSamples.count ?? 0
-
-        var rows: [OutputRow] = []
-        for pair in pairs {
-            let l = names[pair.left] ?? ""
-            let r = names[pair.right] ?? ""
-            let nameStr = [l, r].filter { !$0.isEmpty }.joined(separator: "/")
-            rows.append(OutputRow(
-                id: pair.left,
-                chLabel: String(format: "ch%02d–%02d", pair.left, pair.right),
-                nameLabel: nameStr,
-                kind: .stereo(left: pair.left)
-            ))
-        }
-        if total > 0 {
-            for ch in 1 ... total where !pairedChannels.contains(ch) {
-                let nextFree = ch + 1 <= total && !pairedChannels.contains(ch + 1)
-                rows.append(OutputRow(
-                    id: ch,
-                    chLabel: String(format: "ch%02d", ch),
-                    nameLabel: names[ch] ?? "",
-                    kind: nextFree ? .monoLinkable(ch: ch) : .mono
-                ))
-            }
-        }
-        let sortedRows = rows.sorted { $0.id < $1.id }
-
-        return GroupBox {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    if stereoCount > 0 {
-                        Text("\(monoCount) mono + \(stereoCount) stereo").bold()
-                    } else {
-                        Text("\(monoCount > 0 ? monoCount : total) mono").bold()
-                    }
-                    if vm.isCustomized {
-                        Spacer()
-                        Button("Reset") { vm.resetPairs() }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if !sortedRows.isEmpty {
-                    ScrollView(.vertical) {
-                        Grid(horizontalSpacing: 6, verticalSpacing: 2) {
-                            ForEach(sortedRows) { row in
-                                GridRow {
-                                    linkButton(for: row)
-                                    Text(row.chLabel).gridColumnAlignment(.leading)
-                                    Text(row.nameLabel)
-                                        .foregroundStyle(.secondary)
-                                        .gridColumnAlignment(.leading)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .frame(maxHeight: 160)
-                } else if total > 0 {
-                    Text("ch01–\(String(format: "%02d", total))").foregroundStyle(.secondary)
-                }
-                if markerCount > 0 {
-                    Text("\(markerCount) markers (WAV cue, CSV, MIDI)").foregroundStyle(.secondary)
-                }
-                Text("Silent channels will be skipped automatically.").foregroundStyle(.tertiary)
-
-                Divider().padding(.vertical, 2)
-
-                HStack(spacing: 4) {
-                    Text("Destination").foregroundStyle(.secondary)
-                    Text(displayPath(vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button("Choose…") { chooseOutputDir(sessionDir: sessionDir) }
-                    if vm.customOutputDir != nil {
-                        Button {
-                            vm.customOutputDir = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                Toggle("Use short filenames", isOn: $vm.shortFilenames)
-                    .toggleStyle(.checkbox)
-            }
-            .font(.caption)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text("Output").font(.caption.bold())
-        }
-    }
-
-    @ViewBuilder
-    private func linkButton(for row: OutputRow) -> some View {
-        switch row.kind {
-        case .stereo(let left):
-            Button { vm.unlinkPair(left: left) } label: {
-                Image(systemName: "link")
-                    .foregroundColor(.accentColor)
-            }
-            .buttonStyle(.plain)
-            .help("Split into two mono channels")
-        case .monoLinkable(let ch):
-            Button { vm.linkChannels(ch, ch + 1) } label: {
-                Image(systemName: "link")
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-            .help("Link with ch\(String(format: "%02d", ch + 1)) as a stereo pair")
-        case .mono:
-            Image(systemName: "link").opacity(0)
-        }
-    }
-
-    // MARK: - Snap section
-
-    @ViewBuilder
-    func snapSection(sessionDir: URL) -> some View {
-        GroupBox {
-            if let snap = vm.snapInfo {
-                HStack(spacing: 8) {
-                    Image(systemName: "slider.horizontal.3")
-                        .foregroundStyle(.secondary)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(vm.snapName ?? "Wing snapshot")
-                            .font(.caption.bold())
-                        HStack(spacing: 8) {
-                            if !snap.stereoPairs.isEmpty {
-                                let pairs = snap.stereoPairs.map { "\($0.left):\($0.right)" }
-                                    .joined(separator: ", ")
-                                let count = snap.stereoPairs.count
-                                Text("\(count) stereo pair\(count == 1 ? "" : "s"): \(pairs)")
-                            } else {
-                                Text("No stereo pairs")
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        if snap.channelNames.count > 0 {
-                            Text("\(snap.channelNames.count) named channels")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer()
-                    Button("Replace…") { browseSnap() }
-                        .font(.caption)
-                    Button {
-                        vm.clearSnap()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            } else {
-                HStack(spacing: 10) {
-                    Image(systemName: "doc.badge.plus")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundStyle(.tertiary)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Wing snapshot")
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                        Text("Drop a .snap file or browse to load stereo pairs and channel names")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer()
-                    Button("Browse…") { browseSnap() }
-                        .font(.caption)
-                }
-            }
-        }
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            handleSnapDrop(providers)
         }
     }
 

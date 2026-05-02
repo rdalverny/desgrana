@@ -26,7 +26,7 @@ struct OutputRow: Identifiable {
     let id: Int  // left channel (or channel number for mono)
     let chLabel: String
     let nameLabel: String
-    enum Kind { case stereo(left: Int), monoLinkable(ch: Int), mono }
+    enum Kind { case stereo(left: Int), monoLinkable(ch: Int), monoLinkablePrev(ch: Int), mono }
     let kind: Kind
 }
 
