@@ -171,7 +171,7 @@ public func splitSession(
         var framesInTake: UInt64 = 0
         while true {
             // Read raw bytes — no format conversion
-            let bytesRead = drwav_read_raw(takeWav, UInt64(readBytes), rawIn)
+            let bytesRead = drwav_read_raw(takeWav, Int(readBytes), rawIn)
             if bytesRead == 0 { break }
             let frames = Int(bytesRead) / frameStride
 
@@ -186,7 +186,7 @@ public func splitSession(
                         bytesPerSample: bytesPerSample,
                         hasSignal: &tracks[ti].hasSignal
                     )
-                    drwav_write_raw(tracks[ti].wavWriter, UInt64(frames * bytesPerSample), monoOut)
+                    drwav_write_raw(tracks[ti].wavWriter, Int(frames * bytesPerSample), monoOut)
 
                 case .stereo(let left, let right):
                     demuxStereo(
@@ -201,7 +201,7 @@ public func splitSession(
                     )
                     drwav_write_raw(
                         tracks[ti].wavWriter,
-                        UInt64(frames * bytesPerSample * 2),
+                        Int(frames * bytesPerSample * 2),
                         stereoOut
                     )
                 }

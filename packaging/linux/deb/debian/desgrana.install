@@ -1,0 +1,3 @@
+desgrana            usr/bin/
+desgrana-gui        usr/bin/
+swift-libs/*.so     usr/lib/desgrana/

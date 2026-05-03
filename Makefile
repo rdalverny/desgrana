@@ -131,3 +131,18 @@ clean:
 
 fmtdoc:
 	prettier --prose-wrap always --print-width 78 --write "**/*.md"
+
+# ── Linux ────────────────────────────────────────────────────────
+
+package-debian:
+	rm -rf dist/
+	$(DOCKER) buildx build \
+		--progress=plain \
+		--platform linux/amd64 \
+		-f packaging/linux/deb/builder.dockerfile \
+		--output type=local,dest=dist \
+		.
+	cd dist && shasum -a 256 *.deb > SHA256SUMS
+	@echo "Package in dist/"
+	@ls -lh dist/*.deb
+	@cat dist/SHA256SUMS

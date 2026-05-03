@@ -41,6 +41,12 @@ let package = Package(
             ],
             path: "Sources/CLI"
         ),
+        // C bridge for the Linux Qt UI
+        .target(
+            name: "DesgranaBridgeLinux",
+            dependencies: ["DesgranaCore", "DesgranaCoreLinux"],
+            path: "Sources/BridgeLinux"
+        ),
         // GUI executable (macOS only)
         .executableTarget(
             name: "DesgranaApp",

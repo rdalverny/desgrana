@@ -1,0 +1,21 @@
+Source: desgrana
+Section: sound
+Priority: optional
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Homepage: https://github.com/rdalverny/desgrana
+Maintainer: Romain d'Alverny <rdalverny@gmail.com>
+
+Package: desgrana
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Extract channels from Behringer Wing multitrack WAV recordings
+ Desgrana extracts individual mono or stereo tracks from interleaved
+ multichannel WAV files recorded by a Behringer Wing (or X-Live) console.
+ .
+ It reads session metadata from SE_LOG.BIN, channel names and stereo pairs
+ from a Wing snapshot (.snap), skips silent channels automatically, and
+ exports markers as cue chunks in every output WAV, plus CSV and MIDI files.
+ .
+ Includes a command-line tool (desgrana) and a graphical interface
+ (desgrana-gui).

@@ -1,0 +1,7 @@
+# desgrana-gui embeds a RUNPATH to the Swift runtime dylibs, which are not
+# in the standard Debian library search path. This is intentional.
+desgrana: custom-library-search-path
+
+# Bundled Swift toolchain dylibs are from swift.org and cannot be stripped:
+# they lack GNU build-id and dh_strip is explicitly excluded for usr/lib/desgrana.
+desgrana: unstripped-binary-or-object usr/lib/desgrana/*
