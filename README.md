@@ -57,8 +57,8 @@ Options:
   --help,   -h            Show this help
 ```
 
-Output filenames follow the pattern `<prefix>ch01_ChannelName.wav` (mono)
-or `<prefix>ch01-02_ChannelName.wav` (stereo).
+Output filenames follow the pattern `ChannelName.wav` (mono)
+or `Name1-Name2.wav` (stereo). If no name is set, `ch01-ch02.wav` is used.
 Channel names come from the `.snap` file.
 
 
@@ -104,11 +104,15 @@ Relevant fields used by Desgrana:
 MIT — see [LICENSE](LICENSE).
 
 
-## Contributing
+## Contributing, maintenance & roadmap
 
 Developed with AI assistance ([Claude Code](https://claude.ai/code)).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines,
 including AI disclosure requirements for contributed code.
 
+Current major roadmap items include:
+- 1.7, a simplified UI (see branch `ui`)
+- 1.8, a Linux release (likewise `linux`)
+- 1.9, a Windows release
 
