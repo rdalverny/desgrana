@@ -1,49 +1,60 @@
 # Desgrana
 
-> Extract channels from interleaved multitrack WAV files
-> into individual mono/stereo ones.
+> Extract channels from interleaved multitrack WAV files into individual
+> mono/stereo ones.
 
-Use case:
-- you have several WAV files from a session recorded
-  by a [Behringer Wing](https://www.behringer.com/series.html?category=R-BEHRINGER-WINGSERIES) console, plus the SE_LOG.bin and .snap files;
-  they don't open easily directly in your DAW (yet).
-- with desgrana, you:
-  - get each named part in its own continuous WAV file,
-    a MIDI file with the session markers (if you used them),
-    all extracted in a new folder,
-  - plus a DAW session loaded and ready to use.
+**[Download & documentation → romaindalverny.com/atelier/desgrana](https://romaindalverny.com/atelier/desgrana/)**
 
-[Get the latest release](https://github.com/rdalverny/desgrana/releases)
-
+Use case: you have a session recorded by a
+[Behringer Wing](https://www.behringer.com/series.html?category=R-BEHRINGER-WINGSERIES)
+console — several WAV files, plus `SE_LOG.bin` and `.snap`. With Desgrana, you
+get each named channel in its own continuous WAV file, your markers exported
+for your DAW, and a session ready to open.
 
 ## Features
 
-- Byte-exact extraction — audio data is copied verbatim.
-  No conversion, no resampling, no dithering.
-- Streams audio in blocks, handles large files with constant memory
-  (fast, doesn't freeze your computer)
-- Reads session metadata from `SE_LOG.BIN` if present
-  (channel count, sample rate, duration, markers)
-- Reads Wing snapshot (`.snap`) if present
-  for stereo pairs and channel names
-- Skips silent (all-zero) channels automatically
-- Exports markers as `cue ` chunks in output WAVs, plus MIDI, CSV
-- Detects and reports missing takes
-- (macOS) GUI (drag & drop, accepts `.snap` drop) and CLI
-- (macOS) Released app and CLI are signed and notarized
-
+- Your files come out exactly as recorded. No conversion, no precision loss,
+  any bit depth.
+- Runs fine on a laptop backstage. No freeze, no RAM issues, even on multi-GB
+  sessions.
+- Only the channels you actually recorded show up. No 32 empty tracks to clean
+  up in your DAW.
+- Your set markers land in Logic Pro, Reaper, and WaveLab; as cue chunks in
+  the WAV, MIDI file, and CSV.
+- Channel names and stereo pairs from your Wing snapshot (KICK, SNARE,
+  JOE&hellip;) picked up automatically.
+- Adjust stereo pairs before extraction: no need to re-export the snapshot
+  from the console.
+- Drop a session folder from Finder, or automate via CLI in your
+  post-production workflow.
+- Works entirely offline. Nothing uploaded, nothing tracked.
 
 ## Consoles supported
 
-- [Behringer Wing](https://www.behringer.com/series.html?category=R-BEHRINGER-WINGSERIES): yes
-- X-Live & W-Live: to be tested
+| Console        | Status                                 |
+| -------------- | -------------------------------------- |
+| Behringer Wing | ✅ Tested                              |
+| Wing Rack      | ❓ Expected to work — feedback welcome |
+| Wing Compact   | ❓ Expected to work — feedback welcome |
+| X-Live         | ❓ Expected to work — feedback welcome |
+| W-Live         | ❓ Expected to work — feedback welcome |
+| DN32-Live      | ❓ Expected to work — feedback welcome |
 
+## Privacy
+
+Desgrana works entirely offline. It reads your local session files and writes
+output to your local disk — nothing is uploaded or transmitted.
+
+The only outbound request is an optional update check (at most once every two
+days), which fetches a public version file from GitHub. No usage data, no
+identifiers, no analytics.
 
 ## Usage
 
 **GUI** — drop a session folder, with or without `.snap` file, click Extract.
 
 **CLI**
+
 ```
 desgrana <session-dir> [options]
 
@@ -57,10 +68,9 @@ Options:
   --help,   -h            Show this help
 ```
 
-Output filenames follow the pattern `ChannelName.wav` (mono)
-or `Name1-Name2.wav` (stereo). If no name is set, `ch01-ch02.wav` is used.
+Output filenames follow the pattern `ChannelName.wav` (mono) or
+`Name1-Name2.wav` (stereo). If no name is set, `ch01-ch02.wav` is used.
 Channel names come from the `.snap` file.
-
 
 ## Build
 
@@ -74,45 +84,19 @@ make lint       # SwiftLint (brew install swiftlint)
 make format     # swift-format (brew install swift-format)
 ```
 
-## Session format
+## Contributing & roadmap
 
-Each recording session is a folder (hex timestamp) containing:
-- `SE_LOG.BIN` — 2048-byte binary metadata (little-endian)
-- `MyShow.snap` — Wing snapshot (optional, JSON)
-- `00000001.WAV`, `00000002.WAV`, … — interleaved multichannel WAV files
+See [CONTRIBUTING.md](CONTRIBUTING.md) for session format documentation, build
+guidelines, and AI disclosure requirements.
 
+Current major roadmap items:
 
-### SE_LOG.BIN
-
-Code based on the data structure reverse engineered by Patrick-Gilles Maillot
-in [X32-Behringer project](https://github.com/pmaillot/X32-Behringer), GPL.
-
-
-### Wing snapshot (`.snap`)
-
-Wing snapshots are JSON files exported from the console.
-Relevant fields used by Desgrana:
-
-| Path                   | Type   | Description    |
-|------------------------|--------|----------------|
-| `ae_data.ch.<N>.name`  | string | Channel name   |
-| `ae_data.ch.<N>.clink` | bool   | Stereo link with channel N+1 |
-
+- 1.7 — simplified UI (see branch `ui`)
+  - improved documentation & website
+  -
+- 1.8 — Linux release (see branch `linux`)
+- 1.9 — Windows release
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-
-## Contributing, maintenance & roadmap
-
-Developed with AI assistance ([Claude Code](https://claude.ai/code)).
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines,
-including AI disclosure requirements for contributed code.
-
-Current major roadmap items include:
-- 1.7, a simplified UI (see branch `ui`)
-- 1.8, a Linux release (likewise `linux`)
-- 1.9, a Windows release
-

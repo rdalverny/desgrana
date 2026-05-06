@@ -158,3 +158,5 @@ lint:
 clean:
 	rm -rf desgrana/.build var/ $(APP) Desgrana.zip dist/
 
+fmtdoc:
+	prettier --prose-wrap always --print-width 78 --write "**/*.md"
