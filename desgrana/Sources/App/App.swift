@@ -317,6 +317,10 @@ struct ContentView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 10) {
+                Text("Make sure your tracks are grouped as expected below.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
                 trackListView
                     .padding(.horizontal, -4)
                 statusLine(sessionDir: sessionDir)
