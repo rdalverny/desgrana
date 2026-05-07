@@ -4,15 +4,15 @@
     "ch": {
       "1": {
         "name": "Kick",
-        "clink": false
+        "clink": true
       },
       "2": {
         "name": "Snare",
-        "clink": false
+        "clink": true
       },
       "3": {
         "name": "OH_L",
-        "clink": true
+        "clink": false
       },
       "4": {
         "name": "OH_R",
