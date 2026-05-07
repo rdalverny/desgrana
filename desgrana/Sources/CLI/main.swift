@@ -14,6 +14,7 @@ struct CLIArgs {
     var stereoPairs: [StereoPair]
     var snapURL: URL?
     var useAutoStereo: Bool
+    var shortNames: Bool
     var dryRun: Bool
 
     // swiftlint:disable:next cyclomatic_complexity
@@ -25,6 +26,7 @@ struct CLIArgs {
         var stereoPairs: [StereoPair] = []
         var snapURL: URL?
         var useAutoStereo = false
+        var shortNames = false
         var dryRun = false
         var i = 0
         while i < args.count {
@@ -51,6 +53,8 @@ struct CLIArgs {
                 }
             case "--auto-stereo":
                 useAutoStereo = true
+            case "--short-names":
+                shortNames = true
             case "--dry-run":
                 dryRun = true
             case "--snap":
@@ -74,6 +78,7 @@ struct CLIArgs {
             stereoPairs: stereoPairs,
             snapURL: snapURL,
             useAutoStereo: useAutoStereo,
+            shortNames: shortNames,
             dryRun: dryRun
         )
     }
@@ -200,7 +205,8 @@ struct DesgranaCLI {
                 outputDir: outputDir,
                 prefix: pfx,
                 stereoPairs: activePairs,
-                channelNames: channelNames
+                channelNames: channelNames,
+                useShortFilenames: cliArgs.shortNames
             )
 
             // Export markers
@@ -309,6 +315,7 @@ struct DesgranaCLI {
             --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
             --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
             --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
+            --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
             --dry-run               Show what would be extracted without writing any files
             --info,   -i            Show session info only, without extracting
             --help,   -h            Show this help
