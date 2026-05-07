@@ -67,11 +67,9 @@ struct AboutView: View {
                 Text("Version \(version)").font(.caption).foregroundStyle(.secondary)
             }
 
-            Text("Extract channels from your Behringer Wing / X-Live / W-Live\nmultitrack recordings into mono or stereo WAV files.")
+            Text("From session to mix.")
                 .font(.callout)
-                .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: 320)
 
             Divider()
 
@@ -329,7 +327,7 @@ struct ContentView: View {
                         }
                         let silent = silentMono + silentStereo
                         let silentSuffix = silent > 0
-                            ? " · \(tracksLabel(silentStereo, silentMono)) silent" : ""
+                            ? " · \(tracksLabel(silentStereo, silentMono)) silent ignored" : ""
                         Text("\(tracksLabel(extractedStereo, extractedMono)) extracted\(silentSuffix)")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
@@ -402,9 +400,9 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Make sure your tracks are grouped as expected below.")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 0)
                 trackListView
                     .padding(.horizontal, -4)
                 statusLine(sessionDir: sessionDir)

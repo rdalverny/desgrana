@@ -14,7 +14,7 @@ struct UpdateInfo {
 }
 
 struct UpdateCheck {
-    static let feedURL = URL(string: "https://rdalverny.github.io/desgrana/version.json")!
+    static let feedURL = URL(string: "https://romaindalverny.com/atelier/desgrana/version.json")!
 
     /// Checks only if enabled and the configured interval has elapsed since the last check.
     static func checkIfDue(current: String) async -> UpdateInfo? {

@@ -1,5 +1,7 @@
 # Desgrana
 
+> From session to mix.
+
 > Extract channels from interleaved multitrack WAV files into individual
 > mono/stereo ones.
 
@@ -45,9 +47,8 @@ for your DAW, and a session ready to open.
 Desgrana works entirely offline. It reads your local session files and writes
 output to your local disk — nothing is uploaded or transmitted.
 
-The only outbound request is an optional update check (at most once every two
-days), which fetches a public version file from GitHub. No usage data, no
-identifiers, no analytics.
+The only outbound request is an optional update check (at most once a month),
+which fetches a public version file. No usage data, no identifiers, no analytics.
 
 ## Usage
 
