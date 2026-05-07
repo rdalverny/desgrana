@@ -22,12 +22,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 @main
 struct DesgranaApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var vm = SplitViewModel()
     @State private var showAbout = false
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(delegate)
+                .environmentObject(vm)
                 .sheet(isPresented: $showAbout) { AboutView() }
         }
         .windowResizability(.contentSize)
@@ -39,6 +41,11 @@ struct DesgranaApp: App {
                     NotificationCenter.default.post(name: .checkForUpdatesNow, object: nil)
                 }
             }
+        }
+
+        Settings {
+            SettingsView()
+                .environmentObject(vm)
         }
     }
 }
@@ -80,6 +87,83 @@ struct AboutView: View {
     }
 }
 
+// MARK: - Settings
+
+struct SettingsView: View {
+    @EnvironmentObject private var vm: SplitViewModel
+    @AppStorage("UpdateCheck.enabled") private var updateEnabled: Bool = true
+    @AppStorage("UpdateCheck.intervalDays") private var updateIntervalDays: Int = 30
+
+    var body: some View {
+        Form {
+            Section() {
+                Toggle("Use short filenames", isOn: $vm.shortFilenames)
+                Text(vm.shortFilenames
+                    ? "Channel name only: KICK.wav, ch01.wav"
+                    : "Session prefix: MyShow_KICK.wav, MyShow_ch01.wav")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section() {
+                Toggle("Auto-detect stereo pairs from channel names", isOn: $vm.useAutoStereo)
+                Text("Pairs adjacent channels sharing a base name with L/R suffix (e.g. OH L + OH R).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section() {
+                if let dir = vm.customOutputDir {
+                    LabeledContent("Output folder") {
+                        Text(dir.path)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                } else {
+                    Text("Default output folder: ~/Desktop/<session name>")
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    Button("Choose…") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseFiles = false
+                        panel.canChooseDirectories = true
+                        panel.canCreateDirectories = true
+                        if panel.runModal() == .OK { vm.customOutputDir = panel.url }
+                    }
+                    if vm.customOutputDir != nil {
+                        Button("Reset to default") { vm.customOutputDir = nil }
+                    }
+                }
+            }
+
+            Section() {
+                Toggle("Check for updates automatically", isOn: $updateEnabled)
+                if updateEnabled {
+                    Picker("Every", selection: $updateIntervalDays) {
+                        Text("Week").tag(7)
+                        Text("Month").tag(30)
+                        Text("6 months").tag(180)
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+            Section {
+                HStack {
+                    Spacer()
+                    Button("Reset to defaults") {
+                        vm.shortFilenames = true
+                        vm.useAutoStereo = true
+                        vm.customOutputDir = nil
+                        updateEnabled = true
+                        updateIntervalDays = 30
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 460)
+    }
+}
+
 // MARK: - Cursor modifier
 
 struct RowCursorModifier: ViewModifier {
@@ -104,7 +188,7 @@ struct RowCursorModifier: ViewModifier {
 // MARK: - View
 
 struct ContentView: View {
-    @StateObject private var vm = SplitViewModel()
+    @EnvironmentObject private var vm: SplitViewModel
     @EnvironmentObject private var appDelegate: AppDelegate
     @State private var isTargeted = false
     @State private var hoveredGroupIDs: Set<Int> = []

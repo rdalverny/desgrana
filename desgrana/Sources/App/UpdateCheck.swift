@@ -3,7 +3,9 @@
 import Foundation
 
 private let lastCheckKey = "UpdateCheck.lastDate"
-private let checkInterval: TimeInterval = 2 * 24 * 60 * 60
+let updateCheckEnabledKey = "UpdateCheck.enabled"
+let updateCheckIntervalKey = "UpdateCheck.intervalDays"
+private let defaultIntervalDays = 30
 
 struct UpdateInfo {
     let version: String
@@ -14,10 +16,14 @@ struct UpdateInfo {
 struct UpdateCheck {
     static let feedURL = URL(string: "https://rdalverny.github.io/desgrana/version.json")!
 
-    /// Checks only if 2 days have elapsed since the last check.
+    /// Checks only if enabled and the configured interval has elapsed since the last check.
     static func checkIfDue(current: String) async -> UpdateInfo? {
+        let enabled = UserDefaults.standard.object(forKey: updateCheckEnabledKey) as? Bool ?? true
+        guard enabled else { return nil }
+        let days = UserDefaults.standard.object(forKey: updateCheckIntervalKey) as? Int ?? defaultIntervalDays
+        let interval = TimeInterval(days) * 24 * 60 * 60
         let last = UserDefaults.standard.object(forKey: lastCheckKey) as? Date ?? .distantPast
-        guard Date().timeIntervalSince(last) >= checkInterval else { return nil }
+        guard Date().timeIntervalSince(last) >= interval else { return nil }
         return await checkNow(current: current)
     }
 
