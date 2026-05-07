@@ -77,6 +77,7 @@ private func writeCueChunk(to url: URL, markers: [UInt32]) {
     guard (try? fh.seekToEnd()) != nil,
           (try? fh.write(contentsOf: chunk)) != nil else { return }
 
+    // 0xFFFF_FFFF signals a >4 GB file (RIFF64); writing a new size would overflow and corrupt the header.
     if currentRiffSize != 0xFFFF_FFFF {
         let newSize = currentRiffSize &+ UInt32(chunk.count)
         var sizeLE = newSize.littleEndian
@@ -107,7 +108,7 @@ public func exportMIDIMarkers(_ info: SessionInfo, to outputDir: URL, prefix: St
 
     for (i, sample) in info.markerSamples.enumerated() {
         let tick = UInt32((Double(sample) / sr * ticksPerSecond).rounded())
-        let delta = tick >= prevTick ? tick - prevTick : 0
+        let delta = tick >= prevTick ? tick - prevTick : 0  // markers should always be ordered; guard against corrupt data
         prevTick = tick
         trackBody.appendVarLen(delta)
         let name = "Marker \(i + 1)"

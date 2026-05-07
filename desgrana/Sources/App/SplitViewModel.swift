@@ -193,11 +193,14 @@ class SplitViewModel: ObservableObject {
 
         let totalFrames = Double(info?.totalLength ?? 0)
         let ch = max(info?.numChannels ?? 1, 1)
-        var cumulativeFrames: [Int: Double] = [:]
+        // framesBeforeTake[N] = total frames already processed before take N starts.
+        // takeSizes are in interleaved samples (frames × channels), so divide by ch to get frames.
+        // Keyed by 1-based take number to match the progress callback.
+        var framesBeforeTake: [Int: Double] = [:]
         if let info {
             var acc: Double = 0
             for i in 0 ..< info.takeSizes.count {
-                cumulativeFrames[i + 1] = acc
+                framesBeforeTake[i + 1] = acc
                 acc += Double(info.takeSizes[i]) / Double(ch)
             }
         }
@@ -212,7 +215,7 @@ class SplitViewModel: ObservableObject {
                     channelNames: names,
                     useShortFilenames: shortNames,
                     progress: { take, total, framesInTake in
-                        let before = cumulativeFrames[take] ?? 0
+                        let before = framesBeforeTake[take] ?? 0
                         let fraction = totalFrames > 0
                             ? min((before + Double(framesInTake)) / totalFrames, 1.0)
                             : 0
@@ -240,10 +243,9 @@ class SplitViewModel: ObservableObject {
                     .enumerated()
                     .map { i, s in (time: Double(s) / Double(info?.sampleRate ?? 48_000), name: "Marker \(i + 1)") }
 
-                let owner = self
-                await MainActor.run {
-                    owner?.lastMarkers = markerList
-                    owner?.state = .done(
+                await MainActor.run { [weak self] in
+                    self?.lastMarkers = markerList
+                    self?.state = .done(
                         channelCount: channelCount,
                         duration: duration,
                         extractedMono: extractedMono,
@@ -252,13 +254,11 @@ class SplitViewModel: ObservableObject {
                         silentStereo: silentStereo,
                         outputDir: outputDir
                     )
-                    // NSWorkspace.shared.open(outputDir)
                 }
             } catch {
-                let owner = self
                 let msg = "\(error)"
-                await MainActor.run {
-                    owner?.state = .error(msg)
+                await MainActor.run { [weak self] in
+                    self?.state = .error(msg)
                 }
             }
         }

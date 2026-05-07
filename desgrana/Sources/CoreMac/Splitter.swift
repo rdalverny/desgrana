@@ -125,7 +125,7 @@ public func splitSession(
                 : String(format: "%@ch%02d-%02d\(suffix).wav", pfx, pair.left, pair.right)
             let url = outputDir.appendingPathComponent(filename)
             let f = try makeOutputFile(url, fmt: &stereoFmt)
-            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), fileRef: f, url: url))
+            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), fileRef: f, url: url))  // pairs are 1-indexed; tracks are 0-indexed
         }
         for ch in 0 ..< numChannels where !pairedChannels.contains(ch + 1) {
             let suffix = channelNameSuffix(for: [ch + 1], names: channelNames)
@@ -144,6 +144,7 @@ public func splitSession(
     // Allocate raw byte buffers
     let blockFrames = 4096
     let readBytes   = blockFrames * frameStride
+    // monoOut and stereoOut are reused for every track per block; each track writes immediately before the next reuses the buffer.
     let rawIn       = UnsafeMutablePointer<UInt8>.allocate(capacity: readBytes)
     let monoOut     = UnsafeMutablePointer<UInt8>.allocate(capacity: blockFrames * bytesPerSample)
     let stereoOut   = UnsafeMutablePointer<UInt8>.allocate(capacity: blockFrames * bytesPerSample * 2)
