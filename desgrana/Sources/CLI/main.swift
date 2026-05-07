@@ -13,6 +13,7 @@ struct CLIArgs {
     var infoOnly: Bool
     var stereoPairs: [StereoPair]
     var snapURL: URL?
+    var useAutoStereo: Bool
     var dryRun: Bool
 
     // swiftlint:disable:next cyclomatic_complexity
@@ -23,6 +24,7 @@ struct CLIArgs {
         var infoOnly = false
         var stereoPairs: [StereoPair] = []
         var snapURL: URL?
+        var useAutoStereo = false
         var dryRun = false
         var i = 0
         while i < args.count {
@@ -47,6 +49,8 @@ struct CLIArgs {
                     }
                     stereoPairs.append(StereoPair(left: l, right: r))
                 }
+            case "--auto-stereo":
+                useAutoStereo = true
             case "--dry-run":
                 dryRun = true
             case "--snap":
@@ -69,6 +73,7 @@ struct CLIArgs {
             infoOnly: infoOnly,
             stereoPairs: stereoPairs,
             snapURL: snapURL,
+            useAutoStereo: useAutoStereo,
             dryRun: dryRun
         )
     }
@@ -116,11 +121,15 @@ struct DesgranaCLI {
             }
         }
 
-        // Stereo pairs: explicit --stereo takes priority over snap
-        let activePairs: [StereoPair] =
-            cliArgs.stereoPairs.isEmpty
-            ? snapInfo?.stereoPairs ?? []
-            : cliArgs.stereoPairs
+        // Stereo pairs: --auto-stereo > --stereo > all mono (clink ignored)
+        let activePairs: [StereoPair]
+        if cliArgs.useAutoStereo, let info = sessionInfo {
+            activePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: info.numChannels)
+        } else if !cliArgs.stereoPairs.isEmpty {
+            activePairs = cliArgs.stereoPairs
+        } else {
+            activePairs = []
+        }
         let channelNames = snapInfo?.channelNames ?? [:]
 
         // Takes status (used in both --info and split modes)
@@ -299,6 +308,7 @@ struct DesgranaCLI {
             --prefix, -p <string>   Prefix for output filenames
             --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
             --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
+            --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
             --dry-run               Show what would be extracted without writing any files
             --info,   -i            Show session info only, without extracting
             --help,   -h            Show this help

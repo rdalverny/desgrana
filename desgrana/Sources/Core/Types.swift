@@ -84,6 +84,33 @@ public func filterStereoPairs(_ pairs: [StereoPair], channelCount: Int) -> [Ster
     return result
 }
 
+/// Detects stereo pairs from channel names by looking for adjacent channels sharing
+/// a common base name with L/R suffixes (_L/_R, -L/-R, " L"/" R").
+/// Channels without names or without a matching suffix are left as mono.
+public func detectStereoPairsFromNames(_ names: [Int: String], channelCount: Int) -> [StereoPair] {
+    var pairs: [StereoPair] = []
+    var claimed = Set<Int>()
+    for ch in 1 ..< channelCount {
+        guard !claimed.contains(ch) else { continue }
+        let next = ch + 1
+        guard !claimed.contains(next) else { continue }
+        let l = names[ch] ?? ""
+        let r = names[next] ?? ""
+        guard !l.isEmpty, !r.isEmpty else { continue }
+        for sep in ["_", "-", " "] {
+            if l.hasSuffix("\(sep)L") && r.hasSuffix("\(sep)R") {
+                let base = String(l.dropLast(sep.count + 1))
+                if base == String(r.dropLast(sep.count + 1)), !base.isEmpty {
+                    pairs.append(StereoPair(left: ch, right: next))
+                    claimed.insert(ch); claimed.insert(next)
+                    break
+                }
+            }
+        }
+    }
+    return pairs
+}
+
 /// Validates stereo pairs against `channelCount` for use inside `splitSession`.
 /// Prints warnings for rejected pairs and returns the accepted pairs + claimed channel set.
 public func validateStereoPairs(
