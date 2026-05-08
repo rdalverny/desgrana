@@ -12,6 +12,8 @@
 #include <QThread>
 #include <QDir>
 #include <QStandardPaths>
+#include <string>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Worker: runs desgrana_split on a background thread
@@ -24,7 +26,10 @@ public:
         QString sessionPath;
         QString outputPath;
         QString prefix;
-        // TODO: expose stereo pairs and channel names from SnapInfo
+        std::vector<int32_t>     pairLefts;
+        std::vector<int32_t>     pairRights;
+        std::vector<int32_t>     chKeys;
+        std::vector<std::string> chNames;
     };
 
     explicit SplitWorker(Params p, QObject *parent = nullptr)
@@ -33,12 +38,18 @@ public:
 public slots:
     void run() {
         char err[512] = {};
+        std::vector<const char *> chVals;
+        for (const auto &n : m_params.chNames) chVals.push_back(n.c_str());
         int rc = desgrana_split(
             m_params.sessionPath.toUtf8().constData(),
             m_params.outputPath.toUtf8().constData(),
             m_params.prefix.isEmpty() ? nullptr : m_params.prefix.toUtf8().constData(),
-            nullptr, nullptr, 0,   // stereo pairs (none for now)
-            nullptr, nullptr, 0,   // channel names (none for now)
+            m_params.pairLefts.empty()  ? nullptr : m_params.pairLefts.data(),
+            m_params.pairRights.empty() ? nullptr : m_params.pairRights.data(),
+            static_cast<int32_t>(m_params.pairLefts.size()),
+            m_params.chKeys.empty() ? nullptr : m_params.chKeys.data(),
+            chVals.empty()          ? nullptr : chVals.data(),
+            static_cast<int32_t>(chVals.size()),
             [](int32_t take, int32_t total, void *ud) {
                 auto *w = static_cast<SplitWorker *>(ud);
                 emit w->progress(take, total);
@@ -145,6 +156,8 @@ void DesgranaWindow::loadSession(const QString &path) {
         path.toUtf8().constData(),
         &channels, &duration,
         sceneName, sizeof(sceneName),
+        m_pairLefts,  m_pairRights,  kSnapCap, &m_pairCount,
+        m_chKeys,     &m_chNames[0][0], kSnapCap, &m_chCount,
         err, sizeof(err)
     );
 
@@ -196,8 +209,11 @@ void DesgranaWindow::startSplit() {
     SplitWorker::Params p;
     p.sessionPath = m_sessionPath;
     p.outputPath  = m_outputEdit->text();
-    // prefix = "<name>_" unless output dir name matches session name
-    p.prefix = QDir(p.outputPath).dirName() + "_";
+    p.prefix      = QDir(p.outputPath).dirName() + "_";
+    p.pairLefts.assign(m_pairLefts,  m_pairLefts  + m_pairCount);
+    p.pairRights.assign(m_pairRights, m_pairRights + m_pairCount);
+    p.chKeys.assign(m_chKeys, m_chKeys + m_chCount);
+    for (int i = 0; i < m_chCount; i++) p.chNames.push_back(m_chNames[i]);
 
     auto *thread = new QThread(this);
     auto *worker = new SplitWorker(std::move(p));

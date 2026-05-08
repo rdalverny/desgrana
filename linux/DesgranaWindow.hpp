@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QProgressBar>
 #include <QFrame>
+#include "include/desgrana_bridge.h"
 
 class SplitWorker;
 
@@ -33,6 +34,14 @@ private:
     QString     m_sessionPath;
     int         m_channels = 0;
     double      m_duration = 0;
+
+    static constexpr int kSnapCap   = 64;
+    int32_t m_pairLefts[kSnapCap]              = {};
+    int32_t m_pairRights[kSnapCap]             = {};
+    int32_t m_pairCount                        = 0;
+    int32_t m_chKeys[kSnapCap]                 = {};
+    char    m_chNames[kSnapCap][DESGRANA_CH_NAME_MAX] = {};
+    int32_t m_chCount                          = 0;
 
     QLabel      *m_dropLabel;
     QFrame      *m_dropZone;

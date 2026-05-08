@@ -7,9 +7,22 @@
 extern "C" {
 #endif
 
+/** Maximum bytes per channel name slot (including null terminator). */
+#define DESGRANA_CH_NAME_MAX 64
+
 /**
  * Probe a session directory: reads SE_LOG and the first .snap file found.
  * Fills out_channels (0 if unknown), out_duration_sec, and scene_name_buf.
+ *
+ * Snap stereo pairs (all nullable — pass NULL/0 to skip):
+ *   out_pair_lefts / out_pair_rights: caller-allocated int32 arrays, capacity = pair_capacity.
+ *   out_pair_count: receives the number of pairs written.
+ *
+ * Snap channel names (all nullable — pass NULL/0 to skip):
+ *   out_ch_keys: caller-allocated int32 array of 1-based channel numbers.
+ *   out_ch_names: flat buffer; each slot is DESGRANA_CH_NAME_MAX bytes, null-terminated.
+ *   out_ch_count: receives the number of entries written.
+ *
  * Returns 0 on success, -1 if no WAV takes were found (err_buf filled).
  */
 int32_t desgrana_probe(
@@ -18,6 +31,14 @@ int32_t desgrana_probe(
     double     *out_duration_sec,
     char       *scene_name_buf,   /* nullable */
     int32_t     scene_name_len,
+    int32_t    *out_pair_lefts,   /* nullable */
+    int32_t    *out_pair_rights,  /* nullable */
+    int32_t     pair_capacity,
+    int32_t    *out_pair_count,   /* nullable */
+    int32_t    *out_ch_keys,      /* nullable */
+    char       *out_ch_names,     /* nullable: flat, DESGRANA_CH_NAME_MAX bytes per slot */
+    int32_t     ch_capacity,
+    int32_t    *out_ch_count,     /* nullable */
     char       *err_buf,          /* nullable */
     int32_t     err_len
 );
