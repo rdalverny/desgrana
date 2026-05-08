@@ -238,14 +238,7 @@ public func splitSession(
         }
     }
 
-    printSplitSummary(
-        keptMono: keptMonoCount,
-        keptStereo: keptStereoCount,
-        silentCount: silentCount,
-        totalFrames: totalFramesWritten,
-        sampleRate: sampleRate,
-        outputDir: outputDir
-    )
-    return SplitResult(urls: keptURLs, keptMono: keptMonoCount, keptStereo: keptStereoCount)
+    return SplitResult(urls: keptURLs, keptMono: keptMonoCount, keptStereo: keptStereoCount,
+                       silentSkipped: silentCount, totalFrames: totalFramesWritten, sampleRate: sampleRate)
 }
 // swiftlint:enable cyclomatic_complexity

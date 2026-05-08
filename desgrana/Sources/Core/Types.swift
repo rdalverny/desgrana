@@ -17,10 +17,16 @@ public struct SplitResult {
     public let urls: [URL]
     public let keptMono: Int
     public let keptStereo: Int
-    public init(urls: [URL], keptMono: Int, keptStereo: Int) {
+    public let silentSkipped: Int
+    public let totalFrames: UInt64
+    public let sampleRate: Double
+    public init(urls: [URL], keptMono: Int, keptStereo: Int, silentSkipped: Int, totalFrames: UInt64, sampleRate: Double) {
         self.urls = urls
         self.keptMono = keptMono
         self.keptStereo = keptStereo
+        self.silentSkipped = silentSkipped
+        self.totalFrames = totalFrames
+        self.sampleRate = sampleRate
     }
 }
 
@@ -33,8 +39,6 @@ public enum SplitError: Error, CustomStringConvertible {
     case readError(Int32)                  // AudioToolbox OSStatus (macOS only)
     case writeError(Int32)                 // AudioToolbox OSStatus (macOS only)
     case channelMismatch(expected: Int, got: Int, file: String)
-    case invalidStereoPair(String)
-
     public var description: String {
         switch self {
         case .noWavFiles:
@@ -53,8 +57,15 @@ public enum SplitError: Error, CustomStringConvertible {
             return "Write error (OSStatus \(s))"
         case .channelMismatch(let exp, let got, let f):
             return "\(f): expected \(exp) channels, got \(got)"
-        case .invalidStereoPair(let msg):
-            return "Invalid stereo pair: \(msg)"
+        }
+    }
+
+    public var exitCode: Int32 {
+        switch self {
+        case .noWavFiles, .cannotOpenInput, .cannotCreateOutput,
+             .readError, .writeError:                               return 2
+        case .cannotGetFormat, .cannotSetClientFormat,
+             .channelMismatch:                                      return 3
         }
     }
 }
@@ -122,13 +133,13 @@ public func validateStereoPairs(
     for pair in pairs {
         guard pair.left >= 1 && pair.left <= channelCount &&
               pair.right >= 1 && pair.right <= channelCount else {
-            print("Warning: stereo pair \(pair.left):\(pair.right) skipped — channel numbers must be in 1...\(channelCount)")
+            fputs("Warning: stereo pair \(pair.left):\(pair.right) skipped — channel numbers must be in 1...\(channelCount)\n", stderr)
             continue
         }
         var overlap = false
         for ch in [pair.left, pair.right] {
             if !seen.insert(ch).inserted {
-                print("Warning: stereo pair \(pair.left):\(pair.right) skipped -- channel \(ch) appears in multiple pairs")
+                fputs("Warning: stereo pair \(pair.left):\(pair.right) skipped -- channel \(ch) appears in multiple pairs\n", stderr)
                 overlap = true
                 break
             }

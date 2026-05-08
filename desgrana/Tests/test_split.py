@@ -211,6 +211,20 @@ CASES: list = [
         desgrana_extra_args=["--auto-stereo", "--short-names"],
         markers=MARKER_FRAMES,
     ),
+    TestCase(
+        name="case06_silent",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], 0),
+            SignalSpec(FREQS[2], TOTAL_FRAMES),  # ch3: offset past end -> stays +0.0, silent
+            SignalSpec(FREQS[3], 0),
+        ],
+        desgrana_extra_args=[],
+        markers=[],
+    ),
     # case04: truncated from the real SD Card session WAV.
     # Not committed; skipped automatically when the source file is absent.
     TestCase(
@@ -679,7 +693,8 @@ def compare_outputs(output_dir: str, expected_dir: str) -> int:
             failures += 1
 
     for fname in sorted(output_set - set(expected_files)):
-        print(f"  WARN  {fname}  in output but not in expected/")
+        print(f"  FAIL  {fname}  in output but not in expected/ (unexpected file)")
+        failures += 1
 
     return failures
 
@@ -815,6 +830,120 @@ def run_case_real(case: TestCase, binary: str, var_dir: str, tests_dir: str) -> 
     return audio_failures, marker_failures
 
 
+# ── CLI error handling tests ──────────────────────────────────────────────────
+
+def run_cli_error_tests(binary: str) -> int:
+    """Test CLI error exit codes and stderr messages. Returns failure count."""
+    import tempfile
+
+    print(f"\n{'=' * 60}")
+    print("  CLI error handling")
+    print(f"{'=' * 60}\n")
+
+    failures = 0
+
+    def check(label: str, args: list, expected_exit: int, stderr_contains: str = "") -> None:
+        nonlocal failures
+        result = subprocess.run([binary] + args, capture_output=True, text=True)
+        ok_exit = result.returncode == expected_exit
+        ok_msg  = stderr_contains.lower() in result.stderr.lower() if stderr_contains else True
+        if ok_exit and ok_msg:
+            print(f"  OK    {label}")
+        else:
+            print(f"  FAIL  {label}")
+            if not ok_exit:
+                print(f"         exit: got {result.returncode}, expected {expected_exit}")
+            if not ok_msg:
+                print(f"         stderr missing {stderr_contains!r}")
+                print(f"         stderr: {result.stderr.strip()!r}")
+            failures += 1
+
+    with tempfile.TemporaryDirectory() as tmp:
+        check("empty dir -> exit 2",            [tmp],                            2, "No WAV take files")
+        check("unknown option -> exit 1",        [tmp, "--bad-flag"],              1, "Unknown option")
+        check("bad stereo pair -> exit 1",       [tmp, "--stereo", "abc"],         1, "invalid pair")
+        check("--stereo missing value -> exit 1",[tmp, "--stereo"],                1, "requires a value")
+        check("--output missing value -> exit 1",[tmp, "--output"],                1, "requires a path")
+        check("--prefix missing value -> exit 1",[tmp, "--prefix"],                1, "requires a value")
+        check("--snap missing value -> exit 1",  [tmp, "--snap"],                  1, "requires a path")
+
+    check("missing directory -> exit 1",
+          ["/nonexistent_desgrana_xyz_12345"], 1, "Directory not found")
+
+    return failures
+
+
+# ── CLI output spot-checks (--help, --info, --dry-run) ───────────────────────
+
+def run_cli_output_tests(binary: str, fixtures_dir: str) -> int:
+    """Spot-check human-readable output for --help, --info, --dry-run."""
+    print(f"\n{'=' * 60}")
+    print("  CLI output: --help, --info, --dry-run")
+    print(f"{'=' * 60}\n")
+
+    session_dir = os.path.join(fixtures_dir, "case01_stereo", "session")
+    if not os.path.isdir(session_dir):
+        print("  SKIP  case01_stereo fixtures not found -- run --generate first")
+        return 0
+
+    failures = 0
+
+    def check(label: str, args: list, expected_exit: int,
+              stdout_has: "list[str]" = (), stdout_missing: "list[str]" = ()) -> None:
+        nonlocal failures
+        result = subprocess.run([binary] + args, capture_output=True, text=True)
+        ok = True
+        if result.returncode != expected_exit:
+            print(f"  FAIL  {label}  exit {result.returncode} (expected {expected_exit})")
+            ok = False
+        for phrase in stdout_has:
+            if phrase not in result.stdout:
+                print(f"  FAIL  {label}  stdout missing {phrase!r}")
+                if ok:
+                    print(f"         stdout: {result.stdout[:200]!r}")
+                ok = False
+        for phrase in stdout_missing:
+            if phrase in result.stdout:
+                print(f"  FAIL  {label}  stdout unexpectedly contains {phrase!r}")
+                ok = False
+        if ok:
+            print(f"  OK    {label}")
+        else:
+            failures += 1
+
+    check("--help",
+          ["--help"], 0,
+          stdout_has=["USAGE:", "EXIT CODES:", "--stereo", "--dry-run", "--info"])
+
+    # --info: SE_LOG.BIN present -> shows channels, sample rate, takes
+    check("--info (with SE_LOG.BIN)",
+          [session_dir, "--info"], 0,
+          stdout_has=["Channels", "2", "48000", "1/1", "complete"])
+
+    # --dry-run all-mono: both channels listed individually
+    check("--dry-run (all mono)",
+          [session_dir, "--dry-run", "--prefix", "test_"], 0,
+          stdout_has=["Dry run", "test_ch01.wav", "test_ch02.wav"],
+          stdout_missing=["test_ch01-02.wav"])
+
+    # --dry-run with stereo pair: one combined file, no individual files
+    check("--dry-run (stereo 1:2)",
+          [session_dir, "--dry-run", "--stereo", "1:2", "--prefix", "test_"], 0,
+          stdout_has=["Dry run", "test_ch01-02.wav"],
+          stdout_missing=["test_ch01.wav", "test_ch02.wav"])
+
+    # --info without SE_LOG.BIN: fallback to listing WAV files
+    import tempfile, shutil
+    with tempfile.TemporaryDirectory() as tmp:
+        shutil.copy(os.path.join(session_dir, "00000001.wav"),
+                    os.path.join(tmp, "00000001.wav"))
+        check("--info (no SE_LOG.BIN)",
+              [tmp, "--info"], 0,
+              stdout_has=["No SE_LOG.bin found", "00000001.wav"])
+
+    return failures
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -849,6 +978,9 @@ def main() -> None:
 
     total_failures = 0
     run_count = skip_count = 0
+
+    total_failures += run_cli_error_tests(binary)
+    total_failures += run_cli_output_tests(binary, fixtures_dir)
 
     for case in CASES:
         if case.source_wav_rel is not None:
