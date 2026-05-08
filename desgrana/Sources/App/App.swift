@@ -94,7 +94,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section() {
+            Section {
                 Toggle("Use short filenames", isOn: $vm.shortFilenames)
                 Text(vm.shortFilenames
                     ? "Channel name only: KICK.wav, ch01.wav"
@@ -102,13 +102,13 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section() {
+            Section {
                 Toggle("Auto-detect stereo pairs from channel names", isOn: $vm.useAutoStereo)
                 Text("Pairs adjacent channels sharing a base name with L/R suffix (e.g. OH L + OH R).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section() {
+            Section {
                 if let dir = vm.customOutputDir {
                     LabeledContent("Output folder") {
                         Text(dir.path)
@@ -133,7 +133,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section() {
+            Section {
                 Toggle("Check for updates automatically", isOn: $updateEnabled)
                 if updateEnabled {
                     Picker("Every", selection: $updateIntervalDays) {

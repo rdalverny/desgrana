@@ -48,11 +48,11 @@ struct UpdateCheck {
         var comps = URLComponents(string: Constants.URLs.versionFeed)!
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
         comps.queryItems = [
-            URLQueryItem(name: "os",   value: platformOS()),
-            URLQueryItem(name: "osv",  value: platformOSV()),
+            URLQueryItem(name: "os", value: platformOS()),
+            URLQueryItem(name: "osv", value: platformOSV()),
             URLQueryItem(name: "arch", value: platformArch()),
-            URLQueryItem(name: "v",    value: current),
-            URLQueryItem(name: "l",    value: lang),
+            URLQueryItem(name: "v", value: current),
+            URLQueryItem(name: "l", value: lang)
         ]
         return comps.url!
     }
@@ -80,7 +80,7 @@ struct UpdateCheck {
             guard parts.count == 2 else { continue }
             let key = String(parts[0])
             let val = String(parts[1]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            if key == "ID"         { id = val }
+            if key == "ID" { id = val }
             if key == "VERSION_ID" { version = val.components(separatedBy: ".").first ?? val }
         }
         return id + version

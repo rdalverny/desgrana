@@ -125,7 +125,8 @@ public func splitSession(
                 : String(format: "%@ch%02d-%02d\(suffix).wav", pfx, pair.left, pair.right)
             let url = outputDir.appendingPathComponent(filename)
             let f = try makeOutputFile(url, fmt: &stereoFmt)
-            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), fileRef: f, url: url))  // pairs are 1-indexed; tracks are 0-indexed
+            // pairs are 1-indexed; tracks are 0-indexed
+            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), fileRef: f, url: url))
         }
         for ch in 0 ..< numChannels where !pairedChannels.contains(ch + 1) {
             let suffix = channelNameSuffix(for: [ch + 1], names: channelNames)
