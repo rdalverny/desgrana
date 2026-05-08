@@ -74,7 +74,7 @@ struct AboutView: View {
             Divider()
 
             Link("github.com/rdalverny/desgrana",
-                 destination: URL(string: "https://github.com/rdalverny/desgrana")!)
+                 destination: URL(string: Constants.URLs.github)!)
                 .font(.callout)
 
             Button("Close") { dismiss() }
