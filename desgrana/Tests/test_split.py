@@ -196,7 +196,7 @@ CASES: list = [
             SignalSpec(FREQS[2], SAMPLE_RATE // 2),
             SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
         ],
-        # Snap defines stereo pair 1+2 and named channels; no --stereo flag needed.
+        # Snap provides channel names; --auto-stereo pairs OH_L+OH_R by name (Kick/Snare stay mono).
         snap_data={
             "active_scene": "I:/TEST_SHOW/Test_Scene.snap",
             "ae_data": {
@@ -208,7 +208,7 @@ CASES: list = [
                 },
             },
         },
-        desgrana_extra_args=[],
+        desgrana_extra_args=["--auto-stereo", "--short-names"],
         markers=MARKER_FRAMES,
     ),
     # case04: truncated from the real SD Card session WAV.

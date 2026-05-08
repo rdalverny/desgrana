@@ -1,17 +1,34 @@
 # Changelog
 
-## [1.6.5] — 2026-05-02
+## [1.7.0] — 2026-05-07
 
-- Move website to romaindalverny.com for now
-- Project release on GitHub
+GUI:
 
-## 1.6.x — 2026-04-24
+- simplified interface.
+- uses short filenames by default (`KICK.wav` instead of
+  `Session_ch01_KICK.wav`).
+- auto-stereo detection on by default.
+- new references window (⌘,): output folder, short filenames, auto-stereo,
+  update check interval.
+- update check interval configurable (weekly / monthly / 6 months), default
+  monthly.
+
+CLI:
+
+- extracts now all tracks as mono.
+- auto-stereo detection can be used with new `--auto-stereo` flag.
+- short names also have their `--short-names` flag.
+
+
+## 1.6 — 2026-04-24
 
 ### Features
 
 - Quietly checks for updates (every 2 days at most)
 - Open extracted session directly in Logic Pro or Reaper if installed
 - DMG installer for macOS
+- Move website to romaindalverny.com for now
+- Project release on GitHub
 
 ### Fixes
 
@@ -27,7 +44,7 @@
   `DesgranaCoreLinux` (dr_wav) contain only the platform-specific audio I/O
   backend. Zero `#if os()` in business logic.
 
-## 1.5.x — 2026-04-21
+## 1.5 — 2026-04-21
 
 ### Features
 
@@ -55,18 +72,18 @@
   configured on physical inputs are now used
 - fix extraction summary track counts
 
-## 1.4.0 — 2026-04-20
+## 1.4 — 2026-04-20
 
 - reworked UI
 - split result details
 - output section detailed
 
-## 1.3.0 - 2026-04-19
+## 1.3 - 2026-04-19
 
 - **export markers to a MIDI file** (SMF type 0, SMPTE 25fps — imports
   natively in Logic Pro)
 
-## 1.2.0 — 2026-04-18
+## 1.2 — 2026-04-18
 
 - **split whole session takes into separate mono or stereo tracks** with
   embedded markers (cue chunk RIFF)

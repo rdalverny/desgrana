@@ -26,7 +26,7 @@ struct OutputRow: Identifiable {
     let id: Int  // left channel (or channel number for mono)
     let chLabel: String
     let nameLabel: String
-    enum Kind { case stereo(left: Int), monoLinkable(ch: Int), mono }
+    enum Kind { case stereo(left: Int), monoLinkable(ch: Int), monoLinkablePrev(ch: Int), mono }
     let kind: Kind
 }
 
@@ -40,15 +40,17 @@ class SplitViewModel: ObservableObject {
     @Published var snapName: String?
     @Published var wavFiles: [URL] = []
     @Published var sessionName: String = ""
-    @Published var customPairs: [StereoPair]?
+    @Published var userOverridePairs: [StereoPair]?
     @Published var customOutputDir: URL?
-    @Published var shortFilenames: Bool = false
+    @Published var shortFilenames: Bool = true
+    @Published var useAutoStereo: Bool = true
     @Published private(set) var lastMarkers: [(time: Double, name: String)] = []
     private(set) var outputBits: UInt32 = 32
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        shortFilenames = UserDefaults.standard.bool(forKey: "shortFilenames")
+        shortFilenames = UserDefaults.standard.object(forKey: "shortFilenames") as? Bool ?? true
+        useAutoStereo = UserDefaults.standard.object(forKey: "useAutoStereo") as? Bool ?? true
         if let path = UserDefaults.standard.string(forKey: "outputDirPath") {
             let url = URL(fileURLWithPath: path)
             if FileManager.default.fileExists(atPath: url.path) { customOutputDir = url }
@@ -56,36 +58,53 @@ class SplitViewModel: ObservableObject {
         $shortFilenames
             .sink { UserDefaults.standard.set($0, forKey: "shortFilenames") }
             .store(in: &cancellables)
+        $useAutoStereo
+            .sink { UserDefaults.standard.set($0, forKey: "useAutoStereo") }
+            .store(in: &cancellables)
         $customOutputDir
             .sink { UserDefaults.standard.set($0?.path, forKey: "outputDirPath") }
             .store(in: &cancellables)
     }
 
-    /// Stereo pairs to use for splitting: custom overrides if set, otherwise snap pairs
-    /// filtered to the session's channel count.
-    var effectivePairs: [StereoPair] {
-        if let custom = customPairs { return custom }
-        let numCh = sessionInfo?.numChannels ?? 0
-        let raw = snapInfo?.stereoPairs ?? []
-        return numCh > 0 ? filterStereoPairs(raw, channelCount: numCh) : raw
+    // True when snap has all session channels linked — Wing factory default state.
+    // In that case clink carries no user intent and should be ignored.
+    var snapIsFactoryDefault: Bool {
+        guard let numCh = sessionInfo?.numChannels, numCh > 0 else { return false }
+        return (snapInfo?.stereoPairs ?? []).count == numCh / 2
     }
 
-    var isCustomized: Bool { customPairs != nil }
+    // Pairs derived from the snap: name-based detection when clink is meaningless,
+    // otherwise the user's actual configured pairs (filtered to session channel count).
+    var snapDerivedPairs: [StereoPair] {
+        let numCh = sessionInfo?.numChannels ?? 0
+        guard numCh > 0 else { return [] }
+        if useAutoStereo {
+            return detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
+        }
+        return filterStereoPairs(snapInfo?.stereoPairs ?? [], channelCount: numCh)
+    }
+
+    // Pairs used for splitting: manual user override takes precedence, then snap-derived.
+    var effectivePairs: [StereoPair] {
+        userOverridePairs ?? snapDerivedPairs
+    }
+
+    var isCustomized: Bool { userOverridePairs != nil }
 
     func unlinkPair(left: Int) {
         var p = effectivePairs
         p.removeAll { $0.left == left }
-        customPairs = p
+        userOverridePairs = p
     }
 
     func linkChannels(_ left: Int, _ right: Int) {
         var p = effectivePairs
         p.removeAll { $0.left == left || $0.right == left || $0.left == right || $0.right == right }
         p.append(StereoPair(left: left, right: right))
-        customPairs = p.sorted { $0.left < $1.left }
+        userOverridePairs = p.sorted { $0.left < $1.left }
     }
 
-    func resetPairs() { customPairs = nil }
+    func resetPairs() { userOverridePairs = nil }
 
     /// Returns the best human-readable name for the session, in priority order:
     /// snap sceneName → SE_LOG name (if not a bare hex timestamp) → folder name.
@@ -119,7 +138,7 @@ class SplitViewModel: ObservableObject {
             snapInfo = nil
             snapName = nil
         }
-        customPairs = nil
+        userOverridePairs = nil
 
         wavFiles = findWavTakes(in: url)
         if let bits = wavBitDepth(in: url), [16, 24, 32].contains(bits) {
@@ -137,7 +156,7 @@ class SplitViewModel: ObservableObject {
         if let info = try? parseSnap(at: url) {
             snapInfo = info
             snapName = url.lastPathComponent
-            customPairs = nil
+            userOverridePairs = nil
             // Upgrade session name if snap knows better and user hasn't manually changed it
             if let scene = info.sceneName, !scene.isEmpty {
                 let looksAutoGenerated = sessionName.isEmpty
@@ -150,7 +169,7 @@ class SplitViewModel: ObservableObject {
     func clearSnap() {
         snapInfo = nil
         snapName = nil
-        customPairs = nil
+        userOverridePairs = nil
     }
 
     func split(sessionDir: URL) {
@@ -174,11 +193,14 @@ class SplitViewModel: ObservableObject {
 
         let totalFrames = Double(info?.totalLength ?? 0)
         let ch = max(info?.numChannels ?? 1, 1)
-        var cumulativeFrames: [Int: Double] = [:]
+        // framesBeforeTake[N] = total frames already processed before take N starts.
+        // takeSizes are in interleaved samples (frames × channels), so divide by ch to get frames.
+        // Keyed by 1-based take number to match the progress callback.
+        var framesBeforeTake: [Int: Double] = [:]
         if let info {
             var acc: Double = 0
             for i in 0 ..< info.takeSizes.count {
-                cumulativeFrames[i + 1] = acc
+                framesBeforeTake[i + 1] = acc
                 acc += Double(info.takeSizes[i]) / Double(ch)
             }
         }
@@ -193,7 +215,7 @@ class SplitViewModel: ObservableObject {
                     channelNames: names,
                     useShortFilenames: shortNames,
                     progress: { take, total, framesInTake in
-                        let before = cumulativeFrames[take] ?? 0
+                        let before = framesBeforeTake[take] ?? 0
                         let fraction = totalFrames > 0
                             ? min((before + Double(framesInTake)) / totalFrames, 1.0)
                             : 0
@@ -221,10 +243,9 @@ class SplitViewModel: ObservableObject {
                     .enumerated()
                     .map { i, s in (time: Double(s) / Double(info?.sampleRate ?? 48_000), name: "Marker \(i + 1)") }
 
-                let owner = self
-                await MainActor.run {
-                    owner?.lastMarkers = markerList
-                    owner?.state = .done(
+                await MainActor.run { [weak self] in
+                    self?.lastMarkers = markerList
+                    self?.state = .done(
                         channelCount: channelCount,
                         duration: duration,
                         extractedMono: extractedMono,
@@ -233,13 +254,11 @@ class SplitViewModel: ObservableObject {
                         silentStereo: silentStereo,
                         outputDir: outputDir
                     )
-                    // NSWorkspace.shared.open(outputDir)
                 }
             } catch {
-                let owner = self
                 let msg = "\(error)"
-                await MainActor.run {
-                    owner?.state = .error(msg)
+                await MainActor.run { [weak self] in
+                    self?.state = .error(msg)
                 }
             }
         }
@@ -253,7 +272,7 @@ class SplitViewModel: ObservableObject {
         wavFiles = []
         outputBits = 32
         sessionName = ""
-        customPairs = nil
+        userOverridePairs = nil
         lastMarkers = []
     }
 }

@@ -13,6 +13,9 @@ struct CLIArgs {
     var infoOnly: Bool
     var stereoPairs: [StereoPair]
     var snapURL: URL?
+    var useAutoStereo: Bool
+    var shortNames: Bool
+    var dryRun: Bool
 
     // swiftlint:disable:next cyclomatic_complexity
     static func parse(_ args: [String]) -> CLIArgs {
@@ -22,6 +25,9 @@ struct CLIArgs {
         var infoOnly = false
         var stereoPairs: [StereoPair] = []
         var snapURL: URL?
+        var useAutoStereo = false
+        var shortNames = false
+        var dryRun = false
         var i = 0
         while i < args.count {
             switch args[i] {
@@ -45,6 +51,12 @@ struct CLIArgs {
                     }
                     stereoPairs.append(StereoPair(left: l, right: r))
                 }
+            case "--auto-stereo":
+                useAutoStereo = true
+            case "--short-names":
+                shortNames = true
+            case "--dry-run":
+                dryRun = true
             case "--snap":
                 i += 1
                 guard i < args.count else { DesgranaCLI.fatal("--snap requires a path") }
@@ -64,7 +76,10 @@ struct CLIArgs {
             prefix: prefix,
             infoOnly: infoOnly,
             stereoPairs: stereoPairs,
-            snapURL: snapURL
+            snapURL: snapURL,
+            useAutoStereo: useAutoStereo,
+            shortNames: shortNames,
+            dryRun: dryRun
         )
     }
 }
@@ -111,11 +126,15 @@ struct DesgranaCLI {
             }
         }
 
-        // Stereo pairs: explicit --stereo takes priority over snap
-        let activePairs: [StereoPair] =
-            cliArgs.stereoPairs.isEmpty
-            ? snapInfo?.stereoPairs ?? []
-            : cliArgs.stereoPairs
+        // Stereo pairs: --auto-stereo > --stereo > all mono (clink ignored)
+        let activePairs: [StereoPair]
+        if cliArgs.useAutoStereo, let info = sessionInfo {
+            activePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: info.numChannels)
+        } else if !cliArgs.stereoPairs.isEmpty {
+            activePairs = cliArgs.stereoPairs
+        } else {
+            activePairs = []
+        }
         let channelNames = snapInfo?.channelNames ?? [:]
 
         // Takes status (used in both --info and split modes)
@@ -167,6 +186,18 @@ struct DesgranaCLI {
             pfx = sessionDir.lastPathComponent + "_"
         }
 
+        // Dry-run: show what would be created without writing anything
+        if cliArgs.dryRun {
+            printDryRun(
+                sessionInfo: sessionInfo,
+                outputDir: outputDir,
+                prefix: pfx,
+                pairs: activePairs,
+                channelNames: channelNames
+            )
+            return
+        }
+
         // Split
         do {
             let result = try splitSession(
@@ -174,7 +205,8 @@ struct DesgranaCLI {
                 outputDir: outputDir,
                 prefix: pfx,
                 stereoPairs: activePairs,
-                channelNames: channelNames
+                channelNames: channelNames,
+                useShortFilenames: cliArgs.shortNames
             )
 
             // Export markers
@@ -242,6 +274,34 @@ struct DesgranaCLI {
         }
     }
 
+    static func printDryRun(
+        sessionInfo: SessionInfo?,
+        outputDir: URL,
+        prefix: String,
+        pairs: [StereoPair],
+        channelNames: [Int: String]
+    ) {
+        print("Dry run — no files will be written.")
+        print("Output directory: \(outputDir.path)")
+        print()
+        let numCh = sessionInfo?.numChannels ?? 0
+        guard numCh > 0 else { print("(channel count unknown)"); return }
+        let (active, paired) = validateStereoPairs(pairs, channelCount: numCh)
+        print("Files that would be created:")
+        var files: [(ch: Int, name: String)] = []
+        for pair in active {
+            let suffix = channelNameSuffix(for: [pair.left, pair.right], names: channelNames)
+            files.append((pair.left, String(format: "%@ch%02d-%02d\(suffix).wav", prefix, pair.left, pair.right)))
+        }
+        for ch in 1...numCh where !paired.contains(ch) {
+            let suffix = channelNameSuffix(for: [ch], names: channelNames)
+            files.append((ch, String(format: "%@ch%02d\(suffix).wav", prefix, ch)))
+        }
+        for (_, name) in files.sorted(by: { $0.ch < $1.ch }) {
+            print("  \(name)")
+        }
+    }
+
     static func printUsage() {
         let usage = """
         desgrana — Extract channels from Behringer Wing/X-Live multichannel WAV sessions into mono files.
@@ -254,6 +314,9 @@ struct DesgranaCLI {
             --prefix, -p <string>   Prefix for output filenames
             --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
             --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
+            --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
+            --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
+            --dry-run               Show what would be extracted without writing any files
             --info,   -i            Show session info only, without extracting
             --help,   -h            Show this help
 

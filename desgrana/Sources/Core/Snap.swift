@@ -75,7 +75,7 @@ public func parseSnap(at url: URL) throws -> SnapInfo {
         // Stereo link — Wing sets clink=true on BOTH sides of a linked pair, so skip
         // channels that were already claimed as the right side of a previous pair.
         if let linked = info["clink"] as? Bool, linked, !claimedRight.contains(n) {
-            pairs.append(StereoPair(left: n, right: n + 1))
+            pairs.append(StereoPair(left: n, right: n + 1))  // Wing always pairs adjacent channels
             claimedRight.insert(n + 1)
         }
     }

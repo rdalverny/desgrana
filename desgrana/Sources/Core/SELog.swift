@@ -104,7 +104,7 @@ public func parseSELog(at url: URL) throws -> SessionInfo {
     var markers: [UInt32] = []
     for i in 0 ..< markerCount {
         let mk = data.u32(at: 1052 + i * 4)
-        if mk > 0 { markers.append(mk) }
+        if mk > 0 { markers.append(mk) }  // 0 = unset slot in Wing's fixed-size marker array
     }
 
     // Session name (offset 1553, 16 chars max)
