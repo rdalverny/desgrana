@@ -54,16 +54,8 @@ test-generate: cli
 
 build: cli bundle
 
-# ── Signing & Notarization ────────────────────────────────────────
-# One-time setup: store your Apple ID credentials in the keychain:
-#setup:
-#	xcrun notarytool store-credentials "$(NOTARY_PROFILE)" \
-#		--apple-id "rdalverny@mac.com" \
-#		--team-id $(TEAM_ID) \
-#		--password PASSWORD
-#
 
-
+# ── signature, notarization
 sign: build
 	codesign --deep --force --options runtime \
 		--entitlements $(ENTITLEMENTS) \
@@ -114,28 +106,7 @@ shipit: release
 
 	@echo "var/shipit/ contains: $$(ls $(SHIPIT))"
 
-
-# ── Icon ──────────────────────────────────────────────────────────
-# Place a 1024×1024 PNG as icon-source.png, then run `make icon`.
-
-icon:
-	@test -f icon-source.png || (echo "Error: icon-source.png not found"; exit 1)
-	rm -rf Desgrana.iconset
-	mkdir Desgrana.iconset
-	sips -z 16   16   icon-source.png --out Desgrana.iconset/icon_16x16.png
-	sips -z 32   32   icon-source.png --out Desgrana.iconset/icon_16x16@2x.png
-	sips -z 32   32   icon-source.png --out Desgrana.iconset/icon_32x32.png
-	sips -z 64   64   icon-source.png --out Desgrana.iconset/icon_32x32@2x.png
-	sips -z 128  128  icon-source.png --out Desgrana.iconset/icon_128x128.png
-	sips -z 256  256  icon-source.png --out Desgrana.iconset/icon_128x128@2x.png
-	sips -z 256  256  icon-source.png --out Desgrana.iconset/icon_256x256.png
-	sips -z 512  512  icon-source.png --out Desgrana.iconset/icon_256x256@2x.png
-	sips -z 512  512  icon-source.png --out Desgrana.iconset/icon_512x512.png
-	sips -z 1024 1024 icon-source.png --out Desgrana.iconset/icon_512x512@2x.png
-	iconutil -c icns Desgrana.iconset -o app-template/Contents/Resources/AppIcon.icns
-	rm -rf Desgrana.iconset
-	@echo "Icon generated: app-template/Contents/Resources/AppIcon.icns"
-
+# ── version ─────────────────────────────────────────────────────────
 patch:
 	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[2]=str(int(v[2])+1);open('VERSION','w').write('.'.join(v))"
 	@NEW=$$(cat VERSION); \

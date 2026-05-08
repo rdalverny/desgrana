@@ -33,14 +33,14 @@ for your DAW, and a session ready to open.
 
 ## Consoles supported
 
-| Console        | Status                                 |
-| -------------- | -------------------------------------- |
-| Behringer Wing | ✅ Tested                              |
-| Wing Rack      | ❓ Expected to work — feedback welcome |
-| Wing Compact   | ❓ Expected to work — feedback welcome |
-| X-Live         | ❓ Expected to work — feedback welcome |
-| W-Live         | ❓ Expected to work — feedback welcome |
-| DN32-Live      | ❓ Expected to work — feedback welcome |
+| Console        | Status              |
+| -------------- | ------------------- |
+| Behringer Wing | ✅ Tested           |
+| Wing Rack      | ❓ feedback welcome |
+| Wing Compact   | ❓                  |
+| X-Live         | ❓                  |
+| W-Live         | ❓                  |
+| DN32-Live      | ❓                  |
 
 ## Privacy
 
@@ -63,11 +63,14 @@ desgrana <session-dir> [options]
 Options:
   --output, -o <path>     Output directory (default: <session-dir>_extract/)
   --prefix, -p <string>   Prefix for output filenames
-  --snap       <file>     Wing snapshot (.snap) — stereo pairs + channel names
-                          (auto-detected if present in session dir)
   --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
+  --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
+  --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
+  --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
+  --dry-run               Show what would be extracted without writing any files
   --info,   -i            Show session info only, without extracting
   --help,   -h            Show this help
+
 ```
 
 Output filenames follow the pattern `ChannelName.wav` (mono) or
@@ -93,11 +96,8 @@ guidelines, and AI disclosure requirements.
 
 Current major roadmap items:
 
-- 1.7 — simplified UI (see branch `ui`)
-  - improved documentation & website
-  -
-- 1.8 — Linux release (see branch `linux`)
-- 1.9 — Windows release
+- 1.8 — Linux port
+- 1.9 — Windows port
 
 ## License
 

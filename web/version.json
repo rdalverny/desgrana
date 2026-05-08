@@ -1,5 +1,5 @@
 {
   "version": "1.7.0",
-  "notes": "Now checks for updates and opens session in Logic/Reaper",
+  "notes": "Revised user interface, better defaults.",
   "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.7.0"
 }

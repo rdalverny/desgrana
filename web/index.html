@@ -76,6 +76,7 @@
       display: inline-block;
       border-radius: 12px;
       overflow: hidden;
+      margin-top: 1rem;
     }
     .video-wrap::after {
       content: "";
@@ -84,6 +85,23 @@
       border-radius: inherit;
       box-shadow: inset 0 0 28px rgba(0,0,0,.18);
       pointer-events: none;
+    }
+    /* ── Consoles table ── */
+    dd table {
+      border-collapse: collapse;
+      margin-top: .35rem;
+      font-size: .93rem;
+    }
+    dd table td {
+      padding: .25rem .6rem;
+      border-bottom: 1px solid var(--border, #e0e0e0);
+    }
+    dd table td:first-child {
+      border-right: 1px solid var(--border, #e0e0e0);
+      padding-right: 1rem;
+    }
+    dd table tr:last-child td {
+      border-bottom: none;
     }
     .video-wrap video {
       display: block;
@@ -105,17 +123,21 @@
   <header>
     <h1>Desgrana</h1>
     <p class="hero">From session to mix.</p>
-    <p class="tagline">
-      Your Behringer Wing recording session<br>
-      gives you big interleaved multitrack WAV files.<br>
-      This extracts them into separate<br>
-      mono or stereo tracks,<br>
+    <p class="hero">Just drag and drop
+      your Behringer Wing session
+      to get separate named mono/stereo tracks
       ready for your DAW to use.</p>
+
+    <div class="video-wrap" style="margin: 1rem auto; max-width: 680px;">
+      <video
+        src="demo.mp4"
+        poster="demo-poster.jpg"
+        muted loop playsinline
+        preload="none"
+        controls></video>
+    </div>
   </header>
 
-  <div class="video-wrap" style="margin: 0 auto 40px; max-width: 680px;">
-    <video src="demo.mp4" autoplay muted loop playsinline></video>
-  </div>
 
   <div class="download-wrap">
     <a class="btn-download" href="https://github.com/rdalverny/desgrana/releases/download/v1.7.0/Desgrana-1.7.0.dmg" download>
@@ -175,34 +197,37 @@
       <dd>
         <p>Currently, Desgrana is only available for macOS 13
           and later on Apple Silicon or Intel.</p>
-        <p>A Linux port is planned (testers welcome).
-          Depending on how it goes, a Windows one could follow.</p>
+        <p>Linux and Windows versions are on the roadmap.</p>
       </dd>
 
       <dt>Which consoles are supported?</dt>
       <dd>
         <table>
           <tr><td>Behringer Wing</td><td>✅ Tested</td></tr>
-          <tr><td>Wing Rack</td><td>❓ Expected to work — feedback welcome</td></tr>
-          <tr><td>Wing Compact</td><td>❓ Expected to work — feedback welcome</td></tr>
-          <tr><td>X-Live</td><td>❓ Expected to work — feedback welcome</td></tr>
-          <tr><td>W-Live</td><td>❓ Expected to work — feedback welcome</td></tr>
-          <tr><td>DN32-Live</td><td>❓ Expected to work — feedback welcome</td></tr>
+          <tr><td>Wing Rack</td><td>❓ feedback or test session welcome</td></tr>
+          <tr><td>Wing Compact</td><td>❓</td></tr>
+          <tr><td>X-Live</td><td>❓</td></tr>
+          <tr><td>W-Live</td><td>❓</td></tr>
+          <tr><td>DN32-Live</td><td>❓</td></tr>
         </table>
       </dd>
 
       <dt>Do I need the <code>.snap</code> or the <code>SE_LOG.bin</code> file?</dt>
-      <dd>No. Without it, Desgrana still extracts every channel into
+      <dd>
+        <p>No. Without them, Desgrana still extracts every channel into
         a numbered mono file.
         The snapshot is used to name the output files after your Wing
         channels and to detect stereo pairs automatically.
         If the <code>.snap</code> file is in the same session folder,
-        it is picked up automatically.</dd>
+        it is picked up automatically.</p>
+      </dd>
 
       <dt>My session is split across several WAV files: does that work?</dt>
-      <dd>Yes. The Wing creates a new file each time the previous
+      <dd>
+        Yes. The Wing creates a new file each time the previous
         one hits 4 GB (FAT32 limit). Desgrana processes all the take files
-        in order and writes them as a single continuous output per channel.</dd>
+        in order and writes them as a single continuous output per channel.
+      </dd>
 
       <dt>Are session markers preserved?</dt>
       <dd>
@@ -213,15 +238,15 @@
           at the correct positions, independent of the project tempo.</p>
       </dd>
 
-      <dt>Does Desgrana send any data online?</dt>
+      <dt>Does it send any data online?</dt>
       <dd>
-        <p>No. Desgrana works entirely offline.
+        <p>No, it works entirely offline.
           It reads your local session files
-          and writes output to your local disk.
+          and writes to your local disk.
           Nothing leaves your computer.</p>
         <p>The only outbound request
           is an update check once a month (that you may disable)
-          which only fetches a public version file.
+          with your operating system version and current version.
           No usage data, no identifiers, no analytics.</p>
       </dd>
 
@@ -237,7 +262,7 @@
     <h2>What's new</h2>
     <ul>
       <li>
-        <span class="v-label">1.7<span class="v-date">May 7 2026</span></span>
+        <span class="v-label">1.7<span class="v-date">May 8 2026</span></span>
         <span class="v-notes">
           Simplified interface.<br>
           Short filenames and auto-stereo on by default.<br>
@@ -286,21 +311,40 @@
     </ul>
   </div>
 
-  <div class="section" id="roadmap">
+  <div class="section changelog" id="roadmap">
     <h2>Roadmap</h2>
     <p>Planned for upcoming versions:</p>
     <ul>
-      <li><strong>1.8</strong> — Linux release (testers welcome)</li>
-      <li><strong>1.9</strong> — Windows release</li>
+      <li>
+        <span class="v-label">1.8<span class="v-date">June 2026?</span></span>
+        <span class="v-notes">
+          Linux port (volunteers welcome)<br>
+          Improved CLI doc<br>
+        </span>
+      </li>
+      <li>
+        <span class="v-label">1.9<span class="v-date">Summer 2026?</span></span>
+        <span class="v-notes">
+          Full Wing &amp; X32 support<br>
+        </span>
+      </li>
+      <li>
+        <span class="v-label">1.10<span class="v-date">September 2026?</span></span>
+        <span class="v-notes">
+          Windows port (volunteers welcome)<br>
+        </span>
+      </li>
     </ul>
-    <p>Source code is on <a href="https://github.com/rdalverny/desgrana">GitHub</a>
-      (MIT licence). Bug reports and contributions welcome — see
+    <p>Source code is on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
+      Bug reports and contributions welcome, see
       <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>
+  </div>
+
+  <div class="section changelog" id="roadmap">
   </div>
 
   <footer>
     <p>Desgrana &nbsp;·&nbsp;
-      MIT licence &nbsp;·&nbsp;
       by <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
       Updated May 2026
     </p>
