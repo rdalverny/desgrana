@@ -48,7 +48,8 @@ Desgrana works entirely offline. It reads your local session files and writes
 output to your local disk — nothing is uploaded or transmitted.
 
 The only outbound request is an optional update check (at most once a month),
-which fetches a public version file. No usage data, no identifiers, no analytics.
+which fetches a public version file. No usage data, no identifiers, no
+analytics.
 
 ## Usage
 
