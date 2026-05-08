@@ -13,7 +13,8 @@ Usage
 Test mode
 ---------
 Runs desgrana against committed fixtures in Tests/fixtures/<case>/session/ and
-compares every output file byte-for-byte against Tests/fixtures/<case>/expected/.
+compares every output file against Tests/fixtures/<case>/expected/
+(WAV files: sample data only, ignoring container chunks; other files: byte-for-byte).
 
 Generate mode
 -------------
@@ -651,6 +652,25 @@ def run_case_generate(case: TestCase, binary: str, fixtures_dir: str) -> None:
         print(f"    {fname}  ({size // 1024} KB)")
 
 
+def wav_data_chunk(path: str):
+    """Return the raw bytes of the 'data' chunk from a WAV file, or None."""
+    with open(path, "rb") as f:
+        if f.read(4) != b"RIFF":
+            return None
+        f.read(4)  # RIFF chunk size
+        if f.read(4) != b"WAVE":
+            return None
+        while True:
+            hdr = f.read(8)
+            if len(hdr) < 8:
+                return None
+            chunk_id = hdr[:4]
+            chunk_size = int.from_bytes(hdr[4:8], "little")
+            if chunk_id == b"data":
+                return f.read(chunk_size)
+            f.seek(chunk_size, 1)
+
+
 def compare_outputs(output_dir: str, expected_dir: str) -> int:
     """Compare all files in output_dir against expected_dir. Returns failure count."""
     if not os.path.isdir(expected_dir):
@@ -674,23 +694,44 @@ def compare_outputs(output_dir: str, expected_dir: str) -> int:
             failures += 1
             continue
 
-        exp_data = open(exp_path, "rb").read()
-        out_data = open(out_path, "rb").read()
-
-        if exp_data == out_data:
-            print(f"  OK    {fname}  ({len(out_data) // 1024} KB)")
-        else:
-            print(f"  FAIL  {fname}  content differs"
-                  f"  ({len(out_data)} bytes got, {len(exp_data)} expected)")
-            for i, (a, e) in enumerate(zip(out_data, exp_data)):
-                if a != e:
-                    print(f"         first diff at byte {i}"
-                          f"  (frame ~{i // 4}): got 0x{a:02x} expected 0x{e:02x}")
-                    break
+        if fname.lower().endswith(".wav"):
+            exp_samples = wav_data_chunk(exp_path)
+            out_samples = wav_data_chunk(out_path)
+            if exp_samples is None or out_samples is None:
+                print(f"  FAIL  {fname}  could not parse WAV data chunk")
+                failures += 1
+            elif exp_samples == out_samples:
+                print(f"  OK    {fname}  ({len(out_samples) // 1024} KB samples)")
             else:
-                direction = "longer" if len(out_data) > len(exp_data) else "shorter"
-                print(f"         output is {direction} than expected")
-            failures += 1
+                print(f"  FAIL  {fname}  sample data differs"
+                      f"  ({len(out_samples)} bytes got, {len(exp_samples)} expected)")
+                for i, (a, e) in enumerate(zip(out_samples, exp_samples)):
+                    if a != e:
+                        print(f"         first diff at sample byte {i}"
+                              f"  (frame ~{i // 4}): got 0x{a:02x} expected 0x{e:02x}")
+                        break
+                else:
+                    direction = "longer" if len(out_samples) > len(exp_samples) else "shorter"
+                    print(f"         output is {direction} than expected")
+                failures += 1
+        else:
+            exp_data = open(exp_path, "rb").read()
+            out_data = open(out_path, "rb").read()
+
+            if exp_data == out_data:
+                print(f"  OK    {fname}  ({len(out_data) // 1024} KB)")
+            else:
+                print(f"  FAIL  {fname}  content differs"
+                      f"  ({len(out_data)} bytes got, {len(exp_data)} expected)")
+                for i, (a, e) in enumerate(zip(out_data, exp_data)):
+                    if a != e:
+                        print(f"         first diff at byte {i}"
+                              f"  (frame ~{i // 4}): got 0x{a:02x} expected 0x{e:02x}")
+                        break
+                else:
+                    direction = "longer" if len(out_data) > len(exp_data) else "shorter"
+                    print(f"         output is {direction} than expected")
+                failures += 1
 
     for fname in sorted(output_set - set(expected_files)):
         print(f"  FAIL  {fname}  in output but not in expected/ (unexpected file)")

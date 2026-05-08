@@ -7,7 +7,6 @@ GITHUB_BASE    := https://github.com/$(GITHUB_REPO)/releases/download
 TEAM_ID        ?=
 SIGN_IDENTITY  ?= Developer ID Application: $(TEAM_ID)
 NOTARY_PROFILE ?=
-DOCKER         ?= docker
 ENTITLEMENTS   := desgrana/Sources/App/Desgrana.entitlements
 APP            := Desgrana.app
 BUILD          := var/build
@@ -15,8 +14,11 @@ SHIPIT         := var/shipit
 APP_BUILD      := $(BUILD)/$(APP)
 PLIST          := $(APP_BUILD)/Contents/Info.plist
 
+DOCKER         ?= docker
+BUILDX_BUILDER = multi
+
 .PHONY: cli cli-linux app bundle build test test-generate package shipit release sign notarize icon \
-       patch minor clean lint lint-fix format format-check package-debian
+       patch minor clean lint lint-fix format format-check package-debian test-image test-debian
 
 # ── Build ─────────────────────────────────────────────────────────
 
@@ -134,8 +136,24 @@ fmtdoc:
 
 # ── Linux ────────────────────────────────────────────────────────
 
+# brew install colima docker docker-buildx
+#
+# # 1. Recréer la VM
+# colima start --vm-type=vz --vz-rosetta --cpu 4 --memory 6
+#
+# # 2. Recréer le builder buildx
+# docker buildx create --name multi --driver docker-container --use
+# docker buildx inspect --bootstrap
+#
+# # après, colima delete, colima stop
+#
+# colima list 2>&1
+# du -sh ~/.colima/_lima/*/  2>/dev/null
+# docker system df 2>&1
+
+
 package-debian:
-	rm -rf dist/
+	#
 	$(DOCKER) buildx build \
 		--progress=plain \
 		--platform linux/amd64 \
@@ -146,3 +164,17 @@ package-debian:
 	@echo "Package in dist/"
 	@ls -lh dist/*.deb
 	@cat dist/SHA256SUMS
+
+test-image:
+	$(DOCKER) build \
+		--platform linux/amd64 \
+		-t desgrana-tester \
+		-f packaging/linux/deb/tester.dockerfile .
+
+test-debian:
+	$(DOCKER) run --rm \
+		--platform linux/amd64 \
+		-v "$(PWD)/dist":/pkgs:ro \
+		-v "$(PWD)/desgrana/Tests":/tests:ro \
+		desgrana-tester \
+		bash -c "dpkg -i /pkgs/desgrana_*.deb && python3 /tests/test_split.py /usr/bin/desgrana"
