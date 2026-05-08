@@ -19,7 +19,6 @@ CLI:
 - auto-stereo detection can be used with new `--auto-stereo` flag.
 - short names also have their `--short-names` flag.
 
-
 ## 1.6 — 2026-04-24
 
 ### Features
