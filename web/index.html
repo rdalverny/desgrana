@@ -164,22 +164,16 @@
   <div class="section">
     <h2>What it does</h2>
     <ul class="features">
-      <li>Your files come out exactly as recorded.
-        No conversion, no precision loss, any bit depth.</li>
-      <li>Runs fine on a laptop in a backstage.
-        No freeze, no RAM issues even on multi-GB sessions.</li>
+      <li>Your files come out exactly as recorded.</li>
+      <li>Runs fine on a laptop in a backstage.</li>
       <li>Only the channels you actually recorded show up.
-        No 32 empty tracks to clean up in your DAW.</li>
-      <li>Your set markers land in Logic Pro, Reaper, and WaveLab;
-        as cue chunks in the WAV, MIDI file, and CSV.</li>
+        No empty tracks to clean up manually.</li>
+      <li>Your set markers land in your DAW,
+        as cue chunks in the WAV or MIDI file.</li>
       <li>Channel names and stereo pairs from your Wing snapshot
         (KICK, SNARE, VOX…) are picked up automatically.</li>
-      <li>Adjust stereo pairs before extraction.
-        No need to re-export the snapshot from the console.</li>
-      <li>Works entirely offline.
-        Nothing uploaded, nothing tracked.</li>
-      <li>(macOS) Drop a session folder from Finder,
-          or automate via CLI in your post-production workflow.</li>
+      <li>Adjust stereo pairs before extraction.</li>
+      <li>Works entirely offline.</li>
       <li>(macOS) signed and notarized.</li>
       <li>Open Source.</li>
     </ul>
@@ -214,9 +208,8 @@
 
       <dt>Do I need the <code>.snap</code> or the <code>SE_LOG.bin</code> file?</dt>
       <dd>
-        <p>No. Without them, Desgrana still extracts every channel into
-        a numbered mono file.
-        The snapshot is used to name the output files after your Wing
+        <p>No, Desgrana still extracts every channel into a numbered mono file.</p>
+        <p>The snapshot is used to name the output files after your Wing
         channels and to detect stereo pairs automatically.
         If the <code>.snap</code> file is in the same session folder,
         it is picked up automatically.</p>
@@ -224,31 +217,25 @@
 
       <dt>My session is split across several WAV files: does that work?</dt>
       <dd>
-        Yes. The Wing creates a new file each time the previous
-        one hits 4 GB (FAT32 limit). Desgrana processes all the take files
-        in order and writes them as a single continuous output per channel.
+        <p>Yes, the Wing creates a new file each time the previous
+        one hits 4 GB (FAT32 limit). Desgrana processes the take files
+        in order and writes one continuous output per channel.</p>
       </dd>
 
       <dt>Are session markers preserved?</dt>
       <dd>
-        <p>Yes. Markers are embedded as standard <code>cue</code> chunks
+        <p>Markers are embedded as standard <code>cue</code> chunks
           in every output WAV file, and also exported as a CSV,
           a plain-text file, and a Standard MIDI File (type 0, SMPTE timecode).</p>
-        <p>Logic Pro and most DAWs can import the MIDI file to place markers
+        <p>Most DAWs can import the MIDI file to place markers
           at the correct positions, independent of the project tempo.</p>
       </dd>
 
       <dt>Does it send any data online?</dt>
       <dd>
-        <p>No, it works entirely offline.
-          It reads your local session files
-          and writes to your local disk.
-          Nothing leaves your computer.</p>
+        <p>No, it works entirely offline.</p>
         <p>The only outbound request
-          is an update check once a month (that you may disable).
-          It sends OS name, OS version, CPU architecture, app version,
-          and system language — nothing else.
-          No usage data, no identifiers, no audio content.
+          is an update check once a month.
           See <a href="https://github.com/rdalverny/desgrana/blob/main/PRIVACY.md">PRIVACY.md</a>
           for details and how to disable it.</p>
       </dd>
