@@ -1,3 +1,11 @@
-desgrana            usr/bin/
-desgrana-gui        usr/bin/
-swift-libs/*.so     usr/lib/desgrana/
+desgrana                                               usr/bin/
+desgrana-gui                                           usr/bin/
+swift-libs/*.so                                        usr/lib/desgrana/
+desgrana-gui.desktop                                   usr/share/applications/
+icons/hicolor/16x16/apps/desgrana.png                  usr/share/icons/hicolor/16x16/apps/
+icons/hicolor/32x32/apps/desgrana.png                  usr/share/icons/hicolor/32x32/apps/
+icons/hicolor/48x48/apps/desgrana.png                  usr/share/icons/hicolor/48x48/apps/
+icons/hicolor/64x64/apps/desgrana.png                  usr/share/icons/hicolor/64x64/apps/
+icons/hicolor/128x128/apps/desgrana.png                usr/share/icons/hicolor/128x128/apps/
+icons/hicolor/256x256/apps/desgrana.png                usr/share/icons/hicolor/256x256/apps/
+icons/hicolor/512x512/apps/desgrana.png                usr/share/icons/hicolor/512x512/apps/

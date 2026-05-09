@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 import DesgranaCore
-import DesgranaCoreLinux
+import DesgranaCoreWav
 
 // MARK: - Probe
 
@@ -52,7 +52,7 @@ public func desgrana_probe(
     }
 
     if let pL = outPairLefts, let pR = outPairRights, let pC = outPairCount, pairCapacity > 0 {
-        let pairs = filterStereoPairs(snap?.stereoPairs ?? [], channelCount: Int(outChannels.pointee))
+        let pairs = detectStereoPairsFromNames(snap?.channelNames ?? [:], channelCount: Int(outChannels.pointee))
         let n = min(pairs.count, Int(pairCapacity))
         for i in 0..<n {
             pL[i] = Int32(pairs[i].left)

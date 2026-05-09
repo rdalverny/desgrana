@@ -30,31 +30,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /src
 COPY desgrana/ ./desgrana/
-COPY linux/    ./linux/
+COPY qt/       ./qt/
 
 # CLI (static stdlib + GNU build-id) then bridge library
 RUN cd desgrana \
     && swift build -c release --product desgrana -Xswiftc -static-stdlib -Xlinker --build-id \
-    && swift build -c release --target DesgranaBridgeLinux
+    && swift build -c release --target DesgranaBridgeC
 
 # GUI: Qt6, RPATH baked to /usr/lib/desgrana (where the .deb will install Swift dylibs)
 RUN cmake \
-        -S linux \
-        -B linux/build \
+        -S qt \
+        -B qt/build \
         -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DSWIFT_BUILD_DIR=/src/desgrana/.build/release \
         -DSWIFT_RUNTIME_DIR=/usr/lib/swift/linux \
         -DDESGRANA_INSTALL_RPATH=/usr/lib/desgrana \
         -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-    && cmake --build linux/build
+    && cmake --build qt/build
 
 # Collect Swift dylibs actually referenced by desgrana-gui.
 # ldd is unusable here because CMAKE_BUILD_WITH_INSTALL_RPATH=ON bakes /usr/lib/desgrana
 # as the RPATH, so ldd reports "not found" for every Swift lib at build time.
 # readelf -d reads the ELF NEEDED entries directly, independent of RPATH resolution.
 RUN mkdir -p /src/swift-libs \
-    && readelf -d /src/linux/build/desgrana-linux \
+    && readelf -d /src/qt/build/desgrana-linux \
        | grep 'NEEDED' \
        | sed 's/.*\[//;s/\]//' \
        | grep -E 'swift|Foundation|dispatch|BlocksRuntime' \
@@ -75,9 +75,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Binaries and bundled Swift dylibs
 COPY --from=builder /src/desgrana/.build/release/desgrana ./src/desgrana
-COPY --from=builder /src/linux/build/desgrana-linux        ./src/desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-linux        ./src/desgrana-gui
 COPY --from=builder /src/swift-libs                        ./src/swift-libs
 COPY packaging/linux/deb/debian                            ./src/debian
+COPY packaging/linux/desgrana-gui.desktop                  ./src/desgrana-gui.desktop
+COPY packaging/linux/icons                                 ./src/icons
 
 WORKDIR /build/src
 RUN dpkg-buildpackage -rfakeroot -us -uc -b -d
@@ -91,7 +93,7 @@ RUN pkg=$(dpkg-parsechangelog -S Source) && \
 
 FROM scratch AS binaries
 COPY --from=builder /src/desgrana/.build/release/desgrana /desgrana
-COPY --from=builder /src/linux/build/desgrana-linux       /desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-linux       /desgrana-gui
 
 # ── 4. Export .deb only (default stage) ──────────────────────────────────────
 

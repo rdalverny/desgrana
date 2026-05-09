@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 import DesgranaCore
-// Platform backend (DesgranaCoreMac / DesgranaCoreLinux) is re-exported via Platform.swift
+// Platform backend (DesgranaCoreAudioToolbox / DesgranaCoreWav) is re-exported via Platform.swift
 
 // MARK: - Minimal argument parsing (no dependencies)
 

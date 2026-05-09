@@ -3,7 +3,7 @@
 import Combine
 import SwiftUI
 import DesgranaCore
-import DesgranaCoreMac
+import DesgranaCoreAudioToolbox
 
 // MARK: - State
 

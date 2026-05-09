@@ -135,6 +135,19 @@ fmtdoc:
 	prettier --prose-wrap always --print-width 78 --write "**/*.md"
 
 # ── Linux ────────────────────────────────────────────────────────
+SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
+
+build-linux:
+	cd desgrana && swift build -c release --product desgrana
+	cd desgrana && swift build -c release --target DesgranaBridgeC
+	cmake -S qt -B qt/build -G Ninja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+		-DSWIFT_BUILD_DIR=$(PWD)/desgrana/.build/release \
+		-DSWIFT_RUNTIME_DIR=$(SWIFT_RUNTIME_DIR) \
+		-DDESGRANA_INSTALL_RPATH=/usr/lib/desgrana
+	cmake --build qt/build
+
 
 # brew install colima docker docker-buildx
 #
@@ -150,8 +163,7 @@ fmtdoc:
 # colima list 2>&1
 # du -sh ~/.colima/_lima/*/  2>/dev/null
 # docker system df 2>&1
-
-
+#
 package-debian:
 	#
 	$(DOCKER) buildx build \
@@ -160,6 +172,18 @@ package-debian:
 		-f packaging/linux/deb/builder.dockerfile \
 		--output type=local,dest=dist \
 		.
+	cd dist && shasum -a 256 *.deb > SHA256SUMS
+	@echo "Package in dist/"
+	@ls -lh dist/*.deb
+	@cat dist/SHA256SUMS
+
+package-debian-arm64:
+	$(DOCKER) buildx build \
+		--platform linux/arm64 \
+		-f packaging/linux/deb/builder.dockerfile \
+		--output type=local,dest=dist \
+		.
+
 	cd dist && shasum -a 256 *.deb > SHA256SUMS
 	@echo "Package in dist/"
 	@ls -lh dist/*.deb
