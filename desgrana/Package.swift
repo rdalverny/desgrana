@@ -17,9 +17,9 @@ let package = Package(
         ),
         // macOS splitter: AudioToolbox backend
         .target(
-            name: "DesgranaCoreMac",
+            name: "DesgranaCoreAudioToolbox",
             dependencies: ["DesgranaCore"],
-            path: "Sources/CoreMac",
+            path: "Sources/CoreAudioToolbox",
             linkerSettings: [
                 .linkedFramework("AudioToolbox"),
                 .linkedFramework("CoreAudio")
@@ -27,30 +27,30 @@ let package = Package(
         ),
         // Linux/Windows splitter: dr_wav backend
         .target(
-            name: "DesgranaCoreLinux",
+            name: "DesgranaCoreWav",
             dependencies: ["DesgranaCore", "CWav"],
-            path: "Sources/CoreLinux"
+            path: "Sources/CoreWav"
         ),
         // CLI executable
         .executableTarget(
             name: "desgrana",
             dependencies: [
                 "DesgranaCore",
-                .target(name: "DesgranaCoreMac", condition: .when(platforms: [.macOS])),
-                .target(name: "DesgranaCoreLinux", condition: .when(platforms: [.linux, .windows]))
+                .target(name: "DesgranaCoreAudioToolbox", condition: .when(platforms: [.macOS])),
+                .target(name: "DesgranaCoreWav", condition: .when(platforms: [.linux, .windows]))
             ],
             path: "Sources/CLI"
         ),
-        // C bridge for the Linux Qt UI
+        // C bridge for the Qt UI (Linux/Windows)
         .target(
-            name: "DesgranaBridgeLinux",
-            dependencies: ["DesgranaCore", "DesgranaCoreLinux"],
-            path: "Sources/BridgeLinux"
+            name: "DesgranaBridgeC",
+            dependencies: ["DesgranaCore", "DesgranaCoreWav"],
+            path: "Sources/BridgeC"
         ),
         // GUI executable (macOS only)
         .executableTarget(
             name: "DesgranaApp",
-            dependencies: ["DesgranaCore", "DesgranaCoreMac"],
+            dependencies: ["DesgranaCore", "DesgranaCoreAudioToolbox"],
             path: "Sources/App",
             exclude: ["Desgrana.entitlements"]
         )
