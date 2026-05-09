@@ -588,7 +588,9 @@ struct ContentView: View {
     }
 
     func destinationLine(sessionDir: URL) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let outputURL = vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)
+        let outputExists = FileManager.default.fileExists(atPath: outputURL.path)
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Text("Output folder")
                     .font(.callout)
@@ -602,7 +604,7 @@ struct ContentView: View {
                 Image(systemName: "folder")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                Text(String(displayPath(vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)).prefix(300)))
+                Text(String(displayPath(outputURL).prefix(300)))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -616,6 +618,11 @@ struct ContentView: View {
                 }
             }
             .font(.callout)
+            if outputExists {
+                Label("This folder already exists — files may be overwritten.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 4)
