@@ -6,21 +6,26 @@
 
 #include <QApplication>
 #include <QDateTime>
-#include <QIcon>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDropEvent>
-#include <QFile>
 #include <QFileDialog>
+#include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QScrollArea>
+#include <QLabel>
+#include <QLineEdit>
 #include <QLocale>
 #include <QMimeData>
+#include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStyle>
@@ -108,7 +113,6 @@ DesgranaWindow::DesgranaWindow(QWidget *parent) : QWidget(parent) {
     showIdle();
 
     m_nam = new QNetworkAccessManager(this);
-    connect(m_nam, &QNetworkAccessManager::finished, this, &DesgranaWindow::onUpdateReply);
     checkForUpdate();
 
     applyDynamicStyles();
@@ -252,6 +256,7 @@ void DesgranaWindow::buildReadyPage() {
     connect(m_browseBtn, &QPushButton::clicked, this, &DesgranaWindow::browseOutput);
 
     m_splitBtn = new QPushButton("Extract");
+    m_splitBtn->setDefault(true);
     // Colors applied dynamically in applyDynamicStyles() to use QPalette::Highlight.
     m_splitBtn->setStyleSheet(
         "QPushButton { border-radius: 4px; padding: 6px 20px; font-weight: bold; }");
@@ -305,18 +310,33 @@ void DesgranaWindow::buildSplittingPage() {
 void DesgranaWindow::buildDonePage() {
     m_donePage = new QWidget;
 
+    auto *titleLabel = new QLabel("Done");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    {
+        QFont f = titleLabel->font();
+        f.setPixelSize(22);
+        f.setBold(true);
+        titleLabel->setFont(f);
+    }
+
     m_summaryLabel = new QLabel;
     m_summaryLabel->setAlignment(Qt::AlignCenter);
-    m_summaryLabel->setWordWrap(true);
     {
         QFont f = m_summaryLabel->font();
-        f.setPixelSize(20);
+        f.setPixelSize(15);
         m_summaryLabel->setFont(f);
     }
 
-    m_openDirBtn = new QPushButton("Open output folder");
-    m_openDirBtn->setStyleSheet(
-        "QPushButton { border-radius: 4px; padding: 6px 20px; font-weight: bold; }");
+    m_silentLabel = new QLabel;
+    m_silentLabel->setAlignment(Qt::AlignCenter);
+    m_silentLabel->setForegroundRole(QPalette::PlaceholderText);
+    {
+        QFont f = m_silentLabel->font();
+        f.setPixelSize(12);
+        m_silentLabel->setFont(f);
+    }
+
+    m_openDirBtn = new QPushButton("Reveal Folder");
     connect(m_openDirBtn, &QPushButton::clicked, this, [this]() {
         QDesktopServices::openUrl(QUrl::fromLocalFile(m_lastOutputPath));
     });
@@ -329,13 +349,16 @@ void DesgranaWindow::buildDonePage() {
     auto *btnRow = new QHBoxLayout;
     btnRow->setAlignment(Qt::AlignCenter);
     btnRow->setSpacing(12);
-    btnRow->addWidget(m_openDirBtn);
     btnRow->addWidget(newSessionBtn);
+    btnRow->addWidget(m_openDirBtn);
 
     auto *layout = new QVBoxLayout(m_donePage);
     layout->setContentsMargins(32, 24, 32, 24);
     layout->setSpacing(0);
+    layout->addWidget(titleLabel);
+    layout->addSpacing(6);
     layout->addWidget(m_summaryLabel);
+    layout->addWidget(m_silentLabel);
     layout->addSpacing(16);
     layout->addLayout(btnRow);
 }
@@ -366,15 +389,18 @@ void DesgranaWindow::showIdle(const QString &error) {
     m_dropZoneFrame->setStyleSheet(hasError
         ? dropZoneErrorStyle()
         : dropZoneIdleStyle(palette()));
+    setWindowTitle("Desgrana");
     switchToPage(0);
 }
 
 void DesgranaWindow::showReady() {
+    setWindowTitle(m_sessionName + " \xe2\x80\x94 Desgrana");
     m_sessionNameEdit->setText(m_sessionName);
     populateChannelList();
     const int stereo = static_cast<int>(m_effectivePairs.size());
     const int rows   = m_channels - stereo; // mono rows + stereo rows
-    m_channelScroll->setFixedHeight(qMin(rows, 8) * 30);
+    const int rowH   = QFontMetrics(font()).height() + 12;
+    m_channelScroll->setFixedHeight(qMin(rows, 8) * rowH);
     updateOutputPath();
     switchToPage(1);
 }
@@ -382,24 +408,23 @@ void DesgranaWindow::showReady() {
 void DesgranaWindow::showSplitting() {
     m_progress->setRange(0, 0);
     m_progress->setValue(0);
-    m_splittingLabel->setText("Extracting\xe2\x80\xa6");
+    m_splittingLabel->setText(QString("Extracting %1\xe2\x80\xa6").arg(m_sessionName));
     switchToPage(2);
 }
 
-void DesgranaWindow::showDone() {
+void DesgranaWindow::showDone(int silentSkipped) {
+    m_silentSkipped = silentSkipped;
     const int stereo = static_cast<int>(m_effectivePairs.size());
-    const int mono   = m_channels - 2 * stereo;
-    const int total  = mono + stereo;
+    const int mono   = m_channels - 2 * stereo - silentSkipped;
 
     QStringList parts;
     if (stereo > 0) parts << QString("%1 stereo").arg(stereo);
     if (mono   > 0) parts << QString("%1 mono").arg(mono);
+    m_summaryLabel->setText(parts.join(", ") + " extracted");
 
-    m_summaryLabel->setText(
-        QString("%1 file%2 extracted\n%3")
-            .arg(total)
-            .arg(total != 1 ? "s" : "")
-            .arg(parts.join(", ")));
+    m_silentLabel->setVisible(silentSkipped > 0);
+    if (silentSkipped > 0)
+        m_silentLabel->setText(QString("%1 mono silent ignored").arg(silentSkipped));
 
     switchToPage(3);
 }
@@ -467,6 +492,7 @@ void DesgranaWindow::loadSession(const QString &path) {
 
 void DesgranaWindow::onSessionNameChanged(const QString &name) {
     m_sessionName = name;
+    setWindowTitle(name.isEmpty() ? "Desgrana" : name + " \xe2\x80\x94 Desgrana");
     updateOutputPath();
 }
 
@@ -484,9 +510,14 @@ void DesgranaWindow::checkOutputExists() {
 }
 
 void DesgranaWindow::browseOutput() {
-    const QString dir = QFileDialog::getExistingDirectory(
-        this, "Output directory", m_outputEdit->text());
-    if (!dir.isEmpty()) m_outputEdit->setText(dir);
+    QFileDialog dlg(this, "Output directory", m_outputEdit->text());
+    dlg.setAcceptMode(QFileDialog::AcceptSave);
+    dlg.setFileMode(QFileDialog::Directory);
+    dlg.setOption(QFileDialog::ShowDirsOnly);
+    dlg.setOption(QFileDialog::DontConfirmOverwrite);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QStringList selected = dlg.selectedFiles();
+    if (!selected.isEmpty()) m_outputEdit->setText(selected.first());
 }
 
 // ---------------------------------------------------------------------------
@@ -495,6 +526,10 @@ void DesgranaWindow::browseOutput() {
 
 void DesgranaWindow::startSplit() {
     if (m_sessionPath.isEmpty()) return;
+    if (m_outputEdit->text().trimmed().isEmpty()) {
+        m_outputEdit->setFocus();
+        return;
+    }
 
     m_lastOutputPath = m_outputEdit->text();
     showSplitting();
@@ -514,7 +549,7 @@ void DesgranaWindow::startSplit() {
     p.chKeys.assign(m_chKeys, m_chKeys + m_chCount);
     for (int i = 0; i < m_chCount; i++) p.chNames.push_back(m_chNames[i]);
 
-    auto *thread = new QThread(this);
+    auto *thread = new QThread;
     auto *worker = new SplitWorker(std::move(p));
     worker->moveToThread(thread);
 
@@ -538,8 +573,8 @@ void DesgranaWindow::onProgress(int take, int total) {
     }
 }
 
-void DesgranaWindow::onSplitDone() {
-    showDone();
+void DesgranaWindow::onSplitDone(int silentSkipped) {
+    showDone(silentSkipped);
 }
 
 void DesgranaWindow::onSplitError(const QString &msg) {
@@ -553,6 +588,8 @@ void DesgranaWindow::onSplitError(const QString &msg) {
 void DesgranaWindow::populateChannelList() {
     // Replace the scroll area's widget — QScrollArea deletes the old one.
     m_rowWidgets.clear();
+    m_badgeLabels.clear();
+    m_chnumLabels.clear();
     auto *container = new QWidget;
     m_channelScroll->setWidget(container);
     m_channelContainer = container;
@@ -591,18 +628,13 @@ void DesgranaWindow::populateChannelList() {
         auto *name  = new QLabel;
         auto *chNum = new QLabel;
 
-        badge->setFixedWidth(42);
+        badge->setFixedWidth(52);
         badge->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        badge->setForegroundRole(QPalette::PlaceholderText);
 
         chNum->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        {
-            QColor tertiary = palette().color(QPalette::WindowText);
-            tertiary.setAlphaF(0.40);
-            auto p = chNum->palette();
-            p.setColor(QPalette::WindowText, tertiary);
-            chNum->setPalette(p);
-        }
+
+        m_badgeLabels[ch] = badge;
+        m_chnumLabels[ch] = chNum;
 
         {
             QFont mono("Monospace");
@@ -610,6 +642,16 @@ void DesgranaWindow::populateChannelList() {
             mono.setPixelSize(12);
             badge->setFont(mono);
             chNum->setFont(mono);
+
+            // Shift badge/chNum down so their baseline matches the name label's.
+            // The offset is the difference in ascents between the two fonts,
+            // computed from actual font metrics — stable across DPI and font configs.
+            const int ascentDiff = QFontMetrics(name->font()).ascent()
+                                 - QFontMetrics(mono).ascent();
+            if (ascentDiff > 0) {
+                badge->setContentsMargins(0, ascentDiff, 0, 0);
+                chNum->setContentsMargins(0, ascentDiff, 0, 0);
+            }
         }
 
         bool isStereo = pairOf.count(ch) > 0;
@@ -660,6 +702,7 @@ void DesgranaWindow::populateChannelList() {
         }
 
 
+        row->setAttribute(Qt::WA_Hover);
         row->installEventFilter(this);
 
         hbox->addWidget(badge);
@@ -670,12 +713,13 @@ void DesgranaWindow::populateChannelList() {
     }
 
     vbox->addStretch();
+    applyDynamicStyles();
 }
 
 bool DesgranaWindow::eventFilter(QObject *obj, QEvent *event) {
     auto *w = qobject_cast<QWidget *>(obj);
     if (w && w->parent() == m_channelContainer) {
-        if (event->type() == QEvent::Enter) {
+        if (event->type() == QEvent::HoverEnter) {
             QColor hoverColor = palette().color(QPalette::Highlight);
             hoverColor.setAlphaF(0.06);
             auto applyHover = [hoverColor](QWidget *w) {
@@ -690,7 +734,7 @@ bool DesgranaWindow::eventFilter(QObject *obj, QEvent *event) {
                 applyHover(m_rowWidgets[partner]);
             return false;
         }
-        if (event->type() == QEvent::Leave) {
+        if (event->type() == QEvent::HoverLeave) {
             w->setAutoFillBackground(false);
             const int partner = w->property("partner").toInt();
             if (partner > 0 && m_rowWidgets.count(partner))
@@ -735,7 +779,8 @@ void DesgranaWindow::handleChannelRowClick(QWidget *row) {
 
     const int stereo = static_cast<int>(m_effectivePairs.size());
     const int rows   = m_channels - stereo;
-    m_channelScroll->setFixedHeight(qMin(rows, 8) * 30);
+    const int rowH   = QFontMetrics(font()).height() + 12;
+    m_channelScroll->setFixedHeight(qMin(rows, 8) * rowH);
     adjustSize();
 }
 
@@ -744,18 +789,7 @@ void DesgranaWindow::handleChannelRowClick(QWidget *row) {
 // ---------------------------------------------------------------------------
 
 static QString platformOSV() {
-    QFile f("/etc/os-release");
-    if (!f.open(QIODevice::ReadOnly)) return "linux";
-    QString id = "linux", version;
-    for (const QByteArray &line : f.readAll().split('\n')) {
-        const auto parts = QString::fromUtf8(line).split('=');
-        if (parts.size() < 2) continue;
-        const QString key = parts[0];
-        const QString val = QString(parts[1]).remove('"');
-        if (key == "ID")         id      = val;
-        if (key == "VERSION_ID") version = val.split('.').first();
-    }
-    return id + version;
+    return QSysInfo::productType() + QSysInfo::productVersion().split('.').first();
 }
 
 static bool isNewerVersion(const QString &latest, const QString &current) {
@@ -774,7 +808,7 @@ static bool isNewerVersion(const QString &latest, const QString &current) {
 }
 
 void DesgranaWindow::checkForUpdate() {
-    QSettings s("desgrana", "desgrana");
+    QSettings s;
     if (!s.value("updateCheck/enabled", true).toBool()) return;
 
     const int intervalDays = s.value("updateCheck/intervalDays", 30).toInt();
@@ -782,18 +816,19 @@ void DesgranaWindow::checkForUpdate() {
     const qint64 now       = QDateTime::currentSecsSinceEpoch();
     if (now - lastCheck < static_cast<qint64>(intervalDays) * 86400) return;
 
-    s.setValue("updateCheck/lastTimestamp", now);
-
     QUrl url("https://romaindalverny.com/atelier/desgrana/version.json");
     QUrlQuery q;
-    q.addQueryItem("os",   "linux");
+    q.addQueryItem("os",   QSysInfo::productType());
     q.addQueryItem("osv",  platformOSV());
     q.addQueryItem("arch", QSysInfo::currentCpuArchitecture());
     q.addQueryItem("v",    DESGRANA_VERSION);
     q.addQueryItem("l",    QLocale::system().name().section('_', 0, 0));
     url.setQuery(q);
 
-    m_nam->get(QNetworkRequest(url));
+    QNetworkReply *reply = m_nam->get(QNetworkRequest(url));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onUpdateReply(reply);
+    });
 }
 
 void DesgranaWindow::onUpdateReply(QNetworkReply *reply) {
@@ -804,7 +839,12 @@ void DesgranaWindow::onUpdateReply(QNetworkReply *reply) {
     const QString latest   = json["version"].toString();
     const QString url      = json["url"].toString();
 
-    if (latest.isEmpty() || !isNewerVersion(latest, DESGRANA_VERSION)) return;
+    if (latest.isEmpty()) return;
+
+    QSettings s;
+    s.setValue("updateCheck/lastTimestamp", QDateTime::currentSecsSinceEpoch());
+
+    if (!isNewerVersion(latest, DESGRANA_VERSION)) return;
 
     const QString link = url.isEmpty()
         ? latest
@@ -826,16 +866,18 @@ void DesgranaWindow::applyDynamicStyles() {
             ? dropZoneErrorStyle()
             : dropZoneIdleStyle(pal));
 
-    // Extract button -- QPalette::Highlight as background.
+    // Extract button and Reveal Folder button -- QPalette::Highlight as background.
     {
         const QColor bg     = pal.color(QPalette::Highlight);
         const QColor fg     = pal.color(QPalette::HighlightedText);
         const QColor bgHov  = bg.darker(115);
-        m_splitBtn->setStyleSheet(
+        const QString style =
             QString("QPushButton { background: %1; color: %2; border-radius: 4px;"
                     "              padding: 6px 20px; font-weight: bold; }"
                     "QPushButton:hover { background: %3; }")
-                .arg(bg.name(), fg.name(), bgHov.name()));
+                .arg(bg.name(), fg.name(), bgHov.name());
+        m_splitBtn->setStyleSheet(style);
+        m_openDirBtn->setStyleSheet(style);
     }
 
     // Session name field -- no default border; QPalette::PlaceholderText at 22%
@@ -847,6 +889,23 @@ void DesgranaWindow::applyDynamicStyles() {
             QString("QLineEdit { border: none; background: transparent; padding: 2px 0; }"
                     "QLineEdit:hover { border: 1px solid %1; border-radius: 5px; }")
                 .arg(paletteRgba(hoverBorder)));
+    }
+
+    // Channel list badge ("mono"/"stereo") and channel number labels.
+    if (!m_badgeLabels.empty()) {
+        const QColor wt = pal.color(QPalette::Text);
+        const QColor bg = pal.color(QPalette::Base);
+        auto blended = [&](double a) -> QString {
+            return QColor(
+                qRound(wt.red()   * a + bg.red()   * (1 - a)),
+                qRound(wt.green() * a + bg.green() * (1 - a)),
+                qRound(wt.blue()  * a + bg.blue()  * (1 - a))
+            ).name();
+        };
+        const QString bs = QString("QLabel { color: %1; }").arg(blended(0.65));
+        const QString cs = QString("QLabel { color: %1; }").arg(blended(0.55));
+        for (auto &[ch, lbl] : m_badgeLabels) lbl->setStyleSheet(bs);
+        for (auto &[ch, lbl] : m_chnumLabels) lbl->setStyleSheet(cs);
     }
 
     // Update label -- let the <a href> element inherit QPalette::Link; no color override needed.

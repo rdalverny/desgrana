@@ -100,6 +100,7 @@ public func desgrana_split(
     _ chNameCount: Int32,
     _ progressCb: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer?) -> Void)?,
     _ userData: UnsafeMutableRawPointer?,
+    _ outSilentSkipped: UnsafeMutablePointer<Int32>?,
     _ errBuf: UnsafeMutablePointer<CChar>?,
     _ errLen: Int32
 ) -> Int32 {
@@ -123,7 +124,7 @@ public func desgrana_split(
 
     do {
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
-        _ = try splitSession(
+        let result = try splitSession(
             sessionDir: sessionDir,
             outputDir: outputDir,
             prefix: pfx,
@@ -132,6 +133,7 @@ public func desgrana_split(
             useShortFilenames: pfx.isEmpty,
             progress: { take, total, _ in progressCb?(Int32(take), Int32(total), userData) }
         )
+        if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
         return 0
     } catch {
         cStringCopy("\(error)", into: errBuf, maxLen: Int(errLen))

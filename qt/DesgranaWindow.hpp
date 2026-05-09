@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include <QWidget>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QProgressBar>
-#include <QScrollArea>
-#include <QFrame>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+#include <QString>
 #include "include/desgrana_bridge.h"
 #include <map>
 #include <utility>
 #include <vector>
+
+class QDragEnterEvent;
+class QDragLeaveEvent;
+class QDropEvent;
+class QFrame;
+class QLabel;
+class QLineEdit;
+class QNetworkAccessManager;
+class QNetworkReply;
+class QProgressBar;
+class QPushButton;
+class QScrollArea;
 
 class DesgranaWindow : public QWidget {
     Q_OBJECT
@@ -30,7 +35,7 @@ private slots:
     void browseOutput();
     void startSplit();
     void onProgress(int take, int total);
-    void onSplitDone();
+    void onSplitDone(int silentSkipped);
     void onSplitError(const QString &msg);
     void onSessionNameChanged(const QString &name);
     void onUpdateReply(QNetworkReply *reply);
@@ -46,7 +51,7 @@ private:
     void showIdle(const QString &error = {});
     void showReady();
     void showSplitting();
-    void showDone();
+    void showDone(int silentSkipped);
     void populateChannelList();
     void handleChannelRowClick(QWidget *row);
     void updateOutputPath();
@@ -69,6 +74,8 @@ private:
     QLineEdit   *m_sessionNameEdit;
     QScrollArea *m_channelScroll;
     QWidget     *m_channelContainer = nullptr;
+    std::map<int, QLabel*> m_badgeLabels;
+    std::map<int, QLabel*> m_chnumLabels;
     QLineEdit   *m_outputEdit;
     QLabel      *m_outputWarningLabel;
     QPushButton *m_browseBtn;
@@ -82,7 +89,9 @@ private:
     // Done page
     QWidget     *m_donePage;
     QLabel      *m_summaryLabel;
+    QLabel      *m_silentLabel;
     QPushButton *m_openDirBtn;
+    int          m_silentSkipped = 0;
 
     // Persistent update notification
     QLabel *m_updateLabel;

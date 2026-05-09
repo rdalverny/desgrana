@@ -39,7 +39,7 @@ set(DESGRANA_INSTALL_RPATH "/usr/lib/desgrana"
 qt_add_executable(desgrana-linux
     main.cpp
     DesgranaWindow.cpp
-    SplitWorker.hpp
+    SplitWorker.cpp
 )
 
 target_include_directories(desgrana-linux PRIVATE include)

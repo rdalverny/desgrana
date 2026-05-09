@@ -302,7 +302,7 @@ struct ContentView: View {
                             .font(.body.monospacedDigit())
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Preparing…")
+                        Text("Extracting \(vm.sessionName)…")
                             .foregroundStyle(.secondary)
                     }
                 }

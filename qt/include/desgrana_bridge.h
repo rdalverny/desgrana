@@ -55,6 +55,8 @@ int32_t desgrana_probe(
  * progress_cb: called after each take with (current_take, total_takes, user_data).
  *   May be NULL. Called from the same thread as desgrana_split.
  *
+ * out_silent_skipped: receives the number of silent channels skipped (nullable).
+ *
  * Returns 0 on success, -1 on error (err_buf filled).
  */
 int32_t desgrana_split(
@@ -69,6 +71,7 @@ int32_t desgrana_split(
     int32_t        ch_name_count,
     void         (*progress_cb)(int32_t take, int32_t total, void *user_data),
     void          *user_data,
+    int32_t       *out_silent_skipped, /* nullable */
     char          *err_buf,           /* nullable */
     int32_t        err_len
 );
