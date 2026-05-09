@@ -64,7 +64,10 @@ bundle-universal: app-universal
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
 	@echo "Built (universal): $(APP_BUILD) ($(VERSION))"
 
-test: cli
+test-unit:
+	cd desgrana && swift test
+
+test: cli test-unit
 	python3 desgrana/Tests/test_split.py $(BUILD)/desgrana
 
 test-generate: cli

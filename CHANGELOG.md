@@ -10,6 +10,7 @@ Linux:
 
 Global:
 
+- (experimental) add X32 `.scn` support
 - update check now pushes desgrana version, operating system, language; see
   `PRIVACY.md`
 - now displays a (non blocking) warning if destination folder already exists

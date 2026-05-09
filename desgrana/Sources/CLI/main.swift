@@ -116,11 +116,11 @@ struct DesgranaCLI {
         }
 
         // Load snap (explicit --snap, or auto-detect in session dir)
-        let resolvedSnapURL = cliArgs.snapURL ?? findSnap(in: sessionDir)
+        let resolvedSnapURL = cliArgs.snapURL ?? findConsoleSnapshot(in: sessionDir)
         var snapInfo: SnapInfo?
         if let url = resolvedSnapURL {
             do {
-                snapInfo = try parseSnap(at: url)
+                snapInfo = try parseSnapOrScene(at: url)
                 let src = cliArgs.snapURL != nil ? url.lastPathComponent : "\(url.lastPathComponent) (auto)"
                 print("Snap: \(src) — \(snapInfo!.channelNames.count) named channels, \(snapInfo!.stereoPairs.count) stereo pairs")
             } catch {
@@ -329,7 +329,7 @@ struct DesgranaCLI {
             --output, -o <path>     Output directory (default: <session-dir>_extract/)
             --prefix, -p <string>   Prefix for output filenames
             --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
-            --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
+            --snap   <file>         Console snapshot (.snap Wing / .scn X32) for stereo pairs and channel names
             --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
             --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
             --dry-run               Show what would be extracted without writing any files
@@ -351,6 +351,7 @@ struct DesgranaCLI {
         The session directory should contain:
             SE_LOG.BIN          Session metadata (markers, channel count, etc.)
             MyShow.snap         Wing snapshot (optional — stereo pairs + channel names)
+            MyShow.scn          X32 scene file (alternative to .snap)
             00000001.wav        First WAV take (multichannel, 32-bit PCM)
             00000002.wav        Second WAV take (if recording exceeded 4GB)
             ...

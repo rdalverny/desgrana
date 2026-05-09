@@ -36,7 +36,7 @@ public func desgrana_probe(
     outChannels.pointee = Int32(session?.numChannels ?? 0)
     outDuration.pointee = session?.totalDuration ?? 0
 
-    let snap = findSnap(in: dir).flatMap { try? parseSnap(at: $0) }
+    let snap = findConsoleSnapshot(in: dir).flatMap { try? parseSnapOrScene(at: $0) }
 
     if let buf = sceneNameBuf, sceneNameLen > 1 {
         let name: String

@@ -131,8 +131,8 @@ class SplitViewModel: ObservableObject {
 
         sessionInfo = selog.flatMap { try? parseSELog(at: $0) }
 
-        if let snapURL = findSnap(in: url) {
-            snapInfo = try? parseSnap(at: snapURL)
+        if let snapURL = findConsoleSnapshot(in: url) {
+            snapInfo = try? parseSnapOrScene(at: snapURL)
             snapName = snapURL.lastPathComponent
         } else {
             snapInfo = nil
@@ -153,7 +153,7 @@ class SplitViewModel: ObservableObject {
     }
 
     func loadSnap(url: URL) {
-        if let info = try? parseSnap(at: url) {
+        if let info = try? parseSnapOrScene(at: url) {
             snapInfo = info
             snapName = url.lastPathComponent
             userOverridePairs = nil

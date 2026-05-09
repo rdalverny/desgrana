@@ -277,7 +277,7 @@ struct ContentView: View {
                 Text("Drop a session folder here")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text("with .wav, .bin, .snap files")
+                Text("with .wav, .bin, .snap/.scn files")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -411,7 +411,7 @@ struct ContentView: View {
 
                 if vm.snapInfo == nil {
                     Button { browseSnap() } label: {
-                        Label("Add Wing snapshot…", systemImage: "plus.circle")
+                        Label("Add console snapshot…", systemImage: "plus.circle")
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
@@ -659,7 +659,7 @@ struct ContentView: View {
     func handlePendingURL() {
         guard let url = appDelegate.pendingURL else { return }
         appDelegate.pendingURL = nil
-        if url.pathExtension.lowercased() == "snap" {
+        if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
             vm.loadSnap(url: url)
         } else if url.hasDirectoryPath || isDirectory(url) {
             vm.loadSession(url: url)
@@ -686,12 +686,12 @@ struct ContentView: View {
 
     func browseSnap() {
         let panel = NSOpenPanel()
-        panel.title = "Select Wing Snapshot"
+        panel.title = "Select Console Snapshot"
         panel.allowedContentTypes = []
         panel.allowsOtherFileTypes = true
-        panel.message = "Select a .snap file exported from the Wing console"
+        panel.message = "Select a .snap (Wing) or .scn (X32) snapshot file"
         if panel.runModal() == .OK, let url = panel.url,
-           url.pathExtension.lowercased() == "snap" {
+           ["snap", "scn"].contains(url.pathExtension.lowercased()) {
             vm.loadSnap(url: url)
         }
     }
@@ -703,7 +703,7 @@ struct ContentView: View {
                   let url = URL(dataRepresentation: data, relativeTo: nil)
             else { return }
             Task { @MainActor in
-                if url.pathExtension.lowercased() == "snap" {
+                if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
                     vm.loadSnap(url: url)
                 } else if url.hasDirectoryPath || isDirectory(url) {
                     vm.loadSession(url: url)
@@ -718,7 +718,7 @@ struct ContentView: View {
         provider.loadItem(forTypeIdentifier: "public.file-url") { item, _ in
             guard let data = item as? Data,
                   let url = URL(dataRepresentation: data, relativeTo: nil),
-                  url.pathExtension.lowercased() == "snap"
+                  ["snap", "scn"].contains(url.pathExtension.lowercased())
             else { return }
             Task { @MainActor in
                 vm.loadSnap(url: url)

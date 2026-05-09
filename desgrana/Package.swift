@@ -53,6 +53,12 @@ let package = Package(
             dependencies: ["DesgranaCore", "DesgranaCoreAudioToolbox"],
             path: "Sources/App",
             exclude: ["Desgrana.entitlements"]
+        ),
+        // Core unit tests
+        .testTarget(
+            name: "DesgranaCoreTests",
+            dependencies: ["DesgranaCore"],
+            path: "Tests/CoreTests"
         )
     ]
 )

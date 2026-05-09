@@ -132,13 +132,17 @@ public func findSnap(in dir: URL) -> URL? {
         .first
 }
 
-// MARK: - Helpers
+// MARK: - Auto-detect helpers
 
-/// Strips characters unsafe for filenames and collapses whitespace to underscores.
-private func sanitizeChannelName(_ raw: String) -> String {
-    let unsafe = CharacterSet(charactersIn: "/\\:*?\"<>|")
-    return raw
-        .components(separatedBy: unsafe).joined()
-        .trimmingCharacters(in: .whitespaces)
-        .replacingOccurrences(of: #"\s+"#, with: "_", options: .regularExpression)
+/// Returns the first console snapshot in `dir`: .snap first, then .scn.
+public func findConsoleSnapshot(in dir: URL) -> URL? {
+    findSnap(in: dir) ?? findX32Scene(in: dir)
+}
+
+/// Parses a Wing .snap or X32 .scn file, dispatching on the file extension.
+public func parseSnapOrScene(at url: URL) throws -> SnapInfo {
+    switch url.pathExtension.lowercased() {
+    case "scn": return try parseX32Scene(at: url)
+    default:    return try parseSnap(at: url)
+    }
 }

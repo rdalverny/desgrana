@@ -181,6 +181,17 @@ public func channelNameSuffix(for channels: [Int], names: [Int: String]) -> Stri
     return parts[0].isEmpty ? "" : "_\(parts[0])"
 }
 
+// MARK: - Shared string helpers
+
+/// Strips characters unsafe for filenames and collapses whitespace to underscores.
+func sanitizeChannelName(_ raw: String) -> String {
+    let unsafe = CharacterSet(charactersIn: "/\\:*?\"<>|")
+    return raw
+        .components(separatedBy: unsafe).joined()
+        .trimmingCharacters(in: .whitespaces)
+        .replacingOccurrences(of: #"\s+"#, with: "_", options: .regularExpression)
+}
+
 /// Prints the split result summary to stdout.
 public func printSplitSummary(
     keptMono: Int, keptStereo: Int,
