@@ -6,13 +6,11 @@ Desgrana works strictly offline.
 
 The only network request Desgrana makes is a regular update check.
 
-When enabled (the default), once a month,
-it sends a single GET request to:
+When enabled (the default), once a month, it sends a single GET request to:
 
     https://romaindalverny.com/atelier/desgrana/version.json
 
 It can be disabled in Preferences under "Check for updates automatically".
-
 
 The request includes these query parameters:
 
@@ -24,16 +22,14 @@ The request includes these query parameters:
 | `v`       | Application version          | `1.7`            |
 | `l`       | System language code         | `en`             |
 
-The purpose of these is to get an idea of the platforms usage,
-for future support updates.
+The purpose of these is to get an idea of the platforms usage, for future
+support updates.
 
 That is all, nothing else leaves your system.
-
 
 On macOS it can also be disabled from the terminal:
 
     defaults write eu.elephathom.apps.desgrana UpdateCheck.enabled -bool false
-
 
 ## Contact
 

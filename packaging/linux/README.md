@@ -1,5 +1,7 @@
 # Dev setup for Linux
 
+## Prerequisites
+
 ```shell
 sudo apt install binutils libcurl4 libxml2 libz3-dev
 
@@ -12,19 +14,30 @@ sudo apt install cmake ninja-build qt6-base-dev libgl1-mesa-dev libxkbcommon-dev
 
 # Code & build
 git clone <repo> desgrana-repo && cd desgrana-repo
+```
 
-# CLI + bridge
-cd desgrana && swift build -c release --product desgrana
-cd desgrana && swift build -c release --target DesgranaBridgeC
+## Build
 
-# then GUI
-cmake -S qt -B qt/build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
-  -DSWIFT_BUILD_DIR=$(PWD)/desgrana/.build/release \
-  -DSWIFT_RUNTIME_DIR=$(SWIFT_RUNTIME_DIR) \
-  -DDESGRANA_INSTALL_RPATH=/usr/lib/desgrana
-cmake --build qt/build
+You may need to adjust SWIFT\_\* vars in Makefile
 
+```sh
+make build-linux
+```
+
+```sh
 ./linux/build/desgrana-linux
+```
+
+## Packaged build (Docker)
+
+```sh
+make package-debian        # amd64 .deb → dist/
+make package-debian-arm64  # arm64 .deb → dist/
+```
+
+## Running tests
+
+```sh
+make test-image   # build the tester Docker image (once)
+make test-debian  # install the .deb and run the CLI test suite
 ```

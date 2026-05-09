@@ -62,22 +62,6 @@ Note: `ae_data.ch.<N>.name` exists in the JSON but is empty by default on the
 Wing. Channel names must be retrieved via the physical input routing path
 above.
 
-### Gotchas
-
-- **`clink=true` on all channels by default** — the Wing ships with every
-  channel stereo-linked (factory state). If the user hasn't configured their
-  stereo pairs before exporting the snap, Desgrana will see everything as
-  stereo. Solution: the user should configure stereo pairs on the console
-  before exporting, or drop the snap to get all-mono output.
-
-- **`clink` is written on both channels of a pair** — the parser must skip
-  channels already claimed as the "right" side of a pair (`claimedRight` set),
-  to avoid counting them twice.
-
-- **Snap has 40 channels, session may have fewer** — the Wing AE snap always
-  contains 40 channel entries even if fewer were recorded. Pairs referencing
-  out-of-range channels are silently ignored (warning logged, no fatal error).
-
 ## AI disclosure
 
 This project is built with AI assistance. If your contribution includes
