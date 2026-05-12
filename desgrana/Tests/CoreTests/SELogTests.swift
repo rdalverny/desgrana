@@ -217,6 +217,4 @@ final class SELogFormattingTests: XCTestCase {
     func testFormatTimeOverOneHour() {
         XCTAssertEqual(formatTime(3661.0), "01:01:01.000")
     }
-
-
 }

@@ -153,6 +153,4 @@ final class SanitizeChannelNameTests: XCTestCase {
         XCTAssertEqual(sanitizeChannelName("Kick Drum"), "Kick_Drum")
         XCTAssertEqual(sanitizeChannelName("Kick  Drum"), "Kick_Drum")
     }
-
-
 }
