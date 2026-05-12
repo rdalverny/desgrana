@@ -342,7 +342,10 @@ struct ContentView: View {
                             .keyboardShortcut(.defaultAction)
                     }
                     .padding(.top, 4)
-                    DAWButtonsView(dir: dir, markers: vm.lastMarkers)
+                    DAWButtonsView(dir: dir,
+                                  duration: duration,
+                                  sampleRate: Double(vm.sessionInfo?.sampleRate ?? 48_000),
+                                  markers: vm.lastMarkers)
                         .padding(.top, 4)
                     Spacer(minLength: 8)
                 }
@@ -708,20 +711,6 @@ struct ContentView: View {
                 } else if url.hasDirectoryPath || isDirectory(url) {
                     vm.loadSession(url: url)
                 }
-            }
-        }
-        return true
-    }
-
-    func handleSnapDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url") { item, _ in
-            guard let data = item as? Data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil),
-                  ["snap", "scn"].contains(url.pathExtension.lowercased())
-            else { return }
-            Task { @MainActor in
-                vm.loadSnap(url: url)
             }
         }
         return true
