@@ -413,12 +413,12 @@ struct ContentView: View {
                 destinationLine(sessionDir: sessionDir)
 
                 if vm.snapInfo == nil {
-                    Button { browseSnap() } label: {
-                        Label("Add console snapshot…", systemImage: "plus.circle")
+                    HStack(spacing: 6) {
+                        Text("No snapshot \u{2014} channel names will be numbered.")
+                        Button("Add\u{2026}") { browseSnap() }
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
                     .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 HStack(alignment: .center) {

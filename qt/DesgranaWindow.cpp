@@ -12,6 +12,7 @@
 #include <QDragLeaveEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -208,6 +209,19 @@ void DesgranaWindow::buildReadyPage() {
     topRow->addSpacing(8);
     topRow->addWidget(resetBtn);
 
+    // Snap hint — shown when no snap was found at session load
+    m_snapHintLabel = new QLabel(
+        "No snapshot \xe2\x80\x94 channel names will be numbered. "
+        "Drop a .snap file anywhere to add one.");
+    m_snapHintLabel->setForegroundRole(QPalette::PlaceholderText);
+    m_snapHintLabel->setWordWrap(true);
+    {
+        QFont f = m_snapHintLabel->font();
+        f.setPixelSize(11);
+        m_snapHintLabel->setFont(f);
+    }
+    m_snapHintLabel->setVisible(false);
+
     // Hint below the name
     auto *warningLabel = new QLabel("Make sure your tracks are grouped as expected below:");
     warningLabel->setForegroundRole(QPalette::PlaceholderText);
@@ -272,6 +286,7 @@ void DesgranaWindow::buildReadyPage() {
     layout->setContentsMargins(20, 12, 20, 16);
     layout->setSpacing(6);
     layout->addLayout(topRow);
+    layout->addWidget(m_snapHintLabel);
     layout->addWidget(warningLabel);
     layout->addSpacing(4);
     layout->addWidget(m_channelScroll);
@@ -451,7 +466,12 @@ void DesgranaWindow::dropEvent(QDropEvent *e) {
     const auto urls = e->mimeData()->urls();
     if (urls.isEmpty()) return;
     const QString path = urls.first().toLocalFile();
-    if (QDir(path).exists()) loadSession(path);
+    const QString ext  = QFileInfo(path).suffix().toLower();
+    if ((ext == "snap" || ext == "scn") && m_currentPage == 1) {
+        loadSnap(path);
+    } else if (QDir(path).exists()) {
+        loadSession(path);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -463,6 +483,7 @@ void DesgranaWindow::loadSession(const QString &path) {
     char err[512]       = {};
     int32_t channels    = 0;
     double  duration    = 0;
+    int32_t snapFound   = 0;
 
     int rc = desgrana_probe(
         path.toUtf8().constData(),
@@ -470,7 +491,7 @@ void DesgranaWindow::loadSession(const QString &path) {
         sceneName, sizeof(sceneName),
         m_pairLefts,  m_pairRights,  kSnapCap, &m_pairCount,
         m_chKeys,     &m_chNames[0][0], kSnapCap, &m_chCount,
-        err, sizeof(err)
+        err, sizeof(err), &snapFound
     );
 
     if (rc != 0) {
@@ -481,13 +502,44 @@ void DesgranaWindow::loadSession(const QString &path) {
     m_sessionPath = path;
     m_channels    = channels;
     m_duration    = duration;
+    m_snapFound   = snapFound;
 
     m_effectivePairs.clear();
     for (int i = 0; i < m_pairCount; i++)
         m_effectivePairs.push_back({m_pairLefts[i], m_pairRights[i]});
 
-    m_sessionName = *sceneName ? QString::fromUtf8(sceneName) : QDir(path).dirName();
+    if (*sceneName)
+        m_sessionName = QString::fromUtf8(sceneName);
+    else
+        m_sessionName = QString("NONAME_%1").arg(QDateTime::currentDateTime().toString("yyMMddHH"));
     showReady();
+    m_snapHintLabel->setVisible(!snapFound);
+}
+
+void DesgranaWindow::loadSnap(const QString &snapPath) {
+    char sceneName[256] = {};
+    int rc = desgrana_load_snap(
+        snapPath.toUtf8().constData(),
+        sceneName, sizeof(sceneName),
+        m_pairLefts, m_pairRights, kSnapCap, &m_pairCount,
+        m_chKeys, &m_chNames[0][0], kSnapCap, &m_chCount
+    );
+    if (rc != 0) return;
+
+    m_effectivePairs.clear();
+    for (int i = 0; i < m_pairCount; i++)
+        m_effectivePairs.push_back({m_pairLefts[i], m_pairRights[i]});
+
+    if (*sceneName) {
+        m_sessionName = QString::fromUtf8(sceneName);
+        m_sessionNameEdit->setText(m_sessionName);
+        setWindowTitle(m_sessionName + " \xe2\x80\x94 Desgrana");
+        updateOutputPath();
+    }
+
+    m_snapFound = 1;
+    m_snapHintLabel->setVisible(false);
+    populateChannelList();
 }
 
 void DesgranaWindow::onSessionNameChanged(const QString &name) {

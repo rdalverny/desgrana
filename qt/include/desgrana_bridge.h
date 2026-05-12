@@ -40,7 +40,27 @@ int32_t desgrana_probe(
     int32_t     ch_capacity,
     int32_t    *out_ch_count,     /* nullable */
     char       *err_buf,          /* nullable */
-    int32_t     err_len
+    int32_t     err_len,
+    int32_t    *out_snap_found    /* nullable — 1 if a snap was loaded, 0 otherwise */
+);
+
+/**
+ * Parse a single .snap or .scn file and fill snap metadata.
+ * channel_count is inferred from the highest channel key in the snap.
+ * Returns 0 on success, -1 if the file cannot be parsed.
+ */
+int32_t desgrana_load_snap(
+    const char *snap_path,
+    char       *scene_name_buf,  /* nullable */
+    int32_t     scene_name_len,
+    int32_t    *out_pair_lefts,  /* nullable */
+    int32_t    *out_pair_rights, /* nullable */
+    int32_t     pair_capacity,
+    int32_t    *out_pair_count,  /* nullable */
+    int32_t    *out_ch_keys,     /* nullable */
+    char       *out_ch_names,    /* nullable: flat, DESGRANA_CH_NAME_MAX bytes per slot */
+    int32_t     ch_capacity,
+    int32_t    *out_ch_count     /* nullable */
 );
 
 /**

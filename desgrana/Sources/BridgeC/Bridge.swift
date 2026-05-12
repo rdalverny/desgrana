@@ -24,7 +24,8 @@ public func desgrana_probe(
     _ chCapacity: Int32,
     _ outChCount: UnsafeMutablePointer<Int32>?,
     _ errBuf: UnsafeMutablePointer<CChar>?,
-    _ errLen: Int32
+    _ errLen: Int32,
+    _ outSnapFound: UnsafeMutablePointer<Int32>?
 ) -> Int32 {
     let dir = URL(fileURLWithPath: String(cString: sessionPath))
 
@@ -37,6 +38,7 @@ public func desgrana_probe(
     outDuration.pointee = session?.totalDuration ?? 0
 
     let snap = findConsoleSnapshot(in: dir).flatMap { try? parseSnapOrScene(at: $0) }
+    outSnapFound?.pointee = snap != nil ? 1 : 0
 
     if let buf = sceneNameBuf, sceneNameLen > 1 {
         let name: String
@@ -139,6 +141,52 @@ public func desgrana_split(
         cStringCopy("\(error)", into: errBuf, maxLen: Int(errLen))
         return -1
     }
+}
+
+// MARK: - Load snap
+
+/// Parses a single .snap or .scn file and fills snap metadata (scene name, pairs, channel names).
+/// Returns 0 on success, -1 if the file cannot be parsed.
+@_cdecl("desgrana_load_snap")
+public func desgrana_load_snap(
+    _ snapPath: UnsafePointer<CChar>,
+    _ sceneNameBuf: UnsafeMutablePointer<CChar>?,
+    _ sceneNameLen: Int32,
+    _ outPairLefts: UnsafeMutablePointer<Int32>?,
+    _ outPairRights: UnsafeMutablePointer<Int32>?,
+    _ pairCapacity: Int32,
+    _ outPairCount: UnsafeMutablePointer<Int32>?,
+    _ outChKeys: UnsafeMutablePointer<Int32>?,
+    _ outChNames: UnsafeMutablePointer<CChar>?,
+    _ chCapacity: Int32,
+    _ outChCount: UnsafeMutablePointer<Int32>?
+) -> Int32 {
+    let url = URL(fileURLWithPath: String(cString: snapPath))
+    guard let snap = try? parseSnapOrScene(at: url) else { return -1 }
+
+    if let buf = sceneNameBuf, sceneNameLen > 1 {
+        cStringCopy(snap.sceneName ?? "", into: buf, maxLen: Int(sceneNameLen))
+    }
+
+    if let pL = outPairLefts, let pR = outPairRights, let pC = outPairCount, pairCapacity > 0 {
+        let pairs = detectStereoPairsFromNames(snap.channelNames, channelCount: snap.channelNames.keys.max() ?? 0)
+        let n = min(pairs.count, Int(pairCapacity))
+        for i in 0..<n { pL[i] = Int32(pairs[i].left); pR[i] = Int32(pairs[i].right) }
+        pC.pointee = Int32(n)
+    }
+
+    let chNameMax = 64
+    if let keys = outChKeys, let buf = outChNames, let cnt = outChCount, chCapacity > 0 {
+        let sorted = snap.channelNames.sorted { $0.key < $1.key }
+        let n = min(sorted.count, Int(chCapacity))
+        for i in 0..<n {
+            keys[i] = Int32(sorted[i].key)
+            cStringCopy(sorted[i].value, into: buf.advanced(by: i * chNameMax), maxLen: chNameMax)
+        }
+        cnt.pointee = Int32(n)
+    }
+
+    return 0
 }
 
 // MARK: - Helpers
