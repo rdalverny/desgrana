@@ -59,7 +59,10 @@ public func splitSession(
     var srcFmt = AudioStreamBasicDescription()
     var propSize = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
     status = ExtAudioFileGetProperty(firstFile, kExtAudioFileProperty_FileDataFormat, &propSize, &srcFmt)
-    guard status == noErr else { throw SplitError.cannotGetFormat(status) }
+    guard status == noErr else {
+        ExtAudioFileDispose(firstFile)
+        throw SplitError.cannotGetFormat(status)
+    }
     ExtAudioFileDispose(firstFile)
 
     let numChannels  = Int(srcFmt.mChannelsPerFrame)
@@ -162,6 +165,7 @@ public func splitSession(
         var takeFile: ExtAudioFileRef?
         status = ExtAudioFileOpenURL(wavURL as CFURL, &takeFile)
         guard status == noErr, let tf = takeFile else {
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotOpenInput("\(wavURL.lastPathComponent) (OSStatus \(status))")
         }
 
@@ -171,6 +175,7 @@ public func splitSession(
         ExtAudioFileGetProperty(tf, kExtAudioFileProperty_FileDataFormat, &sz, &takeFmt)
         guard Int(takeFmt.mChannelsPerFrame) == numChannels else {
             ExtAudioFileDispose(tf)
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.channelMismatch(
                 expected: numChannels, got: Int(takeFmt.mChannelsPerFrame),
                 file: wavURL.lastPathComponent
@@ -183,6 +188,7 @@ public func splitSession(
             UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &clientFmt)
         guard status == noErr else {
             ExtAudioFileDispose(tf)
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotSetClientFormat(status)
         }
 
@@ -204,6 +210,7 @@ public func splitSession(
             status = ExtAudioFileRead(tf, &framesToRead, &bufferList)
             guard status == noErr else {
                 ExtAudioFileDispose(tf)
+                tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                 throw SplitError.readError(status)
             }
             if framesToRead == 0 { break }
@@ -227,6 +234,7 @@ public func splitSession(
                     status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
                     guard status == noErr else {
                         ExtAudioFileDispose(tf)
+                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                         throw SplitError.writeError(status)
                     }
 
@@ -246,6 +254,7 @@ public func splitSession(
                     status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
                     guard status == noErr else {
                         ExtAudioFileDispose(tf)
+                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                         throw SplitError.writeError(status)
                     }
                 }
