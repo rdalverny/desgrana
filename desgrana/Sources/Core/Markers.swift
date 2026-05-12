@@ -78,8 +78,10 @@ private func writeCueChunk(to url: URL, markers: [UInt32]) {
           (try? fh.write(contentsOf: chunk)) != nil else { return }
 
     // 0xFFFF_FFFF signals a >4 GB file (RIFF64); writing a new size would overflow and corrupt the header.
-    if currentRiffSize != 0xFFFF_FFFF {
-        let newSize = currentRiffSize &+ UInt32(chunk.count)
+    // Also guard against ordinary overflow for files just under the RIFF64 threshold.
+    if currentRiffSize != 0xFFFF_FFFF,
+       (0xFFFF_FFFE - currentRiffSize) >= UInt32(chunk.count) {
+        let newSize = currentRiffSize + UInt32(chunk.count)
         var sizeLE = newSize.littleEndian
         guard (try? fh.seek(toOffset: 4)) != nil else { return }
         try? fh.write(contentsOf: Data(bytes: &sizeLE, count: 4))
