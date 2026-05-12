@@ -186,7 +186,12 @@ public func splitSession(
                         bytesPerSample: bytesPerSample,
                         hasSignal: &tracks[ti].hasSignal
                     )
-                    drwav_write_raw(tracks[ti].wavWriter, Int(frames * bytesPerSample), monoOut)
+                    let monoCount = frames * bytesPerSample
+                    guard drwav_write_raw(tracks[ti].wavWriter, monoCount, monoOut) == monoCount else {
+                        drwav_uninit(takeWav); takeWav.deallocate()
+                        tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
+                        throw SplitError.writeError(0)
+                    }
 
                 case .stereo(let left, let right):
                     demuxStereo(
@@ -199,11 +204,12 @@ public func splitSession(
                         bytesPerSample: bytesPerSample,
                         hasSignal: &tracks[ti].hasSignal
                     )
-                    drwav_write_raw(
-                        tracks[ti].wavWriter,
-                        Int(frames * bytesPerSample * 2),
-                        stereoOut
-                    )
+                    let stereoCount = frames * bytesPerSample * 2
+                    guard drwav_write_raw(tracks[ti].wavWriter, stereoCount, stereoOut) == stereoCount else {
+                        drwav_uninit(takeWav); takeWav.deallocate()
+                        tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
+                        throw SplitError.writeError(0)
+                    }
                 }
             }
 
