@@ -145,6 +145,6 @@ public func desgrana_split(
 
 private func cStringCopy(_ str: String, into buf: UnsafeMutablePointer<CChar>?, maxLen: Int) {
     guard let buf = buf, maxLen > 1 else { return }
-    let bytes = Array(str.prefix(maxLen - 1).utf8) + [0]
+    let bytes = Array(str.utf8.prefix(maxLen - 1)) + [0]
     bytes.withUnsafeBytes { UnsafeMutableRawPointer(buf).copyMemory(from: $0.baseAddress!, byteCount: bytes.count) }
 }
