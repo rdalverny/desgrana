@@ -28,9 +28,8 @@ install -Dm755 %{_sourcedir}/desgrana     %{buildroot}%{_bindir}/desgrana
 install -Dm755 %{_sourcedir}/desgrana-gui %{buildroot}%{_bindir}/desgrana-gui
 
 # Bundled Swift private libs (accessed via RPATH baked into the binary)
-for lib in %{_sourcedir}/swift-libs/*.so; do
-    install -Dm755 "$lib" %{buildroot}/usr/lib/desgrana/
-done
+install -d %{buildroot}/usr/lib/desgrana
+cp %{_sourcedir}/swift-libs/*.so %{buildroot}/usr/lib/desgrana/
 
 # Desktop integration
 install -Dm644 %{_sourcedir}/desgrana-gui.desktop \
@@ -48,3 +47,7 @@ done
 /usr/lib/desgrana/*.so
 %{_datadir}/applications/desgrana-gui.desktop
 %{_datadir}/icons/hicolor/*/apps/desgrana.png
+
+%changelog
+* Wed May 13 2026 Romain d'Alverny <rwx@romaindalverny.com> - 1.8.0-1
+- Initial RPM package.
