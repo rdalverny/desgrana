@@ -6,15 +6,9 @@ import DesgranaCore
 
 // MARK: - Internal track representation
 
-private enum TrackKind {
-    case mono(ch: Int)
-    case stereo(left: Int, right: Int)
-}
-
 private struct Track {
-    let kind: TrackKind
+    let spec: OutputSpec
     let wavWriter: UnsafeMutablePointer<drwav>
-    let url: URL
     var hasSignal: Bool = false
 }
 
@@ -66,8 +60,8 @@ public func splitSession(
 
     // Validate stereo pairs
     let (activePairs, pairedChannels) = validateStereoPairs(stereoPairs, channelCount: numChannels)
-    let stereoCount    = activePairs.count
-    let monoCount      = numChannels - pairedChannels.count
+    let stereoCount = activePairs.count
+    let monoCount   = numChannels - pairedChannels.count
 
     let fmtLabel = formatTag == 3 ? "float" : "int"
     print("Source: \(numChannels) ch, \(Int(sampleRate)) Hz, \(sourceBits)-bit \(fmtLabel)")
@@ -81,13 +75,24 @@ public func splitSession(
     try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
     let pfx = prefix ?? sessionDir.lastPathComponent + "_"
 
+    // Build output specs (filenames + kinds) — platform-independent
+    let specs = buildOutputSpecs(
+        activePairs: activePairs,
+        pairedChannels: pairedChannels,
+        numChannels: numChannels,
+        channelNames: channelNames,
+        outputDir: outputDir,
+        prefix: pfx,
+        useShortFilenames: useShortFilenames
+    )
+
     // Create output writer with same format as source
     func makeWriter(_ url: URL, channels: UInt32) throws -> UnsafeMutablePointer<drwav> {
         var fmt = drwav_data_format()
-        fmt.container    = drwav_container_riff
-        fmt.format       = UInt32(formatTag)   // preserve source format (PCM or IEEE_FLOAT)
-        fmt.channels     = channels
-        fmt.sampleRate   = UInt32(sampleRate)
+        fmt.container     = drwav_container_riff
+        fmt.format        = UInt32(formatTag)
+        fmt.channels      = channels
+        fmt.sampleRate    = UInt32(sampleRate)
         fmt.bitsPerSample = sourceBits
         let writer = UnsafeMutablePointer<drwav>.allocate(capacity: 1)
         guard url.path.withCString({ drwav_init_file_write(writer, $0, &fmt, nil) }) == 1 else {
@@ -99,31 +104,17 @@ public func splitSession(
 
     var tracks: [Track] = []
     do {
-        for pair in activePairs {
-            let suffix = channelNameSuffix(for: [pair.left, pair.right], names: channelNames)
-            let filename =
-                useShortFilenames
-                ? (suffix.isEmpty ? String(format: "ch%02d-%02d.wav", pair.left, pair.right) : "\(suffix.dropFirst()).wav")
-                : String(format: "%@ch%02d-%02d\(suffix).wav", pfx, pair.left, pair.right)
-            let url = outputDir.appendingPathComponent(filename)
-            let writer = try makeWriter(url, channels: 2)
-            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), wavWriter: writer, url: url))
-        }
-        for ch in 0..<numChannels where !pairedChannels.contains(ch + 1) {
-            let suffix = channelNameSuffix(for: [ch + 1], names: channelNames)
-            let filename =
-                useShortFilenames
-                ? (suffix.isEmpty ? String(format: "ch%02d.wav", ch + 1) : "\(suffix.dropFirst()).wav")
-                : String(format: "%@ch%02d\(suffix).wav", pfx, ch + 1)
-            let url = outputDir.appendingPathComponent(filename)
-            let writer = try makeWriter(url, channels: 1)
-            tracks.append(Track(kind: .mono(ch: ch), wavWriter: writer, url: url))
+        for spec in specs {
+            let channels: UInt32
+            switch spec.kind {
+            case .stereo: channels = 2
+            case .mono:   channels = 1
+            }
+            let writer = try makeWriter(spec.url, channels: channels)
+            tracks.append(Track(spec: spec, wavWriter: writer))
         }
     } catch {
-        tracks.forEach {
-            drwav_uninit($0.wavWriter)
-            $0.wavWriter.deallocate()
-        }
+        tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
         throw error
     }
 
@@ -145,22 +136,14 @@ public func splitSession(
         let takeWav = UnsafeMutablePointer<drwav>.allocate(capacity: 1)
         guard wavURL.path.withCString({ drwav_init_file(takeWav, $0, nil) }) == 1 else {
             takeWav.deallocate()
-            tracks.forEach {
-                drwav_uninit($0.wavWriter)
-                $0.wavWriter.deallocate()
-            }
+            tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
             throw SplitError.cannotOpenInput(wavURL.lastPathComponent)
         }
         guard Int(takeWav.pointee.channels) == numChannels else {
-            drwav_uninit(takeWav)
-            takeWav.deallocate()
-            tracks.forEach {
-                drwav_uninit($0.wavWriter)
-                $0.wavWriter.deallocate()
-            }
+            drwav_uninit(takeWav); takeWav.deallocate()
+            tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
             throw SplitError.channelMismatch(
-                expected: numChannels,
-                got: Int(takeWav.pointee.channels),
+                expected: numChannels, got: Int(takeWav.pointee.channels),
                 file: wavURL.lastPathComponent
             )
         }
@@ -170,42 +153,31 @@ public func splitSession(
 
         var framesInTake: UInt64 = 0
         while true {
-            // Read raw bytes — no format conversion
             let bytesRead = drwav_read_raw(takeWav, Int(readBytes), rawIn)
             if bytesRead == 0 { break }
             let frames = Int(bytesRead) / frameStride
 
-            for ti in 0..<tracks.count {
-                switch tracks[ti].kind {
+            for ti in 0 ..< tracks.count {
+                switch tracks[ti].spec.kind {
                 case .mono(let ch):
-                    demuxMono(
-                        from: rawIn,
-                        to: monoOut,
-                        frames: frames,
-                        numChannels: numChannels, ch: ch,
-                        bytesPerSample: bytesPerSample,
-                        hasSignal: &tracks[ti].hasSignal
-                    )
-                    let monoCount = frames * bytesPerSample
-                    guard drwav_write_raw(tracks[ti].wavWriter, monoCount, monoOut) == monoCount else {
+                    demuxMono(from: rawIn, to: monoOut, frames: frames,
+                              numChannels: numChannels, ch: ch,
+                              bytesPerSample: bytesPerSample,
+                              hasSignal: &tracks[ti].hasSignal)
+                    let byteCount = frames * bytesPerSample
+                    guard drwav_write_raw(tracks[ti].wavWriter, byteCount, monoOut) == byteCount else {
                         drwav_uninit(takeWav); takeWav.deallocate()
                         tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
                         throw SplitError.writeError(0)
                     }
 
                 case .stereo(let left, let right):
-                    demuxStereo(
-                        from: rawIn,
-                        to: stereoOut,
-                        frames: frames,
-                        numChannels: numChannels,
-                        left: left,
-                        right: right,
-                        bytesPerSample: bytesPerSample,
-                        hasSignal: &tracks[ti].hasSignal
-                    )
-                    let stereoCount = frames * bytesPerSample * 2
-                    guard drwav_write_raw(tracks[ti].wavWriter, stereoCount, stereoOut) == stereoCount else {
+                    demuxStereo(from: rawIn, to: stereoOut, frames: frames,
+                                numChannels: numChannels, left: left, right: right,
+                                bytesPerSample: bytesPerSample,
+                                hasSignal: &tracks[ti].hasSignal)
+                    let byteCount = frames * bytesPerSample * 2
+                    guard drwav_write_raw(tracks[ti].wavWriter, byteCount, stereoOut) == byteCount else {
                         drwav_uninit(takeWav); takeWav.deallocate()
                         tracks.forEach { drwav_uninit($0.wavWriter); $0.wavWriter.deallocate() }
                         throw SplitError.writeError(0)
@@ -228,23 +200,11 @@ public func splitSession(
         track.wavWriter.deallocate()
     }
 
-    var keptURLs: [URL] = []
-    var silentCount = 0
-    var keptMonoCount = 0, keptStereoCount = 0
-    for track in tracks {
-        if !track.hasSignal {
-            try? FileManager.default.removeItem(at: track.url)
-            silentCount += 1
-        } else {
-            keptURLs.append(track.url)
-            switch track.kind {
-            case .mono:   keptMonoCount += 1
-            case .stereo: keptStereoCount += 1
-            }
-        }
-    }
-
-    return SplitResult(urls: keptURLs, keptMono: keptMonoCount, keptStereo: keptStereoCount,
-                       silentSkipped: silentCount, totalFrames: totalFramesWritten, sampleRate: sampleRate)
+    return collectSplitResult(
+        specs: tracks.map(\.spec),
+        hasSignal: tracks.map(\.hasSignal),
+        totalFramesWritten: totalFramesWritten,
+        sampleRate: sampleRate
+    )
 }
 // swiftlint:enable cyclomatic_complexity

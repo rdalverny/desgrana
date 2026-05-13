@@ -43,7 +43,7 @@ public func desgrana_probe(
     if let buf = sceneNameBuf, sceneNameLen > 1 {
         // Only fill when the snap provides a non-empty scene name.
         // Callers are responsible for generating a fallback (e.g. NONAME_) when empty.
-        let name = snap.flatMap { $0.sceneName }.filter { !$0.isEmpty } ?? ""
+        let name = snap.flatMap { $0.sceneName.flatMap { $0.isEmpty ? nil : $0 } } ?? ""
         cStringCopy(name, into: buf, maxLen: Int(sceneNameLen))
     }
 
