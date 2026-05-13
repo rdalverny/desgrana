@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
+COPY VERSION   ./VERSION
 COPY desgrana/ ./desgrana/
 COPY qt/       ./qt/
 
