@@ -1,12 +1,5 @@
-desgrana (1.6.3-1) unstable; urgency=medium
-
-  * Update to 1.6.3.
-  * Byte-exact extraction, update checks, DAW integration.
-
- -- Romain d'Alverny <rdalverny@gmail.com>  Fri, 01 May 2026 00:00:00 +0200
-
-desgrana (1.5.3-1) unstable; urgency=medium
+desgrana (1.8.0-1) unstable; urgency=medium
 
   * Initial Debian package.
 
- -- Romain d'Alverny <rdalverny@gmail.com>  Thu, 23 Apr 2026 00:00:00 +0200
+ -- Romain d'Alverny <rwx@romaindalverny.com>  Web, 13 May 2026 00:00:00 +0200

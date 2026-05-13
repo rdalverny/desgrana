@@ -18,4 +18,6 @@ override_dh_strip:
 	dh_strip -Xusr/lib/desgrana
 
 override_dh_shlibdeps:
-	dh_shlibdeps -l debian/desgrana/usr/lib/desgrana
+	# --ignore-missing-info: Swift libs use non-standard sonames (no .so.X suffix);
+	# dpkg-shlibdeps can't resolve them but they're all bundled in /usr/lib/desgrana.
+	dh_shlibdeps -l debian/desgrana/usr/lib/desgrana -- --ignore-missing-info

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased — 1.8.0] - 2026-05-12
+## [Unreleased — 1.8.0] - 2026-05-13
 
 Linux:
 
@@ -11,9 +11,10 @@ Linux:
 Global:
 
 - (experimental) add X32 `.scn` support
-- update check now pushes desgrana version, operating system, language; see
-  `PRIVACY.md`
+- update check now pushes desgrana version, operating system, language;
+  see `PRIVACY.md`
 - now displays a (non blocking) warning if destination folder already exists
+- `--auto-stereo`: explicit error if SE_LOG.BIN is absent
 - consolidated CLI behaviour
 - added tests and refactoring
 

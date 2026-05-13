@@ -4,7 +4,7 @@ Priority: optional
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.7.0
 Homepage: https://github.com/rdalverny/desgrana
-Maintainer: Romain d'Alverny <rdalverny@gmail.com>
+Maintainer: Romain d'Alverny <rwx@romaindalverny.com>
 
 Package: desgrana
 Architecture: any

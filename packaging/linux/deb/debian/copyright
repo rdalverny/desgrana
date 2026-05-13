@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: desgrana
-Upstream-Contact: Romain d'Alverny <rdalverny@gmail.com>
+Upstream-Contact: Romain d'Alverny <rwx@romaindalverny.com>
 Source: https://github.com/rdalverny/desgrana
 
 Files: *
-Copyright: 2026 Romain d'Alverny <rdalverny@gmail.com>
+Copyright: 2026 Romain d'Alverny <rwx@romaindalverny.com>
 License: MIT
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
