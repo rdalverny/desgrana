@@ -23,6 +23,12 @@ jobs:
           swift build -c release --product desgrana
           swift build -c release --product DesgranaApp
 
+      - name: Upload CLI
+        uses: actions/upload-artifact@v7
+        with:
+          name: desgrana-${{ github.run_id }}-macos-cli
+          path: desgrana/.build/release/desgrana
+
   # ── Linux: build binaries (amd64 + arm64) ──────────────────────────────────
   # Compiles CLI + Qt GUI inside the official Swift Docker image.
   # Outputs raw binaries + bundled Swift libs as a CI artifact.
@@ -42,10 +48,10 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build binaries
         run: |
@@ -53,13 +59,15 @@ jobs:
             --platform ${{ matrix.platform }} \
             --target binaries \
             -f packaging/linux/deb/builder.dockerfile \
+            --cache-from type=gha,scope=linux-${{ matrix.deb_arch }} \
+            --cache-to   type=gha,scope=linux-${{ matrix.deb_arch }},mode=max \
             --output type=local,dest=binaries \
             .
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: linux-binaries-${{ matrix.deb_arch }}
+          name: linux-binaries-${{ matrix.deb_arch }}-${{ github.run_id }}
           path: binaries/
 
   # ── Linux: package .deb (amd64 + arm64) ────────────────────────────────────
@@ -82,16 +90,16 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: linux-binaries-${{ matrix.deb_arch }}
+          name: linux-binaries-${{ matrix.deb_arch }}-${{ github.run_id }}
           path: binaries/
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build .deb
         run: |
@@ -102,9 +110,9 @@ jobs:
             .
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: desgrana-deb-${{ matrix.deb_arch }}
+          name: desgrana-${{ github.run_id }}-linux-${{ matrix.deb_arch }}
           path: dist/*.deb
 
   # ── Windows CLI (x64) ───────────────────────────────────────────────────────

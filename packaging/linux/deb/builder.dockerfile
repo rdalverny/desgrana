@@ -29,9 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-COPY VERSION   ./VERSION
-COPY desgrana/ ./desgrana/
-COPY qt/       ./qt/
+COPY VERSION                              ./VERSION
+COPY desgrana/                            ./desgrana/
+COPY qt/                                  ./qt/
+COPY packaging/linux/collect-swift-libs.sh ./collect-swift-libs.sh
 
 # CLI (static stdlib + GNU build-id) then bridge library
 RUN cd desgrana \
@@ -50,17 +51,12 @@ RUN cmake \
         -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     && cmake --build qt/build
 
-# Collect Swift dylibs: glob copy to capture direct and transitive deps.
-# readelf only sees direct deps of the binary; libs like libFoundation.so pull in
-# further Swift libs that must also be bundled.
-RUN mkdir -p /src/swift-libs \
-    && cp /usr/lib/swift/linux/libswift*.so      /src/swift-libs/ 2>/dev/null || true \
-    && cp /usr/lib/swift/linux/libFoundation*.so /src/swift-libs/ 2>/dev/null || true \
-    && cp /usr/lib/swift/linux/lib_Foundation*.so /src/swift-libs/ 2>/dev/null || true \
-    && cp /usr/lib/swift/linux/libdispatch.so    /src/swift-libs/ 2>/dev/null || true \
-    && cp /usr/lib/swift/linux/libBlocksRuntime.so /src/swift-libs/ 2>/dev/null || true \
-    && ls /src/swift-libs/ \
-    && [ -n "$(ls /src/swift-libs/)" ]
+# Collect only the Swift dylibs actually needed by the GUI binary, recursively.
+# System libs (libcurl, libQt6, …) are excluded — they become package dependencies.
+RUN bash /src/collect-swift-libs.sh \
+        /src/qt/build/desgrana-linux \
+        /usr/lib/swift/linux \
+        /src/swift-libs
 
 # ── 2. Package as .deb ────────────────────────────────────────────────────────
 
