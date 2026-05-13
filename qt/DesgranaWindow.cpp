@@ -615,12 +615,13 @@ void DesgranaWindow::startSplit() {
     thread->start();
 }
 
-void DesgranaWindow::onProgress(int take, int total) {
-    if (total > 1) {
-        m_progress->setRange(0, total);
-        m_progress->setValue(take);
-        m_splittingLabel->setText(QString("Take %1 / %2").arg(take).arg(total));
+void DesgranaWindow::onProgress(int take, int total, double fraction) {
+    if (fraction > 0) {
+        m_progress->setRange(0, 10000);
+        m_progress->setValue(static_cast<int>(fraction * 10000));
     }
+    if (total > 1)
+        m_splittingLabel->setText(QString("Take %1 / %2").arg(take).arg(total));
 }
 
 void DesgranaWindow::onSplitDone(int silentSkipped, int keptMono, int keptStereo) {

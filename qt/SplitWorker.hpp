@@ -25,7 +25,7 @@ public slots:
     void run();
 
 signals:
-    void progress(int take, int total);
+    void progress(int take, int total, double fraction);
     void done(int silentSkipped, int keptMono, int keptStereo);
     void error(const QString &msg);
 

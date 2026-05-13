@@ -100,7 +100,7 @@ public func desgrana_split(
     _ chNameKeys: UnsafePointer<Int32>?,
     _ chNameValues: UnsafePointer<UnsafePointer<CChar>?>?,
     _ chNameCount: Int32,
-    _ progressCb: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer?) -> Void)?,
+    _ progressCb: (@convention(c) (Int32, Int32, Double, UnsafeMutableRawPointer?) -> Void)?,
     _ userData: UnsafeMutableRawPointer?,
     _ outSilentSkipped: UnsafeMutablePointer<Int32>?,
     _ outKeptMono: UnsafeMutablePointer<Int32>?,
@@ -126,6 +126,22 @@ public func desgrana_split(
         }
     }
 
+    // Build per-take frame offsets from SE_LOG for deterministic progress.
+    let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+        .lazy.map { sessionDir.appendingPathComponent($0) }
+        .first { FileManager.default.fileExists(atPath: $0.path) }
+    let seInfo = selogURL.flatMap { try? parseSELog(at: $0) }
+    let totalFrames = Double(seInfo?.totalLength ?? 0)
+    let numCh = max(seInfo?.numChannels ?? 1, 1)
+    var framesBeforeTake: [Int: Double] = [:]
+    if let info = seInfo {
+        var acc: Double = 0
+        for i in 0 ..< info.takeSizes.count {
+            framesBeforeTake[i + 1] = acc
+            acc += Double(info.takeSizes[i]) / Double(numCh)
+        }
+    }
+
     do {
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
         let result = try splitSession(
@@ -135,7 +151,16 @@ public func desgrana_split(
             stereoPairs: pairs,
             channelNames: names,
             useShortFilenames: pfx.isEmpty,
-            progress: { take, total, _ in progressCb?(Int32(take), Int32(total), userData) }
+            progress: { take, total, framesInTake in
+                let fraction: Double
+                if totalFrames > 0 {
+                    let before = framesBeforeTake[take] ?? 0
+                    fraction = min((before + Double(framesInTake)) / totalFrames, 1.0)
+                } else {
+                    fraction = total > 0 ? Double(take - 1) / Double(total) : 0
+                }
+                progressCb?(Int32(take), Int32(total), fraction, userData)
+            }
         )
         if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
         if let p = outKeptMono      { p.pointee = Int32(result.keptMono) }

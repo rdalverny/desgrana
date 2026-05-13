@@ -34,7 +34,7 @@ protected:
 private slots:
     void browseOutput();
     void startSplit();
-    void onProgress(int take, int total);
+    void onProgress(int take, int total, double fraction);
     void onSplitDone(int silentSkipped, int keptMono, int keptStereo);
     void onSplitError(const QString &msg);
     void onSessionNameChanged(const QString &name);

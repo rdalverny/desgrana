@@ -21,9 +21,9 @@ void SplitWorker::run() {
         m_params.chKeys.empty() ? nullptr : m_params.chKeys.data(),
         chVals.empty()          ? nullptr : chVals.data(),
         static_cast<int32_t>(chVals.size()),
-        [](int32_t take, int32_t total, void *ud) {
+        [](int32_t take, int32_t total, double fraction, void *ud) {
             auto *w = static_cast<SplitWorker *>(ud);
-            emit w->progress(take, total);
+            emit w->progress(take, total, fraction);
         },
         this,
         &silentSkipped,

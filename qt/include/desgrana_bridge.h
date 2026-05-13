@@ -72,8 +72,9 @@ int32_t desgrana_load_snap(
  * ch_name_keys / ch_name_values: parallel arrays mapping 1-based channel number → name,
  *   length ch_name_count. Pass NULL / 0 to omit channel names from filenames.
  *
- * progress_cb: called after each take with (current_take, total_takes, user_data).
- *   May be NULL. Called from the same thread as desgrana_split.
+ * progress_cb: called periodically during splitting with (current_take, total_takes,
+ *   fraction, user_data). fraction is in [0, 1]; it is frame-accurate when SE_LOG.BIN
+ *   is present, otherwise it advances per completed take. May be NULL.
  *
  * out_silent_skipped: receives the number of silent tracks skipped (nullable).
  * out_kept_mono:      receives the number of mono tracks written (nullable).
@@ -91,7 +92,7 @@ int32_t desgrana_split(
     const int32_t *ch_name_keys,      /* nullable */
     const char   **ch_name_values,    /* nullable */
     int32_t        ch_name_count,
-    void         (*progress_cb)(int32_t take, int32_t total, void *user_data),
+    void         (*progress_cb)(int32_t take, int32_t total, double fraction, void *user_data),
     void          *user_data,
     int32_t       *out_silent_skipped, /* nullable */
     int32_t       *out_kept_mono,      /* nullable */
