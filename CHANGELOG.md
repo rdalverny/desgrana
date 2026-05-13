@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased — 1.8.0] - 2026-05-13
+
+Linux:
+
+- builds and works on Linux arm64 and x86_64 (GUI using Qt), still a bit rough
+  compared to macOS version
+- `.deb` package only for now
+
+Global:
+
+- (experimental) add X32 `.scn` support
+- update check now pushes desgrana version, operating system, language;
+  see `PRIVACY.md`
+- now displays a (non blocking) warning if destination folder already exists
+- `--auto-stereo`: explicit error if SE_LOG.BIN is absent
+- consolidated CLI behaviour
+- added tests and refactoring
+
 ## [1.7.0] — 2026-05-07
 
 GUI:

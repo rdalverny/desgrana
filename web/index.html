@@ -3,18 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="author" content="Romain d'Alverny">
+  <meta name="author" content="https://romaindalverny.com/">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://romaindalverny.com/atelier/desgrana/">
-  <title>Desgrana — Extract Behringer Wing multitrack WAV recordings</title>
-  <meta name="keywords" content="desgrana, Behringer Wing, multitrack, WAV, session, post-recording, audio tool, open source, macOS">
-  <meta name="description" content="Desgrana — extract channels from your Behringer Wing interleaved multitrack recording into separate mono or stereo tracks, ready for any DAW. Free, MIT licence.">
+  <title>Desgrana — From session to mix: extract Behringer Wing multitrack WAV recordings</title>
+  <meta name="keywords" content="desgrana, Behringer Wing, Wing Rack, Wing Compact, X-Live, W-Live, DN32-Live, multitrack, WAV, live recording, concert recording, session, audio extraction, split tracks, post-production, Logic Pro, Reaper, DAW, open source, macOS">
+  <meta name="description" content="Free macOS app to extract Behringer Wing multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW. Open source, MIT licence.">
 
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://romaindalverny.com/atelier/desgrana/">
   <meta property="og:site_name" content="Romain d'Alverny">
   <meta property="og:title" content="Desgrana — Behringer Wing multitrack extractor">
-  <meta property="og:description" content="Extract channels from your Behringer Wing interleaved multitrack recording into separate mono or stereo tracks, ready for any DAW. Free, MIT licence.">
+  <meta property="og:description" content="Free macOS app to extract Behringer Wing multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW. Open source, MIT licence.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Desgrana — Behringer Wing multitrack extractor">
+  <meta name="twitter:description" content="Free macOS app to extract Behringer Wing multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW.">
+
+  <meta property="og:image" content="https://romaindalverny.com/atelier/desgrana/demo-poster.jpg">
+  <meta name="twitter:image" content="https://romaindalverny.com/atelier/desgrana/demo-poster.jpg">
+  <meta property="og:image:width" content="530">
+  <meta property="og:image:height" content="522">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Desgrana",
+    "operatingSystem": "macOS 13+",
+    "applicationCategory": "MultimediaApplication",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "description": "Extract Behringer Wing multitrack WAV recordings into separate named mono or stereo tracks, ready for any DAW.",
+    "url": "https://romaindalverny.com/atelier/desgrana/",
+    "downloadUrl": "https://github.com/rdalverny/desgrana/releases",
+    "softwareVersion": "1.7.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": { "@type": "Person", "name": "Romain d'Alverny", "url": "https://romaindalverny.com/#romain" }
+  }
+  </script>
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico">
@@ -48,6 +74,7 @@
       color: var(--muted);
     }
     .download-meta a { color: var(--muted); }
+    .download-wrap { margin-top: 1rem; }
 
     /* ── Features grid ── */
     .features {
@@ -108,6 +135,15 @@
       max-width: 100%;
       height: auto;
     }
+    .section p { margin-bottom: 1rem; }
+    .terminal {
+      margin: 1rem 0;
+      padding: 0.6rem 2rem 0.6rem 1rem;
+      background: #444;
+      color: #ddd;
+      font-size: 90%;
+    }
+    h1 { margin-bottom: 2rem; }
   </style>
 </head>
 <body>
@@ -121,12 +157,14 @@
   </nav>
 
   <header>
-    <h1>Desgrana</h1>
-    <p class="hero">From session to mix.</p>
-    <p class="hero">Just drag and drop
+    <h1>Desgrana,
+        <span style="font-size: 80%; font-weight: normal; display: block;">a Behringer Wing Session Multitrack Extractor</span></h1>
+    <!--<p class="hero">From session to mix.</p>-->
+    <p class="hero">How to extract tracks from a Wing live recording?</p>
+    <!--<p class="hero">Just drag and drop
       your Behringer Wing session
       to get separate named mono/stereo tracks
-      ready for your DAW to use.</p>
+      ready for your DAW to use.</p>-->
 
     <div class="video-wrap" style="margin: 1rem auto; max-width: 680px;">
       <video
@@ -136,8 +174,9 @@
         preload="none"
         controls></video>
     </div>
+    <p class="hero">or from the command line:</p>
+    <pre class="terminal"><code>$ desgrana /Volumes/WING_SD/X_LIVE/4B5C62B0 --auto-stereo --short-names</code></pre>
   </header>
-
 
   <div class="download-wrap">
     <a class="btn-download" href="https://github.com/rdalverny/desgrana/releases/download/v1.7.0/Desgrana-1.7.0.dmg" download>
@@ -148,75 +187,105 @@
           stroke-linecap="round"
           stroke-linejoin="round"/>
       </svg>
-      Download Desgrana 1.7.0 (May 8 2026)
+      Download Desgrana 1.7.0 for macOS (May 8 2026)
     </a>
     <p class="download-meta">
       macOS 13 or later
       &nbsp;·&nbsp;
       Apple Silicon &amp; Intel
       &nbsp;·&nbsp;
-      <a href="https://github.com/rdalverny/desgrana">Source code</a>
-      (MIT) &nbsp;·&nbsp;
       <a href="#changelog">See what's new</a>
     </p>
+    <p class="download-meta">Looking for a Linux or Windows version? <a href="#platforms">See the FAQ</a></p>
   </div>
 
   <div class="section">
-    <h2>What it does</h2>
+    <h2>The <s>problem</s> situation</h2>
+    <p>The Behringer Wing records everything into a single multichannel WAV file:
+      one file, all your channels interleaved.</p>
+    <p>Most DAWs (Logic Pro, Reaper, Pro Tools,
+      Ableton Live) cannot open it directly as separate tracks: you get a stereo import,
+      or nothing useful at all.</p>
+    <p>Desgrana reads that file, splits each channel into its own mono or stereo WAV,
+      picks up the channel names from your Wing snapshot,
+      and drops everything into a folder your DAW can load immediately.</p>
+  </div>
+
+  <div class="section">
+    <h2>What Desgrana does</h2>
     <ul class="features">
-      <li>Your files come out exactly as recorded.
-        No conversion, no precision loss, any bit depth.</li>
-      <li>Runs fine on a laptop in a backstage.
-        No freeze, no RAM issues even on multi-GB sessions.</li>
-      <li>Only the channels you actually recorded show up.
-        No 32 empty tracks to clean up in your DAW.</li>
-      <li>Your set markers land in Logic Pro, Reaper, and WaveLab;
-        as cue chunks in the WAV, MIDI file, and CSV.</li>
+      <li>Drag and drop your session from your SD card, *click*, *click*, DAW.</li>
+      <li>Works entirely offline.</li>
+      <li>Your files come out exactly as recorded:
+        no conversion, no resampling.</li>
       <li>Channel names and stereo pairs from your Wing snapshot
         (KICK, SNARE, VOX…) are picked up automatically.</li>
-      <li>Adjust stereo pairs before extraction.
-        No need to re-export the snapshot from the console.</li>
-      <li>Works entirely offline.
-        Nothing uploaded, nothing tracked.</li>
-      <li>(macOS) Drop a session folder from Finder,
-          or automate via CLI in your post-production workflow.</li>
+      <li>You can adjust stereo pairs before extraction.</li>
+      <li>Runs fine on a laptop in a backstage.</li>
+      <li>Only the channels you actually recorded show up.
+        No empty tracks to clean up manually.</li>
+      <li>If you used markers in your recording session,
+        they land in your DAW, as cue chunks in the WAV or MIDI file.</li>
       <li>(macOS) signed and notarized.</li>
-      <li>Open Source.</li>
+      <li><a href="https://github.com/rdalverny/desgrana">Open Source</a> (MIT license).
+      </li>
     </ul>
   </div>
 
   <div class="section faq">
     <h2>FAQ</h2>
     <dl>
+      <dt>Why can't I open my Wing recording directly in Logic Pro or Reaper?</dt>
+      <dd><p>The Wing writes a single interleaved multichannel WAV.
+        One file containing all recorded channels.
+        Logic Pro imports it as stereo; Reaper can split it manually
+        but leaves you with empty tracks to clean up.</p>
+        <p>Desgrana automates the split,
+        removes empty channels, and names each file after your console channel.</p>
+      </dd>
+
       <dt>How do I install Desgrana?</dt>
-      <dd>Open the DMG archive, drag and drop Desgrana into the Applications folder,
+      <dd>(macOS only) Open the DMG archive,
+        drag and drop Desgrana into the Applications folder,
         and voilà!
       </dd>
 
-      <dt>Is there a Windows / Linux version?</dt>
+      <dt id="platforms">Is there a Windows / Linux version?</dt>
       <dd>
         <p>Currently, Desgrana is only available for macOS 13
           and later on Apple Silicon or Intel.</p>
-        <p>Linux and Windows versions are on the roadmap.</p>
+
+        <p>A native Linux version (packaged for Debian/Ubuntu) is almost ready to test.</p>
+        <p>A native Windows version may follow soon after during Summer 2026.
+          It is not sure yet which versions will be supported.</p>
+        <p>If you want to participate in testing it, please reach out.</p>
       </dd>
 
-      <dt>Which consoles are supported?</dt>
+      <dt>How do I get separate WAV tracks from a Behringer Wing SD card recording?</dt>
+      <dd>Drop the session folder onto Desgrana.
+        It reads the multichannel WAV
+        (and the <code>.snap</code> snapshot if present),
+        then writes one WAV per channel,
+        named, trimmed, with markers embedded;
+        ready to import into any DAW.</dd>
+
+      <dt>Which consoles' output session are supported?</dt>
       <dd>
         <table>
           <tr><td>Behringer Wing</td><td>✅ Tested</td></tr>
-          <tr><td>Wing Rack</td><td>❓ feedback or test session welcome</td></tr>
-          <tr><td>Wing Compact</td><td>❓</td></tr>
-          <tr><td>X-Live</td><td>❓</td></tr>
-          <tr><td>W-Live</td><td>❓</td></tr>
-          <tr><td>DN32-Live</td><td>❓</td></tr>
+          <tr><td>Wing Rack</td><td rowspan="5" style="vertical-align: top;">Should work, but not tested. Feedback welcome.</td></tr>
+          <tr><td>Wing Compact</td></tr>
+          <tr><td>X-Live</td></tr>
+          <tr><td>W-Live</td></tr>
+          <tr><td>DN32-Live</td></tr>
+          <tr><td>X32</td><td>Support incoming</td></td>
         </table>
       </dd>
 
       <dt>Do I need the <code>.snap</code> or the <code>SE_LOG.bin</code> file?</dt>
       <dd>
-        <p>No. Without them, Desgrana still extracts every channel into
-        a numbered mono file.
-        The snapshot is used to name the output files after your Wing
+        <p>No, Desgrana still extracts every channel into a numbered mono file.</p>
+        <p>The snapshot is used to name the output files after your Wing
         channels and to detect stereo pairs automatically.
         If the <code>.snap</code> file is in the same session folder,
         it is picked up automatically.</p>
@@ -224,31 +293,53 @@
 
       <dt>My session is split across several WAV files: does that work?</dt>
       <dd>
-        Yes. The Wing creates a new file each time the previous
-        one hits 4 GB (FAT32 limit). Desgrana processes all the take files
-        in order and writes them as a single continuous output per channel.
+        <p>Yes, the Wing creates a new file each time the previous
+        one hits 4 GB (FAT32 limit). Desgrana processes the take files
+        in order and writes one continuous output per channel.</p>
       </dd>
 
       <dt>Are session markers preserved?</dt>
       <dd>
-        <p>Yes. Markers are embedded as standard <code>cue</code> chunks
+        <p>Markers are embedded as standard <code>cue</code> chunks
           in every output WAV file, and also exported as a CSV,
           a plain-text file, and a Standard MIDI File (type 0, SMPTE timecode).</p>
-        <p>Logic Pro and most DAWs can import the MIDI file to place markers
+        <p>Most DAWs can import the MIDI file to place markers
           at the correct positions, independent of the project tempo.</p>
       </dd>
 
       <dt>Does it send any data online?</dt>
       <dd>
-        <p>No, it works entirely offline.
-          It reads your local session files
-          and writes to your local disk.
-          Nothing leaves your computer.</p>
+        <p>No, it works entirely offline.</p>
         <p>The only outbound request
-          is an update check once a month (that you may disable)
-          with your operating system version and current version.
-          No usage data, no identifiers, no analytics.</p>
+          is an update check once a month, that you may disable in the app settings.
+          <!--
+          See <a href="https://github.com/rdalverny/desgrana/blob/main/PRIVACY.md">PRIVACY.md</a>
+          for details and how to disable it.</p>
+          -->
       </dd>
+      <!--
+      <dt>Where do I find the <code>.snap</code> file?</dt>
+      <dd>
+        <p>On the Wing, snapshots are saved to a USB drive via
+        <strong>Setup → Storage → Snapshots</strong>.
+        The <code>.snap</code> file lives in the
+        <code>Wing/Snapshots/</code> folder on that drive —
+        separate from the SD card that holds the multitrack recording.</p>
+        <p>To use it with Desgrana, copy the <code>.snap</code> file
+        into the session folder alongside the WAV files before dropping it
+        onto the app.</p>
+      </dd>
+      -->
+
+    <dt>Can I rename tracks before extracting them?</dt>
+    <dd>
+      <p>Track names come from your console snapshot
+      (<code>.snap</code> for Wing, <code>.scn</code> for X32/M32).
+      The right place to fix them is either on the console itself,
+      or in your DAW after import.</p>
+      <p>Desgrana's job is to translate the multitrack WAV into
+      separate, ready-to-use tracks, not to edit the session.</p>
+    </dd>
 
       <dt>Have another question?</dt>
       <dd>Feel free to reach out
@@ -313,34 +404,44 @@
 
   <div class="section changelog" id="roadmap">
     <h2>Roadmap</h2>
+    <p>Short test session samples from owners/users of Wing, Live, X32, M32 consoles
+      are very welcome (as well as their relative .snap or .scn files).
+      <a href="https://www.swisstransfer.com/">swisstransfer</a>
+      or <a href="https://wetransfer.com/">wetransfer</a> is fine.
+      Of course, they will be used only for validating the software expected behaviour
+      and deleted after use.
+    </p>
+
     <p>Planned for upcoming versions:</p>
     <ul>
       <li>
-        <span class="v-label">1.8<span class="v-date">June 2026?</span></span>
+        <span class="v-label">June 2026<span class="v-date"></span></span>
         <span class="v-notes">
-          Linux port (volunteers welcome)<br>
+          Linux port<br>
+          Experimental X32/M32 support<br>
+          Improved DAW detection and exports<br>
           Improved CLI doc<br>
         </span>
       </li>
       <li>
-        <span class="v-label">1.9<span class="v-date">Summer 2026?</span></span>
+        <span class="v-label">Summer 2026<span class="v-date"></span></span>
         <span class="v-notes">
-          Full Wing &amp; X32 support<br>
+          Experimental Windows port<br>
+          Improved X32/M32 support<br>
+          Localization (in French at least)
         </span>
       </li>
       <li>
-        <span class="v-label">1.10<span class="v-date">September 2026?</span></span>
+        <span class="v-label">Autumn 2026<span class="v-date"></span></span>
         <span class="v-notes">
-          Windows port (volunteers welcome)<br>
+          Improved Linux & Windows support<br>
+          <br>
         </span>
       </li>
     </ul>
     <p>Source code is on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
       Bug reports and contributions welcome, see
       <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>
-  </div>
-
-  <div class="section changelog" id="roadmap">
   </div>
 
   <footer>
@@ -350,50 +451,5 @@
     </p>
   </footer>
 
-  <script>
-  (function () {
-    var slides = document.querySelectorAll('.carousel-track li');
-    var dots   = document.querySelectorAll('.carousel-dots button');
-    var total   = slides.length;
-    var current = 0;
-    var timer;
-    var DELAY   = 4000;
-    var FADE_MS = 500;
-
-    function goTo(index) {
-      var n = ((index % total) + total) % total;
-      if (n === current) return;
-      var old = current;
-      current = n;
-      dots[old].classList.remove('active');
-      dots[old].setAttribute('aria-selected', 'false');
-      dots[current].classList.add('active');
-      dots[current].setAttribute('aria-selected', 'true');
-      slides[old].classList.remove('active');
-      setTimeout(function () { slides[current].classList.add('active'); }, FADE_MS);
-    }
-
-    function next() { goTo(current + 1); }
-    function prev() { goTo(current - 1); }
-
-    function start() { timer = setInterval(next, DELAY); }
-    function stop()  { clearInterval(timer); }
-
-    dots.forEach(function (dot, i) {
-      dot.addEventListener('click', function () { stop(); goTo(i); start(); });
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight') { stop(); next(); start(); }
-      if (e.key === 'ArrowLeft')  { stop(); prev(); start(); }
-    });
-
-    document.addEventListener('visibilitychange', function () {
-      document.hidden ? stop() : start();
-    });
-
-    start();
-  }());
-  </script>
 </body>
 </html>

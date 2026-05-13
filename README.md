@@ -47,9 +47,10 @@ for your DAW, and a session ready to open.
 Desgrana works entirely offline. It reads your local session files and writes
 output to your local disk — nothing is uploaded or transmitted.
 
-The only outbound request is an optional update check (at most once a month),
-which fetches a public version file. No usage data, no identifiers, no
-analytics.
+The only outbound request is an optional update check (at most once a month).
+It sends OS name, version, CPU architecture, app version, and system language.
+Nothing else. See [PRIVACY.md](PRIVACY.md) for full details and how to disable
+it.
 
 ## Usage
 

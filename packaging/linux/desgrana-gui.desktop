@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Desgrana
+Comment=Extract audio channels from Wing / X-Live sessions
+Exec=desgrana-gui
+Icon=desgrana
+Categories=AudioVideo;Audio;
+Terminal=false

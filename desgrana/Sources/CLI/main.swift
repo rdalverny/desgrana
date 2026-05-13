@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 import DesgranaCore
-// Platform backend (DesgranaCoreMac / DesgranaCoreLinux) is re-exported via Platform.swift
+// Platform backend (DesgranaCoreAudioToolbox / DesgranaCoreWav) is re-exported via Platform.swift
 
 // MARK: - Minimal argument parsing (no dependencies)
 
@@ -69,7 +69,9 @@ struct CLIArgs {
             }
             i += 1
         }
-        guard let path = sessionPath else { DesgranaCLI.fatal("No session directory specified") }
+        guard let path = sessionPath else {
+            DesgranaCLI.fatal("No session directory specified")
+        }
         return CLIArgs(
             sessionPath: path,
             outputPath: outputPath,
@@ -109,26 +111,29 @@ struct DesgranaCLI {
             do {
                 sessionInfo = try parseSELog(at: selogURL)
             } catch {
-                print("Warning: Could not parse SE_LOG.bin: \(error)")
+                warn("Could not parse SE_LOG.bin: \(error)")
             }
         }
 
         // Load snap (explicit --snap, or auto-detect in session dir)
-        let resolvedSnapURL = cliArgs.snapURL ?? findSnap(in: sessionDir)
+        let resolvedSnapURL = cliArgs.snapURL ?? findConsoleSnapshot(in: sessionDir)
         var snapInfo: SnapInfo?
         if let url = resolvedSnapURL {
             do {
-                snapInfo = try parseSnap(at: url)
+                snapInfo = try parseSnapOrScene(at: url)
                 let src = cliArgs.snapURL != nil ? url.lastPathComponent : "\(url.lastPathComponent) (auto)"
                 print("Snap: \(src) — \(snapInfo!.channelNames.count) named channels, \(snapInfo!.stereoPairs.count) stereo pairs")
             } catch {
-                print("Warning: Could not parse snap file: \(error)")
+                warn("Could not parse snap file: \(error)")
             }
         }
 
         // Stereo pairs: --auto-stereo > --stereo > all mono (clink ignored)
         let activePairs: [StereoPair]
-        if cliArgs.useAutoStereo, let info = sessionInfo {
+        if cliArgs.useAutoStereo {
+            guard let info = sessionInfo else {
+                fatal("--auto-stereo requires SE_LOG.BIN (channel count unknown)")
+            }
             activePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: info.numChannels)
         } else if !cliArgs.stereoPairs.isEmpty {
             activePairs = cliArgs.stereoPairs
@@ -163,7 +168,7 @@ struct DesgranaCLI {
             printTakesStatus(info: info, found: wavFiles)
             print()
         } else {
-            print("Warning: No SE_LOG.bin found. Will infer from WAV headers.")
+            warn("No SE_LOG.bin found. Will infer from WAV headers.")
             print()
         }
 
@@ -215,15 +220,34 @@ struct DesgranaCLI {
                 exportMarkers(info, to: outputDir, prefix: pfx)
                 exportMIDIMarkers(info, to: outputDir, prefix: pfx)
             }
+
+            printSplitSummary(
+                keptMono: result.keptMono, keptStereo: result.keptStereo,
+                silentCount: result.silentSkipped,
+                totalFrames: result.totalFrames, sampleRate: result.sampleRate,
+                outputDir: outputDir
+            )
+        } catch let err as SplitError {
+            fatal(err.description, exitCode: err.exitCode)
         } catch {
             fatal("\(error)")
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Output helpers
+
+    static func warn(_ message: String) {
+        fputs("Warning: \(message)\n", stderr)
+    }
+
+    static func fatal(_ message: String, exitCode: Int32 = 1) -> Never {
+        fputs("Error: \(message)\n", stderr)
+        exit(exitCode)
+    }
+
+    // MARK: - Human-readable helpers
 
     static func findSELog(in dir: URL) -> URL? {
-        // Try both cases
         for name in ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"] {
             let url = dir.appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: url.path) {
@@ -231,11 +255,6 @@ struct DesgranaCLI {
             }
         }
         return nil
-    }
-
-    static func fatal(_ message: String) -> Never {
-        fputs("Error: \(message)\n", stderr)
-        exit(1)
     }
 
     static func printTakesStatus(info: SessionInfo, found: [URL]) {
@@ -285,7 +304,7 @@ struct DesgranaCLI {
         print("Output directory: \(outputDir.path)")
         print()
         let numCh = sessionInfo?.numChannels ?? 0
-        guard numCh > 0 else { print("(channel count unknown)"); return }
+        guard numCh > 0 else { print("(channel count unknown — no SE_LOG.bin)"); return }
         let (active, paired) = validateStereoPairs(pairs, channelCount: numCh)
         print("Files that would be created:")
         var files: [(ch: Int, name: String)] = []
@@ -313,12 +332,18 @@ struct DesgranaCLI {
             --output, -o <path>     Output directory (default: <session-dir>_extract/)
             --prefix, -p <string>   Prefix for output filenames
             --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
-            --snap   <file>         Wing snapshot (.snap) for stereo pairs and channel names
+            --snap   <file>         Console snapshot (.snap Wing / .scn X32) for stereo pairs and channel names
             --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
             --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
             --dry-run               Show what would be extracted without writing any files
             --info,   -i            Show session info only, without extracting
             --help,   -h            Show this help
+
+        EXIT CODES:
+            0    Success
+            1    Bad arguments or session directory not found
+            2    Filesystem error (cannot read input or write output)
+            3    Format error (invalid WAV, channel count mismatch between takes)
 
         EXAMPLES:
             desgrana /Volumes/SD/X_LIVE/4B5C62B0
@@ -329,6 +354,7 @@ struct DesgranaCLI {
         The session directory should contain:
             SE_LOG.BIN          Session metadata (markers, channel count, etc.)
             MyShow.snap         Wing snapshot (optional — stereo pairs + channel names)
+            MyShow.scn          X32 scene file (alternative to .snap)
             00000001.wav        First WAV take (multichannel, 32-bit PCM)
             00000002.wav        Second WAV take (if recording exceeded 4GB)
             ...

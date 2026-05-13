@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# Binary is pre-built in the Docker builder stage.
+
+override_dh_auto_test:
+	# No test suite.
+
+override_dh_dwz:
+	# dwz does not support DWARF5 (used by Swift/Clang). Skip.
+
+override_dh_strip:
+	# Swift dylibs bundled from the swift.org toolchain have no GNU build-id.
+	dh_strip -Xusr/lib/desgrana
+
+override_dh_shlibdeps:
+	# --ignore-missing-info: Swift libs use non-standard sonames (no .so.X suffix);
+	# dpkg-shlibdeps can't resolve them but they're all bundled in /usr/lib/desgrana.
+	dh_shlibdeps -l debian/desgrana/usr/lib/desgrana -- --ignore-missing-info

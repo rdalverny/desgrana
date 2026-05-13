@@ -10,37 +10,14 @@ import SwiftUI
 struct DAWInfo: Identifiable {
     let name: String
     let appURL: URL
-    enum OpenMode { case reaper, openURLs }
+    enum OpenMode { case reaper, openURLs, ardour }
     let mode: OpenMode
     var id: String { name }
 }
 
 func installedDAWs() -> [DAWInfo] {
-    var result: [DAWInfo] = []
-    let fm = FileManager.default
-
-    let logicURL = URL(fileURLWithPath: "/Applications/Logic Pro.app")
-    if fm.fileExists(atPath: logicURL.path) {
-        result.append(DAWInfo(name: "Logic Pro", appURL: logicURL, mode: .openURLs))
-    }
-
-    let reaperURL = URL(fileURLWithPath: "/Applications/REAPER.app")
-    if fm.fileExists(atPath: reaperURL.path) {
-        result.append(DAWInfo(name: "Reaper", appURL: reaperURL, mode: .reaper))
-    }
-
-    // Not sure how to handle a Live session yet
-    // if let apps = try? fm.contentsOfDirectory(
-    //     at: URL(fileURLWithPath: "/Applications"),
-    //     includingPropertiesForKeys: nil
-    // ), let liveApp = apps.first(where: {
-    //     let n = $0.lastPathComponent
-    //     return n.hasPrefix("Ableton Live") && n.hasSuffix(".app")
-    // }) {
-    //     result.append(DAWInfo(name: "Ableton Live", appURL: liveApp, mode: .openURLs))
-    // }
-
-    return result
+    [installedLogicPro(), installedReaper(), installedArdour()]
+        .compactMap { $0 }
 }
 
 // MARK: - WAV header
@@ -111,7 +88,7 @@ private func readWAVHeader(at url: URL) -> WAVHeader? {
 
 // MARK: - Output file collection
 
-private func collectOutputFiles(in dir: URL) -> (wavs: [URL], midiURL: URL?) {
+func collectOutputFiles(in dir: URL) -> (wavs: [URL], midiURL: URL?) {
     let contents = (try? FileManager.default.contentsOfDirectory(
         at: dir, includingPropertiesForKeys: nil)) ?? []
     let wavs = contents
@@ -121,75 +98,31 @@ private func collectOutputFiles(in dir: URL) -> (wavs: [URL], midiURL: URL?) {
     return (wavs, midi)
 }
 
-// MARK: - Reaper RPP generation
-
-// Note: verify MARKER line syntax against a real .rpp saved by Reaper before shipping —
-// the structure below matches Reaper 6+ community docs but minor version differences exist.
-private func wavDuration(at url: URL) -> Double {
-    guard let f = try? AVAudioFile(forReading: url) else { return 0 }
-    let sr = f.processingFormat.sampleRate
-    return sr > 0 ? Double(f.length) / sr : 0
-}
-
-private func generateRPP(
-    wavs: [URL],
-    markers: [(time: Double, name: String)],
-    outputDir: URL
-) throws -> URL {
-    let sampleRate: Double = (try? AVAudioFile(forReading: wavs[0]))
-        .map { $0.processingFormat.sampleRate } ?? 48_000
-    let timestamp  = Int(Date().timeIntervalSince1970)
-
-    var lines: [String] = [
-        "<REAPER_PROJECT 0.1 \"6.0\" \(timestamp)",
-        "  SAMPLERATE \(Int(sampleRate)) 0 0"
-    ]
-
-    func guid() -> String { "{\(UUID().uuidString)}" }
-
-    for wav in wavs {
-        let duration  = wavDuration(at: wav)
-        let relPath   = "./\(wav.lastPathComponent)"
-        let trackName = wav.deletingPathExtension().lastPathComponent
-        lines += [
-            "  <TRACK \(guid())",
-            "    NAME \"\(trackName)\"",
-            "    <ITEM",
-            "      POSITION 0",
-            String(format: "      LENGTH %.6f", duration),
-            "      LOOP 0",
-            "      GUID \(guid())",
-            "      <SOURCE WAVE",
-            "        FILE \"\(relPath)\"",
-            "      >",
-            "    >",
-            "  >"
-        ]
-    }
-
-    for (i, marker) in markers.enumerated() {
-        lines.append(String(format:
-            "  MARKER %d %.6f \"%@\" 0 0 1 B {00000000-0000-0000-0000-000000000000} 0",
-            i + 1, marker.time, marker.name))
-    }
-
-    lines.append(">")
-    let content = lines.joined(separator: "\n") + "\n"
-    let rppURL = outputDir.appendingPathComponent(outputDir.lastPathComponent + ".rpp")
-    try content.write(to: rppURL, atomically: true, encoding: .utf8)
-    return rppURL
-}
-
 // MARK: - Open in DAW
 
-func openInDAW(_ daw: DAWInfo, dir: URL, markers: [(time: Double, name: String)]) {
+func openInDAW(
+    _ daw: DAWInfo,
+    dir: URL,
+    duration: Double,
+    sampleRate: Double,
+    markers: [(time: Double, name: String)]
+) {
     switch daw.mode {
     case .reaper:
         let (wavs, _) = collectOutputFiles(in: dir)
         guard !wavs.isEmpty,
-              let rppURL = try? generateRPP(wavs: wavs, markers: markers, outputDir: dir)
+              let rppURL = try? generateRPP(wavs: wavs, duration: duration, sampleRate: sampleRate,
+                                            markers: markers, outputDir: dir)
         else { return }
         NSWorkspace.shared.open(rppURL)
+
+    case .ardour:
+        let (wavs, _) = collectOutputFiles(in: dir)
+        guard !wavs.isEmpty,
+              let ardourURL = try? generateArdourSession(wavs: wavs, duration: duration, sampleRate: sampleRate,
+                                                        markers: markers, outputDir: dir)
+        else { return }
+        NSWorkspace.shared.open(ardourURL)
 
     case .openURLs:
         let (wavs, midiURL) = collectOutputFiles(in: dir)
@@ -209,6 +142,8 @@ func openInDAW(_ daw: DAWInfo, dir: URL, markers: [(time: Double, name: String)]
 
 struct DAWButtonsView: View {
     let dir: URL
+    let duration: Double
+    let sampleRate: Double
     let markers: [(time: Double, name: String)]
 
     @State private var daws: [DAWInfo] = []
@@ -222,7 +157,8 @@ struct DAWButtonsView: View {
                 HStack(spacing: 8) {
                     ForEach(daws) { daw in
                         Button(daw.name) {
-                            openInDAW(daw, dir: dir, markers: markers)
+                            openInDAW(daw, dir: dir, duration: duration, sampleRate: sampleRate,
+                                      markers: markers)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)

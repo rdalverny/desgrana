@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import SwiftUI
 import DesgranaCore
-import DesgranaCoreMac
+import DesgranaCoreAudioToolbox
 
 extension Notification.Name {
     static let checkForUpdatesNow = Notification.Name("DesgranaCheckForUpdatesNow")
@@ -74,7 +74,7 @@ struct AboutView: View {
             Divider()
 
             Link("github.com/rdalverny/desgrana",
-                 destination: URL(string: "https://github.com/rdalverny/desgrana")!)
+                 destination: URL(string: Constants.URLs.github)!)
                 .font(.callout)
 
             Button("Close") { dismiss() }
@@ -94,7 +94,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section() {
+            Section {
                 Toggle("Use short filenames", isOn: $vm.shortFilenames)
                 Text(vm.shortFilenames
                     ? "Channel name only: KICK.wav, ch01.wav"
@@ -102,13 +102,13 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section() {
+            Section {
                 Toggle("Auto-detect stereo pairs from channel names", isOn: $vm.useAutoStereo)
                 Text("Pairs adjacent channels sharing a base name with L/R suffix (e.g. OH L + OH R).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section() {
+            Section {
                 if let dir = vm.customOutputDir {
                     LabeledContent("Output folder") {
                         Text(dir.path)
@@ -133,7 +133,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section() {
+            Section {
                 Toggle("Check for updates automatically", isOn: $updateEnabled)
                 if updateEnabled {
                     Picker("Every", selection: $updateIntervalDays) {
@@ -277,7 +277,7 @@ struct ContentView: View {
                 Text("Drop a session folder here")
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                Text("with .wav, .bin, .snap files")
+                Text("with .wav, .bin, .snap/.scn files")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -302,7 +302,7 @@ struct ContentView: View {
                             .font(.body.monospacedDigit())
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Preparing…")
+                        Text("Extracting \(vm.sessionName)…")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -342,7 +342,10 @@ struct ContentView: View {
                             .keyboardShortcut(.defaultAction)
                     }
                     .padding(.top, 4)
-                    DAWButtonsView(dir: dir, markers: vm.lastMarkers)
+                    DAWButtonsView(dir: dir,
+                                  duration: duration,
+                                  sampleRate: Double(vm.sessionInfo?.sampleRate ?? 48_000),
+                                  markers: vm.lastMarkers)
                         .padding(.top, 4)
                     Spacer(minLength: 8)
                 }
@@ -410,12 +413,12 @@ struct ContentView: View {
                 destinationLine(sessionDir: sessionDir)
 
                 if vm.snapInfo == nil {
-                    Button { browseSnap() } label: {
-                        Label("Add Wing snapshot…", systemImage: "plus.circle")
+                    HStack(spacing: 6) {
+                        Text("No snapshot \u{2014} channel names will be numbered.")
+                        Button("Add\u{2026}") { browseSnap() }
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
                     .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 HStack(alignment: .center) {
@@ -588,7 +591,9 @@ struct ContentView: View {
     }
 
     func destinationLine(sessionDir: URL) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let outputURL = vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)
+        let outputExists = FileManager.default.fileExists(atPath: outputURL.path)
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Text("Output folder")
                     .font(.callout)
@@ -602,7 +607,7 @@ struct ContentView: View {
                 Image(systemName: "folder")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                Text(String(displayPath(vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)).prefix(300)))
+                Text(String(displayPath(outputURL).prefix(300)))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -616,6 +621,11 @@ struct ContentView: View {
                 }
             }
             .font(.callout)
+            if outputExists {
+                Label("This folder already exists — files may be overwritten.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 4)
@@ -652,7 +662,7 @@ struct ContentView: View {
     func handlePendingURL() {
         guard let url = appDelegate.pendingURL else { return }
         appDelegate.pendingURL = nil
-        if url.pathExtension.lowercased() == "snap" {
+        if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
             vm.loadSnap(url: url)
         } else if url.hasDirectoryPath || isDirectory(url) {
             vm.loadSession(url: url)
@@ -679,12 +689,12 @@ struct ContentView: View {
 
     func browseSnap() {
         let panel = NSOpenPanel()
-        panel.title = "Select Wing Snapshot"
+        panel.title = "Select Console Snapshot"
         panel.allowedContentTypes = []
         panel.allowsOtherFileTypes = true
-        panel.message = "Select a .snap file exported from the Wing console"
+        panel.message = "Select a .snap (Wing) or .scn (X32) snapshot file"
         if panel.runModal() == .OK, let url = panel.url,
-           url.pathExtension.lowercased() == "snap" {
+           ["snap", "scn"].contains(url.pathExtension.lowercased()) {
             vm.loadSnap(url: url)
         }
     }
@@ -696,25 +706,11 @@ struct ContentView: View {
                   let url = URL(dataRepresentation: data, relativeTo: nil)
             else { return }
             Task { @MainActor in
-                if url.pathExtension.lowercased() == "snap" {
+                if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
                     vm.loadSnap(url: url)
                 } else if url.hasDirectoryPath || isDirectory(url) {
                     vm.loadSession(url: url)
                 }
-            }
-        }
-        return true
-    }
-
-    func handleSnapDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url") { item, _ in
-            guard let data = item as? Data,
-                  let url = URL(dataRepresentation: data, relativeTo: nil),
-                  url.pathExtension.lowercased() == "snap"
-            else { return }
-            Task { @MainActor in
-                vm.loadSnap(url: url)
             }
         }
         return true

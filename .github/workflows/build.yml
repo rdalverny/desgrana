@@ -1,0 +1,89 @@
+name: CLI — macOS, Linux & Windows
+
+on:
+  push:
+    tags: ['*']
+  workflow_dispatch:
+
+jobs:
+
+  # ── macOS (Apple Silicon) ───────────────────────────────────────────────────
+  # Signing and notarization are done locally; this job only verifies the build.
+
+  macos:
+    name: macOS build
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build CLI + App
+        run: |
+          cd desgrana
+          swift build -c release --product desgrana
+          swift build -c release --product DesgranaApp
+
+  # ── Linux .deb (amd64 + arm64) ──────────────────────────────────────────────
+  # Docker Buildx handles cross-compilation via QEMU emulation.
+  # The Dockerfile builds with the official Swift image for the target platform,
+  # then packages the binary as a .deb using debhelper.
+
+  linux-deb:
+    name: Linux .deb (${{ matrix.deb_arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            deb_arch: amd64
+          - platform: linux/arm64
+            deb_arch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build .deb
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            -f packaging/linux/deb/builder.dockerfile \
+            --output type=local,dest=dist \
+            .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desgrana-deb-${{ matrix.deb_arch }}
+          path: dist/*.deb
+
+  # ── Windows CLI (x64) ───────────────────────────────────────────────────────
+  # Swift on Windows is still maturing; Foundation and most stdlib are available.
+  # AudioToolbox is unavailable → SplitterDrWav.swift (dr_wav backend) is used.
+  # Output: desgrana.exe
+
+  windows-cli:
+    name: Windows CLI (x64)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+
+      - name: Build CLI
+        run: cd desgrana && swift build -c release --product desgrana
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desgrana-windows-x64
+          path: desgrana\.build\release\desgrana.exe

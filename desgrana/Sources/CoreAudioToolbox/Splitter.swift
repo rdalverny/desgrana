@@ -6,15 +6,9 @@ import DesgranaCore
 
 // MARK: - Internal track representation
 
-private enum TrackKind {
-    case mono(ch: Int)                 // 0-indexed
-    case stereo(left: Int, right: Int) // 0-indexed
-}
-
 private struct Track {
-    let kind: TrackKind
+    let spec: OutputSpec
     let fileRef: ExtAudioFileRef
-    let url: URL
     var hasSignal: Bool = false
 }
 
@@ -59,13 +53,16 @@ public func splitSession(
     var srcFmt = AudioStreamBasicDescription()
     var propSize = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
     status = ExtAudioFileGetProperty(firstFile, kExtAudioFileProperty_FileDataFormat, &propSize, &srcFmt)
-    guard status == noErr else { throw SplitError.cannotGetFormat(status) }
+    guard status == noErr else {
+        ExtAudioFileDispose(firstFile)
+        throw SplitError.cannotGetFormat(status)
+    }
     ExtAudioFileDispose(firstFile)
 
-    let numChannels  = Int(srcFmt.mChannelsPerFrame)
-    let sampleRate   = srcFmt.mSampleRate
-    let bytesPerSample = Int(srcFmt.mBitsPerChannel) / 8   // bytes per sample per channel
-    let frameStride  = numChannels * bytesPerSample         // bytes per interleaved frame
+    let numChannels    = Int(srcFmt.mChannelsPerFrame)
+    let sampleRate     = srcFmt.mSampleRate
+    let bytesPerSample = Int(srcFmt.mBitsPerChannel) / 8
+    let frameStride    = numChannels * bytesPerSample
 
     // Derive mono / stereo output formats from source (just change channel count)
     var monoFmt   = srcFmt
@@ -80,8 +77,8 @@ public func splitSession(
 
     // Validate stereo pairs
     let (activePairs, pairedChannels) = validateStereoPairs(stereoPairs, channelCount: numChannels)
-    let stereoCount    = activePairs.count
-    let monoCount      = numChannels - pairedChannels.count
+    let stereoCount = activePairs.count
+    let monoCount   = numChannels - pairedChannels.count
 
     let isFloat = srcFmt.mFormatFlags & kAudioFormatFlagIsFloat != 0
     let fmtLabel = isFloat ? "float" : "int"
@@ -95,6 +92,17 @@ public func splitSession(
 
     try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
     let pfx = prefix ?? sessionDir.lastPathComponent + "_"
+
+    // Build output specs (filenames + kinds) — platform-independent
+    let specs = buildOutputSpecs(
+        activePairs: activePairs,
+        pairedChannels: pairedChannels,
+        numChannels: numChannels,
+        channelNames: channelNames,
+        outputDir: outputDir,
+        prefix: pfx,
+        useShortFilenames: useShortFilenames
+    )
 
     // Create output files
     func makeOutputFile(_ url: URL, fmt: inout AudioStreamBasicDescription) throws -> ExtAudioFileRef {
@@ -118,23 +126,13 @@ public func splitSession(
 
     var tracks: [Track] = []
     do {
-        for pair in activePairs {
-            let suffix = channelNameSuffix(for: [pair.left, pair.right], names: channelNames)
-            let filename = useShortFilenames
-                ? (suffix.isEmpty ? String(format: "ch%02d-%02d.wav", pair.left, pair.right) : "\(suffix.dropFirst()).wav")
-                : String(format: "%@ch%02d-%02d\(suffix).wav", pfx, pair.left, pair.right)
-            let url = outputDir.appendingPathComponent(filename)
-            let f = try makeOutputFile(url, fmt: &stereoFmt)
-            tracks.append(Track(kind: .stereo(left: pair.left - 1, right: pair.right - 1), fileRef: f, url: url))  // pairs are 1-indexed; tracks are 0-indexed
-        }
-        for ch in 0 ..< numChannels where !pairedChannels.contains(ch + 1) {
-            let suffix = channelNameSuffix(for: [ch + 1], names: channelNames)
-            let filename = useShortFilenames
-                ? (suffix.isEmpty ? String(format: "ch%02d.wav", ch + 1) : "\(suffix.dropFirst()).wav")
-                : String(format: "%@ch%02d\(suffix).wav", pfx, ch + 1)
-            let url = outputDir.appendingPathComponent(filename)
-            let f = try makeOutputFile(url, fmt: &monoFmt)
-            tracks.append(Track(kind: .mono(ch: ch), fileRef: f, url: url))
+        for spec in specs {
+            let fileRef: ExtAudioFileRef
+            switch spec.kind {
+            case .stereo: fileRef = try makeOutputFile(spec.url, fmt: &stereoFmt)
+            case .mono:   fileRef = try makeOutputFile(spec.url, fmt: &monoFmt)
+            }
+            tracks.append(Track(spec: spec, fileRef: fileRef))
         }
     } catch {
         tracks.forEach { ExtAudioFileDispose($0.fileRef) }
@@ -142,9 +140,9 @@ public func splitSession(
     }
 
     // Allocate raw byte buffers
+    // monoOut and stereoOut are reused per track per block; each track writes before the next reuses.
     let blockFrames = 4096
     let readBytes   = blockFrames * frameStride
-    // monoOut and stereoOut are reused for every track per block; each track writes immediately before the next reuses the buffer.
     let rawIn       = UnsafeMutablePointer<UInt8>.allocate(capacity: readBytes)
     let monoOut     = UnsafeMutablePointer<UInt8>.allocate(capacity: blockFrames * bytesPerSample)
     let stereoOut   = UnsafeMutablePointer<UInt8>.allocate(capacity: blockFrames * bytesPerSample * 2)
@@ -154,22 +152,22 @@ public func splitSession(
         stereoOut.deallocate()
     }
 
-    // Set source client format = file format on each take file (done per-take below)
     var totalFramesWritten: UInt64 = 0
 
     for (takeIdx, wavURL) in wavFiles.enumerated() {
         var takeFile: ExtAudioFileRef?
         status = ExtAudioFileOpenURL(wavURL as CFURL, &takeFile)
         guard status == noErr, let tf = takeFile else {
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotOpenInput("\(wavURL.lastPathComponent) (OSStatus \(status))")
         }
 
-        // Verify channel count matches
         var takeFmt = AudioStreamBasicDescription()
         var sz = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         ExtAudioFileGetProperty(tf, kExtAudioFileProperty_FileDataFormat, &sz, &takeFmt)
         guard Int(takeFmt.mChannelsPerFrame) == numChannels else {
             ExtAudioFileDispose(tf)
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.channelMismatch(
                 expected: numChannels, got: Int(takeFmt.mChannelsPerFrame),
                 file: wavURL.lastPathComponent
@@ -182,6 +180,7 @@ public func splitSession(
             UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &clientFmt)
         guard status == noErr else {
             ExtAudioFileDispose(tf)
+            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotSetClientFormat(status)
         }
 
@@ -203,13 +202,14 @@ public func splitSession(
             status = ExtAudioFileRead(tf, &framesToRead, &bufferList)
             guard status == noErr else {
                 ExtAudioFileDispose(tf)
+                tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                 throw SplitError.readError(status)
             }
             if framesToRead == 0 { break }
             let frames = Int(framesToRead)
 
             for ti in 0 ..< tracks.count {
-                switch tracks[ti].kind {
+                switch tracks[ti].spec.kind {
                 case .mono(let ch):
                     demuxMono(from: rawIn, to: monoOut, frames: frames,
                               numChannels: numChannels, ch: ch,
@@ -226,6 +226,7 @@ public func splitSession(
                     status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
                     guard status == noErr else {
                         ExtAudioFileDispose(tf)
+                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                         throw SplitError.writeError(status)
                     }
 
@@ -245,6 +246,7 @@ public func splitSession(
                     status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
                     guard status == noErr else {
                         ExtAudioFileDispose(tf)
+                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                         throw SplitError.writeError(status)
                     }
                 }
@@ -261,27 +263,11 @@ public func splitSession(
 
     for track in tracks { ExtAudioFileDispose(track.fileRef) }
 
-    // Remove silent tracks
-    var keptURLs: [URL] = []
-    var silentCount = 0
-    var keptMonoCount = 0, keptStereoCount = 0
-    for track in tracks {
-        if !track.hasSignal {
-            try? FileManager.default.removeItem(at: track.url)
-            silentCount += 1
-        } else {
-            keptURLs.append(track.url)
-            switch track.kind {
-            case .mono:   keptMonoCount += 1
-            case .stereo: keptStereoCount += 1
-            }
-        }
-    }
-
-    printSplitSummary(keptMono: keptMonoCount, keptStereo: keptStereoCount,
-                      silentCount: silentCount,
-                      totalFrames: totalFramesWritten, sampleRate: sampleRate,
-                      outputDir: outputDir)
-    return SplitResult(urls: keptURLs, keptMono: keptMonoCount, keptStereo: keptStereoCount)
+    return collectSplitResult(
+        specs: tracks.map(\.spec),
+        hasSignal: tracks.map(\.hasSignal),
+        totalFramesWritten: totalFramesWritten,
+        sampleRate: sampleRate
+    )
 }
 // swiftlint:enable cyclomatic_complexity

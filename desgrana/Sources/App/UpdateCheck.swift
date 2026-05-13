@@ -14,8 +14,6 @@ struct UpdateInfo {
 }
 
 struct UpdateCheck {
-    static let feedURL = URL(string: "https://romaindalverny.com/atelier/desgrana/version.json")!
-
     /// Checks only if enabled and the configured interval has elapsed since the last check.
     static func checkIfDue(current: String) async -> UpdateInfo? {
         let enabled = UserDefaults.standard.object(forKey: updateCheckEnabledKey) as? Bool ?? true
@@ -34,7 +32,7 @@ struct UpdateCheck {
     }
 
     private static func fetch(current: String) async -> UpdateInfo? {
-        guard let (data, _) = try? await URLSession.shared.data(from: feedURL),
+        guard let (data, _) = try? await URLSession.shared.data(from: buildURL(current: current)),
               let json = try? JSONDecoder().decode([String: String].self, from: data),
               let latest = json["version"],
               latest.compare(current, options: .numeric) == .orderedDescending
@@ -44,5 +42,58 @@ struct UpdateCheck {
             notes: json["notes"] ?? "",
             url: json["url"].flatMap(URL.init)
         )
+    }
+
+    private static func buildURL(current: String) -> URL {
+        var comps = URLComponents(string: Constants.URLs.versionFeed)!
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        comps.queryItems = [
+            URLQueryItem(name: "os", value: platformOS()),
+            URLQueryItem(name: "osv", value: platformOSV()),
+            URLQueryItem(name: "arch", value: platformArch()),
+            URLQueryItem(name: "v", value: current),
+            URLQueryItem(name: "l", value: lang)
+        ]
+        return comps.url!
+    }
+
+    private static func platformOS() -> String {
+        #if os(macOS)
+        return "macos"
+        #else
+        return "linux"
+        #endif
+    }
+
+    private static func platformOSV() -> String {
+        #if os(macOS)
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(v.majorVersion)"
+        #else
+        guard let content = try? String(contentsOfFile: "/etc/os-release", encoding: .utf8) else {
+            return "linux"
+        }
+        var id = "linux"
+        var version = ""
+        for line in content.split(separator: "\n") {
+            let parts = line.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            let key = String(parts[0])
+            let val = String(parts[1]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            if key == "ID" { id = val }
+            if key == "VERSION_ID" { version = val.components(separatedBy: ".").first ?? val }
+        }
+        return id + version
+        #endif
+    }
+
+    private static func platformArch() -> String {
+        #if arch(arm64)
+        return "arm64"
+        #elseif arch(x86_64)
+        return "x86_64"
+        #else
+        return "unknown"
+        #endif
     }
 }

@@ -39,7 +39,8 @@ public func demuxMono(
                 for f in 0..<frames {
                     let v = src[f * numChannels + ch]
                     dst[f] = v
-                    if !hasSignal && v != 0 { hasSignal = true }
+                    // mask sign bit: treats both +0.0 and -0.0 as silence
+                    if !hasSignal && (v & 0x7FFFFFFF) != 0 { hasSignal = true }
                 }
             }
         }
@@ -92,7 +93,7 @@ public func demuxStereo(
                     let r = src[f * numChannels + right]
                     dst[f * 2]     = l
                     dst[f * 2 + 1] = r
-                    if !hasSignal && (l != 0 || r != 0) { hasSignal = true }
+                    if !hasSignal && ((l & 0x7FFFFFFF) != 0 || (r & 0x7FFFFFFF) != 0) { hasSignal = true }
                 }
             }
         }

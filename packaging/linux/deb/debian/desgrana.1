@@ -1,0 +1,59 @@
+.TH DESGRANA 1 "May 2026" "desgrana 1.6.3" "User Commands"
+.SH NAME
+desgrana \- extract channels from Behringer Wing multitrack WAV recordings
+.SH SYNOPSIS
+.B desgrana
+\fI<session-dir>\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B desgrana
+extracts individual mono or stereo tracks from the interleaved multichannel
+WAV files produced by a Behringer Wing (or X\-Live) console.
+.PP
+It reads session metadata from \fISE_LOG.BIN\fR, channel names and stereo
+pairs from a Wing snapshot (\fI.snap\fR), skips silent channels automatically,
+and exports session markers as cue chunks in every output WAV, plus CSV and
+Standard MIDI File (type 0) exports.
+.SH OPTIONS
+.TP
+.B \-o, \-\-output \fI<path>\fR
+Output directory (default: \fI<session-dir>_extract/\fR).
+.TP
+.B \-p, \-\-prefix \fI<string>\fR
+Prefix for output filenames.
+.TP
+.B \-\-snap \fI<file>\fR
+Wing snapshot (.snap) for stereo pairs and channel names.
+Auto-detected if present in the session directory.
+.TP
+.B \-s, \-\-stereo \fI<pairs>\fR
+Stereo pairs, e.g. \fI1:2,3:4\fR. Overrides pairs from \-\-snap.
+.TP
+.B \-i, \-\-info
+Show session info only, without extracting.
+.TP
+.B \-h, \-\-help
+Display help and exit.
+.SH EXAMPLES
+.TP
+.B desgrana /media/SD/X_LIVE/4B5C62B0
+Extract all channels from the session directory.
+.TP
+.B desgrana /media/SD/X_LIVE/4B5C62B0 \-\-info
+Show session metadata without extracting.
+.TP
+.B desgrana /media/SD/X_LIVE/4B5C62B0 \-\-snap ~/MyShow.snap \-o ~/Desktop/extract
+Extract using a named snapshot file, writing to a custom output path.
+.SH FILES
+.TP
+.I <session-dir>/SE_LOG.BIN
+Session metadata: channel count, sample rate, take sizes, markers.
+.TP
+.I <session-dir>/*.snap
+Wing snapshot (optional): channel names, stereo pairs.
+.TP
+.I <session-dir>/00000001.WAV, 00000002.WAV, \&...
+Interleaved multichannel WAV takes (32-bit PCM, max ~4 GB each).
+.SH AUTHOR
+Romain d'Alverny <rwx@romaindalverny.com>
+.SH SEE ALSO
+Project homepage: https://github.com/rdalverny/desgrana

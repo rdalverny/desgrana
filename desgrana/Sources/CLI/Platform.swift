@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 // Re-export the correct platform backend so the rest of the CLI stays #if-free.
-#if canImport(DesgranaCoreMac)
-@_exported import DesgranaCoreMac
+#if canImport(DesgranaCoreAudioToolbox)
+@_exported import DesgranaCoreAudioToolbox
 #else
-@_exported import DesgranaCoreLinux
+@_exported import DesgranaCoreWav
 #endif
