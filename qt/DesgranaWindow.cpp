@@ -427,19 +427,17 @@ void DesgranaWindow::showSplitting() {
     switchToPage(2);
 }
 
-void DesgranaWindow::showDone(int silentSkipped) {
+void DesgranaWindow::showDone(int keptMono, int keptStereo, int silentSkipped) {
     m_silentSkipped = silentSkipped;
-    const int stereo = static_cast<int>(m_effectivePairs.size());
-    const int mono   = m_channels - 2 * stereo - silentSkipped;
 
     QStringList parts;
-    if (stereo > 0) parts << QString("%1 stereo").arg(stereo);
-    if (mono   > 0) parts << QString("%1 mono").arg(mono);
+    if (keptStereo > 0) parts << QString("%1 stereo").arg(keptStereo);
+    if (keptMono   > 0) parts << QString("%1 mono").arg(keptMono);
     m_summaryLabel->setText(parts.join(", ") + " extracted");
 
     m_silentLabel->setVisible(silentSkipped > 0);
     if (silentSkipped > 0)
-        m_silentLabel->setText(QString("%1 mono silent ignored").arg(silentSkipped));
+        m_silentLabel->setText(QString("%1 silent ignored").arg(silentSkipped));
 
     switchToPage(3);
 }
@@ -625,8 +623,8 @@ void DesgranaWindow::onProgress(int take, int total) {
     }
 }
 
-void DesgranaWindow::onSplitDone(int silentSkipped) {
-    showDone(silentSkipped);
+void DesgranaWindow::onSplitDone(int silentSkipped, int keptMono, int keptStereo) {
+    showDone(keptMono, keptStereo, silentSkipped);
 }
 
 void DesgranaWindow::onSplitError(const QString &msg) {

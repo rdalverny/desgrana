@@ -8,7 +8,7 @@ SplitWorker::SplitWorker(Params p, QObject *parent)
 
 void SplitWorker::run() {
     char err[512] = {};
-    int32_t silentSkipped = 0;
+    int32_t silentSkipped = 0, keptMono = 0, keptStereo = 0;
     std::vector<const char *> chVals;
     for (const auto &n : m_params.chNames) chVals.push_back(n.c_str());
     int rc = desgrana_split(
@@ -27,10 +27,14 @@ void SplitWorker::run() {
         },
         this,
         &silentSkipped,
+        &keptMono,
+        &keptStereo,
         err, sizeof(err)
     );
     if (rc == 0)
-        emit done(static_cast<int>(silentSkipped));
+        emit done(static_cast<int>(silentSkipped),
+                  static_cast<int>(keptMono),
+                  static_cast<int>(keptStereo));
     else
         emit error(QString::fromUtf8(err));
 }

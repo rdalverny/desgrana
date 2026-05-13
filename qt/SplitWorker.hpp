@@ -26,7 +26,7 @@ public slots:
 
 signals:
     void progress(int take, int total);
-    void done(int silentSkipped);
+    void done(int silentSkipped, int keptMono, int keptStereo);
     void error(const QString &msg);
 
 private:

@@ -103,6 +103,8 @@ public func desgrana_split(
     _ progressCb: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer?) -> Void)?,
     _ userData: UnsafeMutableRawPointer?,
     _ outSilentSkipped: UnsafeMutablePointer<Int32>?,
+    _ outKeptMono: UnsafeMutablePointer<Int32>?,
+    _ outKeptStereo: UnsafeMutablePointer<Int32>?,
     _ errBuf: UnsafeMutablePointer<CChar>?,
     _ errLen: Int32
 ) -> Int32 {
@@ -136,6 +138,8 @@ public func desgrana_split(
             progress: { take, total, _ in progressCb?(Int32(take), Int32(total), userData) }
         )
         if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
+        if let p = outKeptMono      { p.pointee = Int32(result.keptMono) }
+        if let p = outKeptStereo    { p.pointee = Int32(result.keptStereo) }
         return 0
     } catch {
         cStringCopy("\(error)", into: errBuf, maxLen: Int(errLen))

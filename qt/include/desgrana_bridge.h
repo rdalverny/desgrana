@@ -75,7 +75,9 @@ int32_t desgrana_load_snap(
  * progress_cb: called after each take with (current_take, total_takes, user_data).
  *   May be NULL. Called from the same thread as desgrana_split.
  *
- * out_silent_skipped: receives the number of silent channels skipped (nullable).
+ * out_silent_skipped: receives the number of silent tracks skipped (nullable).
+ * out_kept_mono:      receives the number of mono tracks written (nullable).
+ * out_kept_stereo:    receives the number of stereo tracks written (nullable).
  *
  * Returns 0 on success, -1 on error (err_buf filled).
  */
@@ -92,6 +94,8 @@ int32_t desgrana_split(
     void         (*progress_cb)(int32_t take, int32_t total, void *user_data),
     void          *user_data,
     int32_t       *out_silent_skipped, /* nullable */
+    int32_t       *out_kept_mono,      /* nullable */
+    int32_t       *out_kept_stereo,    /* nullable */
     char          *err_buf,           /* nullable */
     int32_t        err_len
 );

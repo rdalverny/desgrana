@@ -35,7 +35,7 @@ private slots:
     void browseOutput();
     void startSplit();
     void onProgress(int take, int total);
-    void onSplitDone(int silentSkipped);
+    void onSplitDone(int silentSkipped, int keptMono, int keptStereo);
     void onSplitError(const QString &msg);
     void onSessionNameChanged(const QString &name);
     void onUpdateReply(QNetworkReply *reply);
@@ -52,7 +52,7 @@ private:
     void showIdle(const QString &error = {});
     void showReady();
     void showSplitting();
-    void showDone(int silentSkipped);
+    void showDone(int keptMono, int keptStereo, int silentSkipped);
     void populateChannelList();
     void handleChannelRowClick(QWidget *row);
     void updateOutputPath();
