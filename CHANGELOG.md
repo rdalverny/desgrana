@@ -1,12 +1,12 @@
 # Changelog
 
-## [Unreleased — 1.8.0] - 2026-05-13
+## [1.8.0] - 2026-05-13
 
 Linux:
 
 - builds and works on Linux arm64 and x86_64 (GUI using Qt), still a bit rough
   compared to macOS version
-- `.deb` package only for now
+- Debian & RPM packaging
 
 Global:
 
@@ -17,6 +17,8 @@ Global:
 - `--auto-stereo`: explicit error if SE_LOG.BIN is absent
 - consolidated CLI behaviour
 - added tests and refactoring
+- added CI
+
 
 ## [1.7.0] — 2026-05-07
 
