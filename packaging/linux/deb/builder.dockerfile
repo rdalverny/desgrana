@@ -70,7 +70,7 @@ WORKDIR /build
 # Qt6 libs needed for dh_shlibdeps to resolve GUI shared library dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         dpkg-dev fakeroot lintian debhelper \
-        libqt6widgets6 libqt6gui6 libqt6core6 libqt6network6 \
+        libqt6widgets6 libqt6gui6 libqt6core6 libqt6network6 libcurl4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Binaries and bundled Swift dylibs
@@ -89,11 +89,12 @@ RUN pkg=$(dpkg-parsechangelog -S Source) && \
     arch=$(dpkg --print-architecture) && \
     lintian ../${pkg}_${ver}_${arch}.deb || true
 
-# ── 3. Export raw binaries (--target binaries) ────────────────────────────────
+# ── 3. Export raw binaries + Swift libs (--target binaries) ──────────────────
 
 FROM scratch AS binaries
 COPY --from=builder /src/desgrana/.build/release/desgrana /desgrana
-COPY --from=builder /src/qt/build/desgrana-linux       /desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-linux          /desgrana-gui
+COPY --from=builder /src/swift-libs/                       /swift-libs/
 
 # ── 4. Export .deb only (default stage) ──────────────────────────────────────
 

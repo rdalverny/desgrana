@@ -1,4 +1,4 @@
-name: CLI — macOS, Linux & Windows
+name: Builds macOS & Linux
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
   # Signing and notarization are done locally; this job only verifies the build.
 
   macos:
-    name: macOS build
+    name: macOS App & CLI
     runs-on: macos-15
 
     steps:
@@ -23,13 +23,12 @@ jobs:
           swift build -c release --product desgrana
           swift build -c release --product DesgranaApp
 
-  # ── Linux .deb (amd64 + arm64) ──────────────────────────────────────────────
-  # Docker Buildx handles cross-compilation via QEMU emulation.
-  # The Dockerfile builds with the official Swift image for the target platform,
-  # then packages the binary as a .deb using debhelper.
+  # ── Linux: build binaries (amd64 + arm64) ──────────────────────────────────
+  # Compiles CLI + Qt GUI inside the official Swift Docker image.
+  # Outputs raw binaries + bundled Swift libs as a CI artifact.
 
-  linux-deb:
-    name: Linux .deb (${{ matrix.deb_arch }})
+  linux-build:
+    name: Linux build (${{ matrix.deb_arch }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -48,42 +47,75 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build binaries
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --target binaries \
+            -f packaging/linux/deb/builder.dockerfile \
+            --output type=local,dest=binaries \
+            .
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries-${{ matrix.deb_arch }}
+          path: binaries/
+
+  # ── Linux: package .deb (amd64 + arm64) ────────────────────────────────────
+  # Takes pre-built binaries and runs dpkg-buildpackage in a lean Debian image.
+  # No Swift toolchain needed here — packaging only.
+
+  linux-deb:
+    name: Linux .deb (${{ matrix.deb_arch }})
+    needs: linux-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            deb_arch: amd64
+          - platform: linux/arm64
+            deb_arch: arm64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries-${{ matrix.deb_arch }}
+          path: binaries/
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build .deb
         run: |
           docker buildx build \
             --platform ${{ matrix.platform }} \
-            -f packaging/linux/deb/builder.dockerfile \
+            -f packaging/linux/deb/packager.dockerfile \
             --output type=local,dest=dist \
             .
 
-      - name: Upload artifact
+      - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
           name: desgrana-deb-${{ matrix.deb_arch }}
           path: dist/*.deb
 
   # ── Windows CLI (x64) ───────────────────────────────────────────────────────
-  # Swift on Windows is still maturing; Foundation and most stdlib are available.
-  # AudioToolbox is unavailable → SplitterDrWav.swift (dr_wav backend) is used.
-  # Output: desgrana.exe
-
-  windows-cli:
-    name: Windows CLI (x64)
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.0.3"
-
-      - name: Build CLI
-        run: cd desgrana && swift build -c release --product desgrana
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: desgrana-windows-x64
-          path: desgrana\.build\release\desgrana.exe
+  # Disabled: setup-swift@v2 does not support Swift 6.x on Windows;
+  # setup-swift@v3 (beta) does not support Windows yet either.
+  # Re-enable once a reliable Swift install method for Windows CI is confirmed.
+  #
+  # windows-cli:
+  #   name: Windows CLI (x64)
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - name: Install Swift + Build CLI
+  #       run: cd desgrana && swift build -c release --product desgrana
