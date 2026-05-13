@@ -36,4 +36,4 @@ RUN pkg=$(dpkg-parsechangelog -S Source) && \
     lintian ../${pkg}_${ver}_${arch}.deb || true
 
 FROM scratch AS export
-COPY --from=packager /build/*.deb /
+COPY --from=packager /build/desgrana_*.deb /

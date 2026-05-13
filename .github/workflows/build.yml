@@ -138,7 +138,7 @@ jobs:
   # No Swift toolchain needed here — packaging only.
 
   linux-rpm:
-    name: Linux .rpm (${{ matrix.rpm_arch }})
+    name: Linux .rpm (${{ matrix.deb_arch }})
     needs: [linux-matrix, linux-build]
     runs-on: ubuntu-latest
     strategy:
