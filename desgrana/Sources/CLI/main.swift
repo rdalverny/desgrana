@@ -130,7 +130,10 @@ struct DesgranaCLI {
 
         // Stereo pairs: --auto-stereo > --stereo > all mono (clink ignored)
         let activePairs: [StereoPair]
-        if cliArgs.useAutoStereo, let info = sessionInfo {
+        if cliArgs.useAutoStereo {
+            guard let info = sessionInfo else {
+                fatal("--auto-stereo requires SE_LOG.BIN (channel count unknown)")
+            }
             activePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: info.numChannels)
         } else if !cliArgs.stereoPairs.isEmpty {
             activePairs = cliArgs.stereoPairs
