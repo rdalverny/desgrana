@@ -4,6 +4,13 @@ on:
   push:
     tags: ['*']
   workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Architecture(s) to build'
+        required: false
+        default: 'both'
+        type: choice
+        options: [both, amd64, arm64]
 
 jobs:
 
@@ -29,20 +36,36 @@ jobs:
           name: desgrana-${{ github.run_id }}-macos-cli
           path: desgrana/.build/release/desgrana
 
-  # ── Linux: build binaries (amd64 + arm64) ──────────────────────────────────
+  # ── Linux: resolve matrix from arch input ──────────────────────────────────
+
+  linux-matrix:
+    name: Linux matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          arch="${{ inputs.arch }}"
+          arch="${arch:-both}"
+          if [ "$arch" = "amd64" ]; then
+            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64"}]}' >> $GITHUB_OUTPUT
+          elif [ "$arch" = "arm64" ]; then
+            echo 'matrix={"include":[{"platform":"linux/arm64","deb_arch":"arm64"}]}' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64"},{"platform":"linux/arm64","deb_arch":"arm64"}]}' >> $GITHUB_OUTPUT
+          fi
+
+  # ── Linux: build binaries ──────────────────────────────────────────────────
   # Compiles CLI + Qt GUI inside the official Swift Docker image.
   # Outputs raw binaries + bundled Swift libs as a CI artifact.
 
   linux-build:
     name: Linux build (${{ matrix.deb_arch }})
+    needs: linux-matrix
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            deb_arch: amd64
-          - platform: linux/arm64
-            deb_arch: arm64
+      matrix: ${{ fromJson(needs.linux-matrix.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v6
@@ -70,21 +93,16 @@ jobs:
           name: linux-binaries-${{ matrix.deb_arch }}-${{ github.run_id }}
           path: binaries/
 
-  # ── Linux: package .deb (amd64 + arm64) ────────────────────────────────────
+  # ── Linux: package .deb ────────────────────────────────────────────────────
   # Takes pre-built binaries and runs dpkg-buildpackage in a lean Debian image.
   # No Swift toolchain needed here — packaging only.
 
   linux-deb:
     name: Linux .deb (${{ matrix.deb_arch }})
-    needs: linux-build
+    needs: [linux-matrix, linux-build]
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            deb_arch: amd64
-          - platform: linux/arm64
-            deb_arch: arm64
+      matrix: ${{ fromJson(needs.linux-matrix.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v6
