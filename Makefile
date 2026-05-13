@@ -77,54 +77,6 @@ build: cli bundle
 build-universal: cli-universal bundle-universal
 
 
-# ── signature, notarization
-sign: build
-	codesign --deep --force --options runtime \
-		--entitlements $(ENTITLEMENTS) \
-		--sign "$(SIGN_IDENTITY)" \
-		$(APP_BUILD)
-	codesign --verify --verbose $(APP_BUILD)
-
-	codesign --force --options runtime \
-		--sign "$(SIGN_IDENTITY)" \
-		$(BUILD)/desgrana
-	codesign --verify --verbose $(BUILD)/desgrana
-	@echo "Signed → $(APP_BUILD), $(BUILD)/desgrana"
-
-package: sign
-	mkdir -p $(DIST)
-	bash packaging/macos/make-dmg.sh \
-		"$(APP_BUILD)" \
-		"$(BUILD)/desgrana" \
-		"$(VERSION)" \
-		"$(DIST)/Desgrana-$(VERSION).dmg"
-
-notarize: package
-	xcrun notarytool submit "$(DIST)/Desgrana-$(VERSION).dmg" \
-		--keychain-profile "$(NOTARY_PROFILE)" \
-		--wait
-	xcrun stapler staple "$(DIST)/Desgrana-$(VERSION).dmg"
-	@echo "Notarized → $(DIST)/Desgrana-$(VERSION).dmg"
-
-release: notarize
-	gh release create "v$(VERSION)" \
-		--draft \
-		"$(DIST)/Desgrana-$(VERSION).dmg" \
-		--title "Desgrana $(VERSION)" \
-		--notes-file CHANGELOG.md
-
-shipit: release
-	sed -i '' \
-		-e 's|href="[^"]*Desgrana-[0-9.]*\.dmg"|href="$(GITHUB_BASE)/v$(VERSION)/Desgrana-$(VERSION).dmg"|' \
-		-e 's|Download Desgrana [0-9.]* ([^)]*)|Download Desgrana $(VERSION) ($(DATE))|' \
-		web/index.html
-	@echo "web/index.html → $(VERSION) ($(DATE))"
-
-	python3 -c "import json; f='web/version.json'; d=json.load(open(f)); d['version']='$(VERSION)'; d['url']='https://github.com/$(GITHUB_REPO)/releases/tag/v$(VERSION)'; json.dump(d, open(f,'w'), indent=2); open(f,'a').write('\n')"
-	@echo "web/version.json → $(VERSION)"
-
-	@echo "dist/ contains: $$(ls $(DIST))"
-
 # ── version ─────────────────────────────────────────────────────────
 patch:
 	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[2]=str(int(v[2])+1);open('VERSION','w').write('.'.join(v))"
