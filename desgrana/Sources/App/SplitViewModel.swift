@@ -196,6 +196,7 @@ class SplitViewModel: ObservableObject {
             }
         }
 
+        let capturedFrames = framesBeforeTake
         Task.detached { [weak self] in
             do {
                 let result = try splitSession(
@@ -206,7 +207,7 @@ class SplitViewModel: ObservableObject {
                     channelNames: names,
                     useShortFilenames: shortNames,
                     progress: { take, total, framesInTake in
-                        let before = framesBeforeTake[take] ?? 0
+                        let before = capturedFrames[take] ?? 0
                         let fraction = totalFrames > 0
                             ? min((before + Double(framesInTake)) / totalFrames, 1.0)
                             : 0

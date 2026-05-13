@@ -29,8 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-COPY desgrana/ ./desgrana/
-COPY qt/       ./qt/
+COPY VERSION                              ./VERSION
+COPY desgrana/                            ./desgrana/
+COPY qt/                                  ./qt/
+COPY packaging/linux/collect-swift-libs.sh ./collect-swift-libs.sh
 
 # CLI (static stdlib + GNU build-id) then bridge library
 RUN cd desgrana \
@@ -49,18 +51,12 @@ RUN cmake \
         -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     && cmake --build qt/build
 
-# Collect Swift dylibs actually referenced by desgrana-gui.
-# ldd is unusable here because CMAKE_BUILD_WITH_INSTALL_RPATH=ON bakes /usr/lib/desgrana
-# as the RPATH, so ldd reports "not found" for every Swift lib at build time.
-# readelf -d reads the ELF NEEDED entries directly, independent of RPATH resolution.
-RUN mkdir -p /src/swift-libs \
-    && readelf -d /src/qt/build/desgrana-linux \
-       | grep 'NEEDED' \
-       | sed 's/.*\[//;s/\]//' \
-       | grep -E 'swift|Foundation|dispatch|BlocksRuntime' \
-       | xargs -I{} cp /usr/lib/swift/linux/{} /src/swift-libs/ \
-    && ls /src/swift-libs/ \
-    && [ -n "$(ls /src/swift-libs/)" ]
+# Collect only the Swift dylibs actually needed by the GUI binary, recursively.
+# System libs (libcurl, libQt6, …) are excluded — they become package dependencies.
+RUN bash /src/collect-swift-libs.sh \
+        /src/qt/build/desgrana-linux \
+        /usr/lib/swift/linux \
+        /src/swift-libs
 
 # ── 2. Package as .deb ────────────────────────────────────────────────────────
 
@@ -70,7 +66,7 @@ WORKDIR /build
 # Qt6 libs needed for dh_shlibdeps to resolve GUI shared library dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         dpkg-dev fakeroot lintian debhelper \
-        libqt6widgets6 libqt6gui6 libqt6core6 \
+        libqt6widgets6 libqt6gui6 libqt6core6 libqt6network6 libcurl4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Binaries and bundled Swift dylibs
@@ -89,11 +85,12 @@ RUN pkg=$(dpkg-parsechangelog -S Source) && \
     arch=$(dpkg --print-architecture) && \
     lintian ../${pkg}_${ver}_${arch}.deb || true
 
-# ── 3. Export raw binaries (--target binaries) ────────────────────────────────
+# ── 3. Export raw binaries + Swift libs (--target binaries) ──────────────────
 
 FROM scratch AS binaries
 COPY --from=builder /src/desgrana/.build/release/desgrana /desgrana
-COPY --from=builder /src/qt/build/desgrana-linux       /desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-linux          /desgrana-gui
+COPY --from=builder /src/swift-libs/                       /swift-libs/
 
 # ── 4. Export .deb only (default stage) ──────────────────────────────────────
 
