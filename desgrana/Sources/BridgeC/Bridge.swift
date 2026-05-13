@@ -41,15 +41,9 @@ public func desgrana_probe(
     outSnapFound?.pointee = snap != nil ? 1 : 0
 
     if let buf = sceneNameBuf, sceneNameLen > 1 {
-        let name: String
-        if let scene = snap?.sceneName, !scene.isEmpty {
-            name = scene
-        } else if let sn = session?.sessionName, !sn.isEmpty,
-                  sn.range(of: #"^[0-9A-F]{8}$"#, options: .regularExpression) == nil {
-            name = sn
-        } else {
-            name = dir.lastPathComponent
-        }
+        // Only fill when the snap provides a non-empty scene name.
+        // Callers are responsible for generating a fallback (e.g. NONAME_) when empty.
+        let name = snap.flatMap { $0.sceneName }.filter { !$0.isEmpty } ?? ""
         cStringCopy(name, into: buf, maxLen: Int(sceneNameLen))
     }
 
