@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build CLI + App
         run: |
@@ -40,7 +40,7 @@ jobs:
             deb_arch: arm64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -72,12 +72,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Swift
         uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.3.1"
+          swift-version: "6.0.3"
 
       - name: Build CLI
         run: cd desgrana && swift build -c release --product desgrana

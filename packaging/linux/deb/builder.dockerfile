@@ -50,16 +50,15 @@ RUN cmake \
         -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     && cmake --build qt/build
 
-# Collect Swift dylibs actually referenced by desgrana-gui.
-# ldd is unusable here because CMAKE_BUILD_WITH_INSTALL_RPATH=ON bakes /usr/lib/desgrana
-# as the RPATH, so ldd reports "not found" for every Swift lib at build time.
-# readelf -d reads the ELF NEEDED entries directly, independent of RPATH resolution.
+# Collect Swift dylibs: glob copy to capture direct and transitive deps.
+# readelf only sees direct deps of the binary; libs like libFoundation.so pull in
+# further Swift libs that must also be bundled.
 RUN mkdir -p /src/swift-libs \
-    && readelf -d /src/qt/build/desgrana-linux \
-       | grep 'NEEDED' \
-       | sed 's/.*\[//;s/\]//' \
-       | grep -E 'swift|Foundation|dispatch|BlocksRuntime' \
-       | xargs -I{} cp /usr/lib/swift/linux/{} /src/swift-libs/ \
+    && cp /usr/lib/swift/linux/libswift*.so      /src/swift-libs/ 2>/dev/null || true \
+    && cp /usr/lib/swift/linux/libFoundation*.so /src/swift-libs/ 2>/dev/null || true \
+    && cp /usr/lib/swift/linux/lib_Foundation*.so /src/swift-libs/ 2>/dev/null || true \
+    && cp /usr/lib/swift/linux/libdispatch.so    /src/swift-libs/ 2>/dev/null || true \
+    && cp /usr/lib/swift/linux/libBlocksRuntime.so /src/swift-libs/ 2>/dev/null || true \
     && ls /src/swift-libs/ \
     && [ -n "$(ls /src/swift-libs/)" ]
 
@@ -71,7 +70,7 @@ WORKDIR /build
 # Qt6 libs needed for dh_shlibdeps to resolve GUI shared library dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         dpkg-dev fakeroot lintian debhelper \
-        libqt6widgets6 libqt6gui6 libqt6core6 \
+        libqt6widgets6 libqt6gui6 libqt6core6 libqt6network6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Binaries and bundled Swift dylibs
