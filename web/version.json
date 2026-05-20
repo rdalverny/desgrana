@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
-  "notes": "Revised user interface, better defaults.",
-  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.7.0"
+  "version": "1.8.0",
+  "notes": "X32 experimental support, macOS DAWs improved support, Linux versions",
+  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.8.0"
 }
