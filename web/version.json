@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
-  "notes": "X32 experimental support, macOS DAWs improved support, Linux versions",
-  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.8.0"
+  "version": "1.8.1",
+  "notes": "Properly detect Wing USB stereo source pairs",
+  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.8.1"
 }
