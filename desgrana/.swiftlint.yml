@@ -3,12 +3,14 @@ excluded:
   - Sources/CWav
 
 disabled_rules:
+  - comma
   - identifier_name
   - function_parameter_count
   - file_length
   - type_body_length
   - function_body_length
   - for_where
+  - opening_brace
 
 line_length:
   warning: 140
