@@ -15,18 +15,26 @@ ARG DEBIAN_CODENAME=bookworm
 FROM debian:${DEBIAN_CODENAME}-slim AS packager
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        dpkg-dev fakeroot lintian debhelper \
+        dpkg-dev fakeroot lintian debhelper devscripts \
         libqt6widgets6 libqt6gui6 libqt6core6 libqt6network6 libcurl4 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build/src
 
+COPY VERSION                              ./VERSION
 COPY binaries/desgrana                    ./desgrana
 COPY binaries/desgrana-gui                ./desgrana-gui
 COPY binaries/swift-libs/                 ./swift-libs/
 COPY packaging/linux/deb/debian/          ./debian/
 COPY packaging/linux/desgrana-gui.desktop ./desgrana-gui.desktop
 COPY packaging/linux/icons/               ./icons/
+
+RUN VERSION=$(cat VERSION) && \
+    CHANGELOG_VER=$(dpkg-parsechangelog -S Version | sed 's/-[^-]*$//') && \
+    if [ "$VERSION" != "$CHANGELOG_VER" ]; then \
+        DEBEMAIL="rwx@romaindalverny.com" DEBFULLNAME="Romain d'Alverny" \
+        dch --newversion "${VERSION}-1" --distribution unstable "Release ${VERSION}."; \
+    fi
 
 RUN LC_ALL=C dpkg-buildpackage -rfakeroot -us -uc -b -d
 
