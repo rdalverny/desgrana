@@ -148,6 +148,132 @@ final class SnapTests: XCTestCase {
         XCTAssertTrue(info.stereoPairs.isEmpty)
     }
 
+    // MARK: - USB stereo pairs
+
+    // Wing USB stereo channels have clink=false; stereo is indicated by io.in.USB.N.mode="ST".
+    // The pair is (usbIn, usbIn+1) and the name is keyed by usbIn, not by Wing channel number.
+    func testUsbStereoChannelProducesPair() throws {
+        let info = try snap(
+            channels: ["1": ["name": "BD", "clink": false,
+                             "in": ["conn": ["grp": "USB", "in": 1]]]],
+            io: ["in": ["USB": ["1": ["mode": "ST"]]]]
+        )
+        XCTAssertEqual(info.stereoPairs.count, 1)
+        XCTAssertEqual(info.stereoPairs[0].left,  1)
+        XCTAssertEqual(info.stereoPairs[0].right, 2)
+        // Name keyed by WAV track 1 (= USB in 1), not Wing ch 1 (same here, but explicit)
+        XCTAssertEqual(info.channelNames[1], "BD")
+        XCTAssertNil(info.channelNames[2])
+    }
+
+    func testUsbMonoChannelNoPair() throws {
+        let info = try snap(
+            channels: ["1": ["name": "BD", "clink": false,
+                             "in": ["conn": ["grp": "USB", "in": 1]]]],
+            io: ["in": ["USB": ["1": ["mode": "M"]]]]
+        )
+        XCTAssertTrue(info.stereoPairs.isEmpty)
+    }
+
+    func testUsbMidSideChannelProducesPair() throws {
+        let info = try snap(
+            channels: ["1": ["name": "OH", "clink": false,
+                             "in": ["conn": ["grp": "USB", "in": 3]]]],
+            io: ["in": ["USB": ["3": ["mode": "M/S"]]]]
+        )
+        XCTAssertEqual(info.stereoPairs.count, 1)
+        XCTAssertEqual(info.stereoPairs[0].left,  3)
+        XCTAssertEqual(info.stereoPairs[0].right, 4)
+        XCTAssertEqual(info.channelNames[3], "OH")
+    }
+
+    // Reproduces the reported bug: 4 Wing channels in ST/USB mode, each taking 2 WAV tracks.
+    // Wing ch1=BD(USB1+2), ch2=SD(USB3+4), ch3=Toms(USB5+6), ch4=OH(USB7+8).
+    // Expected: 4 pairs keyed by USB input number; names keyed by left USB track.
+    func testUsbStereoFourChannels() throws {
+        let channels: [String: Any] = [
+            "1": ["name": "BD",   "clink": false, "in": ["conn": ["grp": "USB", "in": 1]]],
+            "2": ["name": "SD",   "clink": false, "in": ["conn": ["grp": "USB", "in": 3]]],
+            "3": ["name": "Toms", "clink": false, "in": ["conn": ["grp": "USB", "in": 5]]],
+            "4": ["name": "OH",   "clink": false, "in": ["conn": ["grp": "USB", "in": 7]]]
+        ]
+        let io: [String: Any] = ["in": ["USB": [
+            "1": ["mode": "ST"], "3": ["mode": "ST"],
+            "5": ["mode": "ST"], "7": ["mode": "ST"]
+        ]]]
+        let info = try snap(channels: channels, io: io)
+
+        XCTAssertEqual(info.stereoPairs.count, 4)
+        let lefts = info.stereoPairs.map(\.left)
+        XCTAssertEqual(lefts, [1, 3, 5, 7])
+        let rights = info.stereoPairs.map(\.right)
+        XCTAssertEqual(rights, [2, 4, 6, 8])
+
+        XCTAssertEqual(info.channelNames[1], "BD")
+        XCTAssertEqual(info.channelNames[3], "SD")
+        XCTAssertEqual(info.channelNames[5], "Toms")
+        XCTAssertEqual(info.channelNames[7], "OH")
+        // Right-side USB tracks have no name
+        XCTAssertNil(info.channelNames[2])
+        XCTAssertNil(info.channelNames[4])
+        XCTAssertNil(info.channelNames[6])
+        XCTAssertNil(info.channelNames[8])
+    }
+
+    // When a USB input number coincides with a Wing channel number that also has clink=true,
+    // only one pair must be produced — not two.
+    func testUsbAndClinkSameTrackNoDuplicate() throws {
+        let info = try snap(
+            channels: [
+                // ch1 → USB in 3 (ST): produces pair(3,4)
+                "1": ["name": "BD",    "clink": false, "in": ["conn": ["grp": "USB", "in": 3]]],
+                // ch3 → LCL clink: would also claim pair(3,4) if not deduplicated
+                "3": ["name": "Synth", "clink": true],
+                "4": ["name": "Bass",  "clink": true]
+            ],
+            io: ["in": ["USB": ["3": ["mode": "ST"]]]]
+        )
+        XCTAssertEqual(info.stereoPairs.count, 1)
+        XCTAssertEqual(info.stereoPairs[0].left,  3)
+        XCTAssertEqual(info.stereoPairs[0].right, 4)
+    }
+
+    // MARK: - Real snap fixture
+
+    // Parses the real Wing Rack snap from the bug reporter (case07_usb_stereo).
+    // 4 Wing channels with USB stereo sources (BD/SD/Toms/OH on USB 1,3,5,7),
+    // plus LCL and clink channels with overlapping track numbers.
+    // Verifies that USB stereo pairs and names are correct with no duplicates.
+    func testRealSnapUsbStereo() throws {
+        let snapURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()          // CoreTests/
+            .deletingLastPathComponent()          // Tests/
+            .appendingPathComponent("fixtures/case07_usb_stereo/session/USB_Stereo.snap")
+        let info = try parseSnap(at: snapURL)
+
+        // The 4 USB stereo pairs must appear exactly once each, in order.
+        let lefts = info.stereoPairs.map(\.left)
+        XCTAssertTrue(lefts.contains(1), "missing BD pair")
+        XCTAssertTrue(lefts.contains(3), "missing SD pair")
+        XCTAssertTrue(lefts.contains(5), "missing Toms pair")
+        XCTAssertTrue(lefts.contains(7), "missing OH pair")
+
+        // No duplicates.
+        XCTAssertEqual(lefts.count, Set(lefts).count, "duplicate pairs found: \(lefts)")
+
+        // Names keyed by USB input number (= left WAV track), not Wing channel number.
+        XCTAssertEqual(info.channelNames[1], "BD")
+        XCTAssertEqual(info.channelNames[3], "SD")
+        XCTAssertEqual(info.channelNames[5], "Toms")
+        XCTAssertEqual(info.channelNames[7], "OH")
+
+        // Right-side USB tracks have no name.
+        XCTAssertNil(info.channelNames[2])
+        XCTAssertNil(info.channelNames[4])
+        XCTAssertNil(info.channelNames[6])
+        XCTAssertNil(info.channelNames[8])
+    }
+
     // MARK: - Scene and show names
 
     func testActiveSceneWindowsPath() throws {

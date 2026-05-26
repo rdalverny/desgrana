@@ -84,6 +84,7 @@ public func desgrana_probe(
 /// progressCb: called with (currentTake, totalTakes, userData) after each take; may be NULL.
 /// Returns 0 on success, -1 on error (fills errBuf).
 @_cdecl("desgrana_split")
+// swiftlint:disable cyclomatic_complexity
 public func desgrana_split(
     _ sessionPath: UnsafePointer<CChar>,
     _ outputPath: UnsafePointer<CChar>,
@@ -165,6 +166,7 @@ public func desgrana_split(
         return -1
     }
 }
+// swiftlint:enable cyclomatic_complexity
 
 // MARK: - Load snap
 

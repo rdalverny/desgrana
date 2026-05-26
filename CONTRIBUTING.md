@@ -59,7 +59,8 @@ direction doesn't fit the project.
 
 Each recording session is a folder (hex timestamp) containing:
 
-- `SE_LOG.BIN` — 2048-byte binary metadata (little-endian); optional, but required for marker export
+- `SE_LOG.BIN` — 2048-byte binary metadata (little-endian); optional, but
+  required for marker export
 - `<SceneName>.snap` — Wing snapshot (optional, JSON)
 - `00000001.WAV`, `00000002.WAV`, … — interleaved multichannel WAV files
 
@@ -97,7 +98,16 @@ strip:
 | --------------------------------- | ------ | ------------------------------------------------ |
 | `ae_data.io.in.<card><N>.name`    | string | Physical input name (KICK, VOX, …)               |
 | `ae_data.ch.<N>.in.conn.{grp,in}` | —      | Routing: which physical input feeds this channel |
-| `ae_data.ch.<N>.clink`            | bool   | Stereo link with channel N+1                     |
+| `ae_data.ch.<N>.clink`            | bool   | LCL stereo link with channel N+1                 |
+| `ae_data.io.in.USB.<N>.mode`      | string | USB input mode: `M` (mono), `ST` (stereo), `M/S` |
+
+Two stereo mechanisms exist and must both be handled:
+
+- **LCL (channel-strip link)**: `clink=true` on both channels of a
+  pair. WAV track numbers follow Wing channel numbers.
+- **USB stereo source**: one Wing channel occupies two consecutive USB
+  inputs. The WAV pair is `(USB-in, USB-in+1)`, not `(channel, channel+1)`.
+  The right-side USB track has no corresponding Wing channel strip.
 
 Note: `ae_data.ch.<N>.name` exists in the JSON but is empty by default on the
 Wing. Channel names must be retrieved via the physical input routing path
@@ -111,10 +121,10 @@ notes are in [`X32.md`](X32.md).
 
 Key fields extracted:
 
-| Path                        | Description                              |
-| --------------------------- | ---------------------------------------- |
-| `/ch/XX/config/name "Name"` | Channel name (XX = 01–32, zero-padded)   |
-| `/config/chlink1-2 ON`      | Stereo link for the 1–2 pair (odd+even)  |
+| Path                        | Description                                   |
+| --------------------------- | --------------------------------------------- |
+| `/ch/XX/config/name "Name"` | Channel name (XX = 01–32, zero-padded)        |
+| `/config/chlink1-2 ON`      | Stereo link for the 1–2 pair (odd+even)       |
 | `/show/name "Scene"`        | Scene name (optional; falls back to filename) |
 
 Both `chlink1-2` and `chlink01-02` key formats are accepted (firmware varies).
@@ -126,17 +136,21 @@ type as the Wing snap parser — no special handling needed downstream.
 The roadmap is indicative, not a commitment. Priorities may shift.
 
 Current focus:
+
 - X-Live / W-Live validation with real session samples
 - X32/M32 support testing (parser implemented, needs real-world `.scn` files)
 - CLI manpage
 
 Under consideration (no timeline):
-- DAW export: "Open in DAW" button on Linux (Core already generates `.rpp`/`.ardour`)
+
+- DAW export: "Open in DAW" button on Linux (Core already generates
+  `.rpp`/`.ardour`)
 - AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
 - Per-take extraction (value to confirm with users before implementing)
 - Localization
 
 Not planned at this stage:
+
 - Windows port
 
 ## AI disclosure

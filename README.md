@@ -9,9 +9,10 @@
 
 Use case: you have a multitrack session recorded by a
 [Behringer Wing](https://www.behringer.com/series.html?category=R-BEHRINGER-WINGSERIES)
-or X32 using the W-Live or X-Live recorder — several WAV files, plus `SE_LOG.bin`
-and optionally a `.snap`. With Desgrana, you get each named channel in its own
-continuous WAV file, your markers exported for your DAW, and a session ready to open.
+or X32 using the W-Live or X-Live recorder — several WAV files, plus
+`SE_LOG.bin` and optionally a `.snap`. With Desgrana, you get each named
+channel in its own continuous WAV file, your markers exported for your DAW,
+and a session ready to open.
 
 ## Features
 
@@ -37,7 +38,8 @@ it.
 
 ## Usage
 
-**GUI** — drop a session folder in the app, with or without a `.snap` file, click Extract.
+**GUI** — drop a session folder in the app, with or without a `.snap` file,
+click Extract.
 
 **CLI**
 
@@ -59,7 +61,8 @@ Options:
 
 Output filenames follow the pattern `ChannelName.wav` (mono) or
 `Name1-Name2.wav` (stereo). If no name is set, `ch01-ch02.wav` is used.
-Channel names come from the console snapshot (`.snap` for Wing, `.scn` for X32).
+Channel names come from the console snapshot (`.snap` for Wing, `.scn` for
+X32).
 
 ## Build
 
