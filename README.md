@@ -1,5 +1,7 @@
 # Desgrana
 
+[![CI](https://github.com/rdalverny/desgrana/actions/workflows/build.yml/badge.svg)](https://github.com/rdalverny/desgrana/actions)
+
 > From session to mix.
 
 > Extract channels from interleaved multitrack WAV files into individual

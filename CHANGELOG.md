@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.8.1] - 2026-05-26
 
 - fix: properly detect Wing USB stereo source pairs — channels routed
   from a USB stereo source (`io.in.USB.N.mode` "ST" or "M/S") now
