@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- refactor: move DAW session generators (Ardour, Reaper) to Core;
+  AVFoundation dependency removed from Core
+
 ## [1.8.0] - 2026-05-13
 
 Linux:
