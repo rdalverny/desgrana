@@ -6,6 +6,8 @@
   from a USB stereo source (`io.in.USB.N.mode` "ST" or "M/S") now
   produce a stereo pair; previously only LCL channel-strip links
   (`clink`) were detected (#2)
+- refactor: move DAW session generators (Ardour, Reaper) to Core;
+  AVFoundation dependency removed from Core
 
 ## [1.8.0] - 2026-05-13
 
