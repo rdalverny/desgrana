@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import AppKit
 import AVFoundation
+import DesgranaCore
 import Foundation
 import SwiftUI
 
@@ -88,6 +89,10 @@ private func readWAVHeader(at url: URL) -> WAVHeader? {
 
 // MARK: - Output file collection
 
+func channelCount(of wav: URL) -> Int {
+    (try? AVAudioFile(forReading: wav)).map { Int($0.processingFormat.channelCount) } ?? 1
+}
+
 func collectOutputFiles(in dir: URL) -> (wavs: [URL], midiURL: URL?) {
     let contents = (try? FileManager.default.contentsOfDirectory(
         at: dir, includingPropertiesForKeys: nil)) ?? []
@@ -111,7 +116,8 @@ func openInDAW(
     case .reaper:
         let (wavs, _) = collectOutputFiles(in: dir)
         guard !wavs.isEmpty,
-              let rppURL = try? generateRPP(wavs: wavs, duration: duration, sampleRate: sampleRate,
+              let rppURL = try? generateRPP(wavs: wavs.map { ($0, channelCount(of: $0)) },
+                                            duration: duration, sampleRate: sampleRate,
                                             markers: markers, outputDir: dir)
         else { return }
         NSWorkspace.shared.open(rppURL)
@@ -119,7 +125,8 @@ func openInDAW(
     case .ardour:
         let (wavs, _) = collectOutputFiles(in: dir)
         guard !wavs.isEmpty,
-              let ardourURL = try? generateArdourSession(wavs: wavs, duration: duration, sampleRate: sampleRate,
+              let ardourURL = try? generateArdourSession(wavs: wavs.map { ($0, channelCount(of: $0)) },
+                                                        duration: duration, sampleRate: sampleRate,
                                                         markers: markers, outputDir: dir)
         else { return }
         NSWorkspace.shared.open(ardourURL)
