@@ -78,19 +78,26 @@ build-universal: cli-universal bundle-universal
 
 
 # ── version ─────────────────────────────────────────────────────────
-patch:
-	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[2]=str(int(v[2])+1);open('VERSION','w').write('.'.join(v))"
+define bump-version
 	@NEW=$$(cat VERSION); \
 	 DATE=$$(date +"%Y-%m-%d"); \
+	 RFC_DATE=$$(date -R); \
+	 MAINT="Romain d'Alverny <rwx@romaindalverny.com>"; \
 	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] — $$DATE\n/" CHANGELOG.md; \
-	 echo "Version → $$NEW  (CHANGELOG.md prepared, edit manually)"
+	 { printf 'desgrana (%s-1) unstable; urgency=medium\n\n  * Release %s.\n\n -- %s  %s\n\n' \
+	     "$$NEW" "$$NEW" "$$MAINT" "$$RFC_DATE"; \
+	   cat packaging/linux/deb/debian/changelog; } > /tmp/_deb_changelog \
+	 && mv /tmp/_deb_changelog packaging/linux/deb/debian/changelog; \
+	 echo "Version → $$NEW  (CHANGELOG.md + debian/changelog updated)"
+endef
+
+patch:
+	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[2]=str(int(v[2])+1);open('VERSION','w').write('.'.join(v))"
+	$(bump-version)
 
 minor:
 	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[1]=str(int(v[1])+1);v[2]='0';open('VERSION','w').write('.'.join(v))"
-	@NEW=$$(cat VERSION); \
-	 DATE=$$(date +"%Y-%m-%d"); \
-	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] — $$DATE\n/" CHANGELOG.md; \
-	 echo "Version → $$NEW  (CHANGELOG.md prepared, edit manually)"
+	$(bump-version)
 
 # ── Lint ─────────────────────────────────────────────────────────
 
