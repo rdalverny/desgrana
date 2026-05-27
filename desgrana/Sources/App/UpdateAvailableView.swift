@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Romain d'Alverny
 // SPDX-License-Identifier: MIT
 import SwiftUI
+import DesgranaCore
 
 struct UpdateAvailableView: View {
     let info: UpdateInfo

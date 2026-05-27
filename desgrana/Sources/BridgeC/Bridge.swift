@@ -214,6 +214,53 @@ public func desgrana_load_snap(
     return 0
 }
 
+// MARK: - Update check
+
+/// Fetches the remote version feed and reports the result via `callback`.
+/// Designed to be called from a background thread — blocks until the HTTP
+/// response is received (or times out / errors).
+///
+/// `callback` is invoked exactly once:
+///   - latest / notes / url are non-nil when a newer version is available.
+///   - All three are nil when the current version is up to date (or on error).
+@_cdecl("desgrana_check_update")
+public func desgrana_check_update(
+    _ current: UnsafePointer<CChar>,
+    _ callback: @convention(c) (
+        UnsafePointer<CChar>?,   // latest version, or nil
+        UnsafePointer<CChar>?,   // release notes, or nil
+        UnsafePointer<CChar>?,   // release URL, or nil
+        UnsafeMutableRawPointer? // user_data
+    ) -> Void,
+    _ userData: UnsafeMutableRawPointer?
+) {
+    let currentStr = String(cString: current)
+    // Convert async → sync. The box + semaphore pattern is intentional:
+    // the semaphore provides the memory barrier that makes the write in the
+    // Task visible to the read below.
+    final class Box: @unchecked Sendable { var value: UpdateInfo? }
+    let box  = Box()
+    let sema = DispatchSemaphore(value: 0)
+    Task.detached {
+        box.value = await fetchUpdate(current: currentStr)
+        sema.signal()
+    }
+    sema.wait()
+
+    guard let info = box.value else {
+        callback(nil, nil, nil, userData)
+        return
+    }
+    info.version.withCString { versionPtr in
+        info.notes.withCString { notesPtr in
+            let urlStr = info.url?.absoluteString ?? ""
+            urlStr.withCString { urlPtr in
+                callback(versionPtr, notesPtr, urlStr.isEmpty ? nil : urlPtr, userData)
+            }
+        }
+    }
+}
+
 // MARK: - Helpers
 
 private func cStringCopy(_ str: String, into buf: UnsafeMutablePointer<CChar>?, maxLen: Int) {

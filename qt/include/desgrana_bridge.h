@@ -101,6 +101,24 @@ int32_t desgrana_split(
     int32_t        err_len
 );
 
+/**
+ * Fetch the remote version feed and report the result via callback.
+ * Designed to be called from a background thread — blocks until the HTTP
+ * response arrives (or the request fails).
+ *
+ * callback is invoked exactly once:
+ *   - latest_version / notes / url are non-NULL when a newer version exists.
+ *   - All three are NULL when current is up to date or on network error.
+ */
+void desgrana_check_update(
+    const char *current_version,
+    void      (*callback)(const char *latest_version,
+                          const char *notes,
+                          const char *url,
+                          void       *user_data),
+    void       *user_data
+);
+
 #ifdef __cplusplus
 }
 #endif

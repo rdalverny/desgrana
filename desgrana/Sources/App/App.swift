@@ -89,8 +89,8 @@ struct AboutView: View {
 
 struct SettingsView: View {
     @EnvironmentObject private var vm: SplitViewModel
-    @AppStorage("UpdateCheck.enabled") private var updateEnabled: Bool = true
-    @AppStorage("UpdateCheck.intervalDays") private var updateIntervalDays: Int = 30
+    @AppStorage(updateCheckEnabledKey) private var updateEnabled: Bool = true
+    @AppStorage(updateCheckIntervalKey) private var updateIntervalDays: Int = 30
 
     var body: some View {
         Form {

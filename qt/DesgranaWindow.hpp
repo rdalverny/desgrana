@@ -14,8 +14,6 @@ class QDropEvent;
 class QFrame;
 class QLabel;
 class QLineEdit;
-class QNetworkAccessManager;
-class QNetworkReply;
 class QProgressBar;
 class QPushButton;
 class QScrollArea;
@@ -38,8 +36,6 @@ private slots:
     void onSplitDone(int silentSkipped, int keptMono, int keptStereo);
     void onSplitError(const QString &msg);
     void onSessionNameChanged(const QString &name);
-    void onUpdateReply(QNetworkReply *reply);
-
 private:
     void buildIdlePage();
     void buildReadyPage();
@@ -117,5 +113,4 @@ private:
     std::vector<std::pair<int,int>> m_effectivePairs;
     std::map<int, QWidget *>        m_rowWidgets;
 
-    QNetworkAccessManager *m_nam;
 };
