@@ -81,6 +81,16 @@ class SplitViewModel: ObservableObject {
         userOverridePairs ?? snapDerivedPairs
     }
 
+    // Channel names for splitting: snap names, with _L/_R suffixes added to both tracks
+    // of any USB stereo pair that has been manually unlinked.
+    var effectiveChannelNames: [Int: String] {
+        applyUsbUnpairRename(
+            names: snapInfo?.channelNames ?? [:],
+            usbPairs: snapInfo?.usbStereoPairs ?? [],
+            activePairs: effectivePairs
+        )
+    }
+
     var isCustomized: Bool { userOverridePairs != nil }
 
     func unlinkPair(left: Int) {
@@ -159,7 +169,7 @@ class SplitViewModel: ObservableObject {
 
         let info      = sessionInfo
         let pairs     = effectivePairs
-        let names     = snapInfo?.channelNames ?? [:]
+        let names     = effectiveChannelNames
         let shortNames = shortFilenames
         let pairedChs = Set(pairs.flatMap { [$0.left, $0.right] })
 

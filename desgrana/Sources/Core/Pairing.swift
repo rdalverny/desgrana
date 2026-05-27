@@ -49,6 +49,24 @@ public func detectStereoPairsFromNames(_ names: [Int: String], channelCount: Int
     return pairs
 }
 
+/// Applies `_L`/`_R` name suffixes to both tracks of any USB stereo pair that is
+/// absent from `activePairs` (i.e. manually unlinked). The base name comes from
+/// the left track's existing name; if unnamed, `ch<N>` is used as the base.
+public func applyUsbUnpairRename(
+    names: [Int: String],
+    usbPairs: [StereoPair],
+    activePairs: [StereoPair]
+) -> [Int: String] {
+    var result = names
+    let activeLeft = Set(activePairs.map(\.left))
+    for pair in usbPairs where !activeLeft.contains(pair.left) {
+        let base = result[pair.left] ?? "ch\(pair.left)"
+        result[pair.left]  = base + "_L"
+        result[pair.right] = base + "_R"
+    }
+    return result
+}
+
 /// Validates stereo pairs against `channelCount` for use inside `splitSession`.
 /// Prints warnings for rejected pairs and returns the accepted pairs + claimed channel set.
 public func validateStereoPairs(
