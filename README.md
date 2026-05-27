@@ -18,15 +18,13 @@ and a session ready to open.
 
 ## Features
 
-- Your files come out exactly as recorded. No conversion, no precision loss,
-  any bit depth.
-- Only the channels you actually recorded show up. No 32 empty tracks to clean
-  up in your DAW.
-- Your set markers land in Logic Pro, Reaper, and WaveLab; as cue chunks in
-  the WAV, MIDI file, and CSV.
-- Channel names and stereo pairs from your console snapshot (KICK, SNARE,
-  JOE…) picked up automatically.
+- Keeps your audio the same, obviously. No conversion, only demux.
+- Exports only the noisy channels. No empty track to manually dismiss.
+- Exports session markers in exported WAV, MIDI and CSV, to reuse in DAWs.
+- Picks up channel names and stereo pairs from your console snapshot.
 - Works entirely offline. Nothing uploaded, nothing tracked.
+- Opens all extracted tracks in Logic Pro, Reaper, or Ardour on macOS.
+  See [CONTRIBUTING](CONTRIBUTING.md) for adding another one.
 
 ## Privacy
 

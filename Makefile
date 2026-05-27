@@ -112,7 +112,7 @@ clean:
 	rm -rf desgrana/.build var/ dist/ $(APP) Desgrana.zip
 
 fmtdoc:
-	prettier --prose-wrap always --print-width 78 --write "**/*.md"
+	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
 
 # ── Linux ────────────────────────────────────────────────────────
 SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
