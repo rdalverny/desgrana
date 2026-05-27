@@ -45,7 +45,6 @@ class SplitViewModel: ObservableObject {
     @Published var shortFilenames: Bool = true
     @Published var useAutoStereo: Bool = true
     @Published private(set) var lastMarkers: [(time: Double, name: String)] = []
-    private(set) var outputBits: UInt32 = 32
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -135,9 +134,6 @@ class SplitViewModel: ObservableObject {
         userOverridePairs = nil
 
         wavFiles = findWavTakes(in: url)
-        if let bits = wavBitDepth(in: url), [16, 24, 32].contains(bits) {
-            outputBits = bits
-        }
         sessionName = bestSessionName(sessionDir: url)
         if wavFiles.isEmpty {
             state = .error("No WAV takes found in this directory.")
@@ -155,12 +151,6 @@ class SplitViewModel: ObservableObject {
                 sessionName = scene
             }
         }
-    }
-
-    func clearSnap() {
-        snapInfo = nil
-        snapName = nil
-        userOverridePairs = nil
     }
 
     func split(sessionDir: URL) {
@@ -272,7 +262,6 @@ class SplitViewModel: ObservableObject {
         snapInfo = nil
         snapName = nil
         wavFiles = []
-        outputBits = 32
         sessionName = ""
         userOverridePairs = nil
         lastMarkers = []
