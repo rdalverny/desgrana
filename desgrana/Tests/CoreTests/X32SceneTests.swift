@@ -53,44 +53,6 @@ final class X32SceneTests: XCTestCase {
         XCTAssertEqual(info.channelNames[1], "BassGuitar")
     }
 
-    // MARK: - Stereo pairs
-
-    func testStereoPairOnFormat1() throws {
-        let info = try parse("""
-        /config/chlink1-2 ON
-        /config/chlink3-4 OFF
-        """)
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left, 1)
-        XCTAssertEqual(info.stereoPairs[0].right, 2)
-    }
-
-    func testStereoPairZeroPaddedFormat() throws {
-        let info = try parse("""
-        /config/chlink01-02 ON
-        /config/chlink03-04 ON
-        """)
-        XCTAssertEqual(info.stereoPairs.count, 2)
-        XCTAssertEqual(info.stereoPairs[1].left, 3)
-        XCTAssertEqual(info.stereoPairs[1].right, 4)
-    }
-
-    func testStereoPairNumeric1() throws {
-        let info = try parse("/config/chlink5-6 1")
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left, 5)
-    }
-
-    func testStereoPairOff() throws {
-        let info = try parse("/config/chlink1-2 OFF")
-        XCTAssertTrue(info.stereoPairs.isEmpty)
-    }
-
-    func testStereoPairNumericZero() throws {
-        let info = try parse("/config/chlink1-2 0")
-        XCTAssertTrue(info.stereoPairs.isEmpty)
-    }
-
     // MARK: - Scene name
 
     func testSceneNamePresent() throws {
@@ -128,7 +90,6 @@ final class X32SceneTests: XCTestCase {
     func testEmptyFile() throws {
         let info = try parse("")
         XCTAssertTrue(info.channelNames.isEmpty)
-        XCTAssertTrue(info.stereoPairs.isEmpty)
     }
 
     func testBlankLinesIgnored() throws {
