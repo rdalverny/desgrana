@@ -98,16 +98,17 @@ strip:
 | --------------------------------- | ------ | ------------------------------------------------ |
 | `ae_data.io.in.<card><N>.name`    | string | Physical input name (KICK, VOX, …)               |
 | `ae_data.ch.<N>.in.conn.{grp,in}` | —      | Routing: which physical input feeds this channel |
-| `ae_data.ch.<N>.clink`            | bool   | LCL stereo link with channel N+1                 |
 | `ae_data.io.in.USB.<N>.mode`      | string | USB input mode: `M` (mono), `ST` (stereo), `M/S` |
 
-Two stereo mechanisms exist and must both be handled:
+Stereo pairing uses two signals:
 
-- **LCL (channel-strip link)**: `clink=true` on both channels of a
-  pair. WAV track numbers follow Wing channel numbers.
-- **USB stereo source**: one Wing channel occupies two consecutive USB
-  inputs. The WAV pair is `(USB-in, USB-in+1)`, not `(channel, channel+1)`.
-  The right-side USB track has no corresponding Wing channel strip.
+- **USB stereo source**: one Wing channel occupies two consecutive USB inputs.
+  The WAV pair is `(USB-in, USB-in+1)`, not `(channel, channel+1)`. The
+  right-side USB track has no corresponding Wing channel strip. These pairs
+  are taken directly from the snap.
+- **LCL channels**: paired by channel name — adjacent channels sharing a base
+  name with L/R suffix (e.g. `OH L` + `OH R`) are paired. Channels without an
+  L/R name are kept mono.
 
 Note: `ae_data.ch.<N>.name` exists in the JSON but is empty by default on the
 Wing. Channel names must be retrieved via the physical input routing path
@@ -124,12 +125,12 @@ Key fields extracted:
 | Path                        | Description                                   |
 | --------------------------- | --------------------------------------------- |
 | `/ch/XX/config/name "Name"` | Channel name (XX = 01–32, zero-padded)        |
-| `/config/chlink1-2 ON`      | Stereo link for the 1–2 pair (odd+even)       |
 | `/show/name "Scene"`        | Scene name (optional; falls back to filename) |
 
-Both `chlink1-2` and `chlink01-02` key formats are accepted (firmware varies).
 Booleans are `ON`/`OFF` or `1`/`0`. The parser returns a `SnapInfo`, the same
-type as the Wing snap parser — no special handling needed downstream.
+type as the Wing snap parser — no special handling needed downstream. X32 has
+no USB stereo mechanism; stereo pairs are detected from channel names (L/R
+suffixes) the same way as Wing LCL channels.
 
 ## Roadmap
 

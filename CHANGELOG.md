@@ -1,13 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+- refactor: stereo pairing logic simplified:
+  - USB pairs always taken from the snap;
+  - LCL channels paired by name (L/R suffixes);
+  - unnamed channels kept mono.
+  - `clink` is no longer used for pairing decisions.
+- remove: `--auto-stereo` CLI flag (name-based detection is now always on when
+  a snap is provided)
+- remove: "Auto-detect stereo pairs" toggle in preferences
+- feat: manually unlinking a USB stereo pair renames both resulting mono
+  tracks with `_L` / `_R` suffixes
+
 ## [1.8.1] - 2026-05-26
 
-- fix: properly detect Wing USB stereo source pairs — channels routed
-  from a USB stereo source (`io.in.USB.N.mode` "ST" or "M/S") now
-  produce a stereo pair; previously only LCL channel-strip links
-  (`clink`) were detected (#2)
-- refactor: move DAW session generators (Ardour, Reaper) to Core;
-  AVFoundation dependency removed from Core
+- fix: properly detect Wing USB stereo source pairs — channels routed from a
+  USB stereo source (`io.in.USB.N.mode` "ST" or "M/S") now produce a stereo
+  pair; previously only LCL channel-strip links (`clink`) were detected (#2)
+- refactor: move DAW session generators (Ardour, Reaper) to Core; AVFoundation
+  dependency removed from Core
 
 ## [1.8.0] - 2026-05-13
 
