@@ -30,12 +30,14 @@ cli:
 	cd desgrana && swift build -c release --product desgrana
 	mkdir -p $(BUILD)
 	cp $(SPM_NATIVE_DIR)/desgrana $(BUILD)/desgrana
+	strip -S $(BUILD)/desgrana
 	@echo "CLI → $(BUILD)/desgrana"
 
 cli-universal:
 	cd desgrana && swift build -c release --product desgrana --arch arm64 --arch x86_64
 	mkdir -p $(BUILD)
 	cp $(SPM_UNIV_DIR)/desgrana $(BUILD)/desgrana
+	strip -S $(BUILD)/desgrana
 	@echo "CLI (universal) → $(BUILD)/desgrana"
 
 app:
@@ -50,6 +52,7 @@ bundle: app
 	cp -r app-template/ $(APP_BUILD)
 	mkdir -p $(APP_BUILD)/Contents/MacOS
 	cp $(SPM_NATIVE_DIR)/DesgranaApp $(APP_BUILD)/Contents/MacOS/
+	strip -S $(APP_BUILD)/Contents/MacOS/DesgranaApp
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
 	@echo "Built: $(APP_BUILD) ($(VERSION))"
@@ -60,6 +63,7 @@ bundle-universal: app-universal
 	cp -r app-template/ $(APP_BUILD)
 	mkdir -p $(APP_BUILD)/Contents/MacOS
 	cp $(SPM_UNIV_DIR)/DesgranaApp $(APP_BUILD)/Contents/MacOS/
+	strip -S $(APP_BUILD)/Contents/MacOS/DesgranaApp
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
 	@echo "Built (universal): $(APP_BUILD) ($(VERSION))"
