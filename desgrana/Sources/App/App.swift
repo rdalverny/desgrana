@@ -439,7 +439,7 @@ struct ContentView: View {
 
     private func buildRows() -> [OutputRow] {
         let pairs          = vm.effectivePairs
-        let names          = vm.snapInfo?.channelNames ?? [:]
+        let names          = vm.effectiveChannelNames
         let total          = vm.sessionInfo?.numChannels ?? 0
         let pairedChannels = Set(pairs.flatMap { [$0.left, $0.right] })
         var rows: [OutputRow] = []
