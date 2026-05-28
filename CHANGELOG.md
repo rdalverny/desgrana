@@ -1,16 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [1.9.0] — 2026-05-28
 
-- refactor: stereo pairing logic simplified:
+- (breaking change) removed autoStereo/--auto-stereo flag
+- new stereo pairing logic:
   - USB pairs always taken from the snap;
   - LCL channels paired by name (L/R suffixes);
   - unnamed channels kept mono.
   - `clink` is no longer used for pairing decisions.
-- remove: `--auto-stereo` CLI flag (name-based detection is now always on when
-  a snap is provided)
-- remove: "Auto-detect stereo pairs" toggle in preferences
-- feat: manually unlinking a USB stereo pair renames both resulting mono
+- manually unlinking a USB stereo pair renames both resulting mono
   tracks with `_L` / `_R` suffixes
 
 ## [1.8.1] - 2026-05-26
