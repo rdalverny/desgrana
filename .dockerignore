@@ -1,4 +1,8 @@
-desgrana/.build/
-dist/
-var/
 .git/
+desgrana/.build/
+desgrana/Tests/
+dist/
+old_docs/
+var/
+qt/build/
+web/

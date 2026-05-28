@@ -50,9 +50,12 @@ target_link_libraries(desgrana-linux PRIVATE
     ${SWIFT_OBJECTS}
     "-L${SWIFT_RUNTIME_DIR}"
     swiftCore
+    swift_Concurrency
+    swiftDispatch
     Foundation
     FoundationEssentials
     FoundationInternationalization
+    FoundationNetworking
     dispatch
     BlocksRuntime
     pthread

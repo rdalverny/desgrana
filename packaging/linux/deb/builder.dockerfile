@@ -31,13 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /src
 COPY VERSION                              ./VERSION
 COPY desgrana/                            ./desgrana/
-COPY qt/                                  ./qt/
-COPY packaging/linux/collect-swift-libs.sh ./collect-swift-libs.sh
 
 # CLI (static stdlib + GNU build-id) then bridge library
 RUN cd desgrana \
     && swift build -c release --product desgrana -Xswiftc -static-stdlib -Xlinker --build-id \
-    && swift build -c release --target DesgranaBridgeC
+    && swift build -c release --target DesgranaBridgeC -Xlinker --build-id
+
+COPY qt/                                   ./qt/
+COPY packaging/linux/collect-swift-libs.sh ./collect-swift-libs.sh
 
 # GUI: Qt6, RPATH baked to /usr/lib/desgrana (where the .deb will install Swift dylibs)
 RUN cmake \
