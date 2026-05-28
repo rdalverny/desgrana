@@ -11,7 +11,6 @@ import Foundation
 //
 // Relevant fields extracted here:
 //   /ch/XX/config/name "Name"    — strip label (XX = 01..32)
-//   /config/chlink1-2 ON         — stereo link for odd+even pair (also chlink01-02)
 //   /show/name "Scene Name"      — optional scene name
 
 public enum X32SceneError: Error, CustomStringConvertible {
@@ -33,7 +32,6 @@ public func parseX32Scene(at url: URL) throws -> SnapInfo {
     }
 
     var names: [Int: String] = [:]
-    var pairs: [StereoPair] = []
     var sceneName: String?
 
     for line in text.components(separatedBy: .newlines) {
@@ -53,14 +51,6 @@ public func parseX32Scene(at url: URL) throws -> SnapInfo {
             continue
         }
 
-        // /config/chlink<n1>-<n2> ON|1
-        if path.hasPrefix("/config/chlink"), let (n1, n2) = parseLinkKey(path) {
-            if rawValue == "ON" || rawValue == "1" {
-                pairs.append(StereoPair(left: n1, right: n2))
-            }
-            continue
-        }
-
         // /show/name "Scene"
         if path == "/show/name" {
             let name = unquote(String(rawValue))
@@ -71,7 +61,7 @@ public func parseX32Scene(at url: URL) throws -> SnapInfo {
 
     let resolvedScene = sceneName ?? url.deletingPathExtension().lastPathComponent
 
-    return SnapInfo(stereoPairs: pairs, channelNames: names, sceneName: resolvedScene, showName: nil)
+    return SnapInfo(usbStereoPairs: [], channelNames: names, sceneName: resolvedScene, showName: nil)
 }
 
 /// Returns the first .scn file found in `dir`, or nil.
@@ -96,20 +86,6 @@ private func channelNumber(from path: String, suffix: String) -> Int? {
     guard let n = Int(numStr), n >= 1 else { return nil }
     let rest = String(afterCh[slashIdx...])
     return rest == suffix ? n : nil
-}
-
-/// Parses `/config/chlink1-2` or `/config/chlink01-02` → (1, 2).
-private func parseLinkKey(_ path: String) -> (Int, Int)? {
-    let prefix = "/config/chlink"
-    guard path.hasPrefix(prefix) else { return nil }
-    let tail = path.dropFirst(prefix.count)  // "1-2" or "01-02"
-    let parts = tail.split(separator: "-", maxSplits: 1)
-    guard parts.count == 2,
-          let n1 = Int(parts[0]),
-          let n2 = Int(parts[1]),
-          n1 >= 1, n2 >= 1, n1 < n2
-    else { return nil }
-    return (n1, n2)
 }
 
 /// Strips surrounding double-quotes from a string value if present.

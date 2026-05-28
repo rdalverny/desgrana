@@ -3,20 +3,16 @@
   "ae_data": {
     "ch": {
       "1": {
-        "name": "Kick",
-        "clink": true
+        "name": "Kick"
       },
       "2": {
-        "name": "Snare",
-        "clink": true
+        "name": "Snare"
       },
       "3": {
-        "name": "OH_L",
-        "clink": false
+        "name": "OH_L"
       },
       "4": {
-        "name": "OH_R",
-        "clink": false
+        "name": "OH_R"
       }
     }
   }

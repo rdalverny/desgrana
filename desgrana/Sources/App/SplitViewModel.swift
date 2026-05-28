@@ -43,14 +43,11 @@ class SplitViewModel: ObservableObject {
     @Published var userOverridePairs: [StereoPair]?
     @Published var customOutputDir: URL?
     @Published var shortFilenames: Bool = true
-    @Published var useAutoStereo: Bool = true
     @Published private(set) var lastMarkers: [(time: Double, name: String)] = []
-    private(set) var outputBits: UInt32 = 32
     private var cancellables = Set<AnyCancellable>()
 
     init() {
         shortFilenames = UserDefaults.standard.object(forKey: "shortFilenames") as? Bool ?? true
-        useAutoStereo = UserDefaults.standard.object(forKey: "useAutoStereo") as? Bool ?? true
         if let path = UserDefaults.standard.string(forKey: "outputDirPath") {
             let url = URL(fileURLWithPath: path)
             if FileManager.default.fileExists(atPath: url.path) { customOutputDir = url }
@@ -58,35 +55,40 @@ class SplitViewModel: ObservableObject {
         $shortFilenames
             .sink { UserDefaults.standard.set($0, forKey: "shortFilenames") }
             .store(in: &cancellables)
-        $useAutoStereo
-            .sink { UserDefaults.standard.set($0, forKey: "useAutoStereo") }
-            .store(in: &cancellables)
         $customOutputDir
             .sink { UserDefaults.standard.set($0?.path, forKey: "outputDirPath") }
             .store(in: &cancellables)
     }
 
-    // True when snap has all session channels linked — Wing factory default state.
-    // In that case clink carries no user intent and should be ignored.
-    var snapIsFactoryDefault: Bool {
-        guard let numCh = sessionInfo?.numChannels, numCh > 0 else { return false }
-        return (snapInfo?.stereoPairs ?? []).count == numCh / 2
-    }
-
-    // Pairs derived from the snap: name-based detection when clink is meaningless,
-    // otherwise the user's actual configured pairs (filtered to session channel count).
+    // Pairs derived from the snap.
+    // USB pairs are taken from the snap config as-is (explicit hardware routing).
+    // LCL pairs are detected from channel names (L/R suffixes); no name means mono.
+    // clink is not used — it reflects live console behaviour, not recording intent.
     var snapDerivedPairs: [StereoPair] {
         let numCh = sessionInfo?.numChannels ?? 0
         guard numCh > 0 else { return [] }
-        if useAutoStereo {
-            return detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
-        }
-        return filterStereoPairs(snapInfo?.stereoPairs ?? [], channelCount: numCh)
+
+        let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
+        let usbTracks = Set(usbPairs.flatMap { [$0.left, $0.right] })
+        let lclPairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
+            .filter { !usbTracks.contains($0.left) }
+
+        return (usbPairs + lclPairs).sorted { $0.left < $1.left }
     }
 
     // Pairs used for splitting: manual user override takes precedence, then snap-derived.
     var effectivePairs: [StereoPair] {
         userOverridePairs ?? snapDerivedPairs
+    }
+
+    // Channel names for splitting: snap names, with _L/_R suffixes added to both tracks
+    // of any USB stereo pair that has been manually unlinked.
+    var effectiveChannelNames: [Int: String] {
+        applyUsbUnpairRename(
+            names: snapInfo?.channelNames ?? [:],
+            usbPairs: snapInfo?.usbStereoPairs ?? [],
+            activePairs: effectivePairs
+        )
     }
 
     var isCustomized: Bool { userOverridePairs != nil }
@@ -135,9 +137,6 @@ class SplitViewModel: ObservableObject {
         userOverridePairs = nil
 
         wavFiles = findWavTakes(in: url)
-        if let bits = wavBitDepth(in: url), [16, 24, 32].contains(bits) {
-            outputBits = bits
-        }
         sessionName = bestSessionName(sessionDir: url)
         if wavFiles.isEmpty {
             state = .error("No WAV takes found in this directory.")
@@ -157,12 +156,6 @@ class SplitViewModel: ObservableObject {
         }
     }
 
-    func clearSnap() {
-        snapInfo = nil
-        snapName = nil
-        userOverridePairs = nil
-    }
-
     func split(sessionDir: URL) {
         let outputDir = customOutputDir ?? defaultOutputDir(for: sessionDir)
 
@@ -176,7 +169,7 @@ class SplitViewModel: ObservableObject {
 
         let info      = sessionInfo
         let pairs     = effectivePairs
-        let names     = snapInfo?.channelNames ?? [:]
+        let names     = effectiveChannelNames
         let shortNames = shortFilenames
         let pairedChs = Set(pairs.flatMap { [$0.left, $0.right] })
 
@@ -272,7 +265,6 @@ class SplitViewModel: ObservableObject {
         snapInfo = nil
         snapName = nil
         wavFiles = []
-        outputBits = 32
         sessionName = ""
         userOverridePairs = nil
         lastMarkers = []

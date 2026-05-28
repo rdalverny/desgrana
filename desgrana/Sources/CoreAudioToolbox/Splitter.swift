@@ -12,20 +12,6 @@ private struct Track {
     var hasSignal: Bool = false
 }
 
-// MARK: - Discovery
-
-/// Returns the bit depth of the first WAV take found in `dir`, or nil if unreadable.
-public func wavBitDepth(in dir: URL) -> UInt32? {
-    guard let first = findWavTakes(in: dir).first else { return nil }
-    var file: ExtAudioFileRef?
-    guard ExtAudioFileOpenURL(first as CFURL, &file) == noErr, let f = file else { return nil }
-    defer { ExtAudioFileDispose(f) }
-    var fmt = AudioStreamBasicDescription()
-    var sz = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
-    guard ExtAudioFileGetProperty(f, kExtAudioFileProperty_FileDataFormat, &sz, &fmt) == noErr else { return nil }
-    return fmt.mBitsPerChannel
-}
-
 // MARK: - Splitter
 // swiftlint:disable cyclomatic_complexity
 

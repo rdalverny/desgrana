@@ -49,9 +49,8 @@ desgrana <session-dir> [options]
 Options:
   --output, -o <path>     Output directory (default: <session-dir>_extract/)
   --prefix, -p <string>   Prefix for output filenames
-  --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
-  --snap   <file>         Console snapshot (.snap for Wing, .scn for X32) for channel names and stereo pairs
-  --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
+  --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides snap-derived pairs)
+  --snap   <file>         Console snapshot (.snap for Wing, .scn for X32) for channel names and USB stereo pairs
   --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
   --dry-run               Show what would be extracted without writing any files
   --info, -i              Show session info only, without extracting
