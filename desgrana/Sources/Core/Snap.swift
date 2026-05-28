@@ -7,17 +7,15 @@ import Foundation
 // A Wing snapshot is a JSON file produced by the Behringer Wing console.
 // Documented in "WING Remote Protocols" by Patrick-Gilles Maillot.
 //
-// Two stereo mechanisms:
-//   LCL (channel-strip link): ae_data.ch.N.clink is true on both channels of a linked pair.
-//   USB stereo: ae_data.io.in.USB.N.mode is "ST" or "M/S"; one Wing channel occupies two
-//   consecutive USB inputs, so the WAV pair is (USB-in, USB-in+1).
+// USB stereo: ae_data.io.in.USB.N.mode is "ST" or "M/S"; one Wing channel occupies two
+// consecutive USB inputs, so the WAV pair is (USB-in, USB-in+1).
 //
-// WAV track numbers follow USB input numbers for USB stereo, channel numbers for LCL.
+// WAV track numbers follow USB input numbers for USB stereo, channel numbers otherwise.
 // Channel names are keyed by WAV track number; right sides of USB pairs get no name.
 
 public struct SnapInfo {
-    /// Stereo pairs, 1-indexed. LCL pairs are always adjacent channels; USB pairs follow input numbers.
-    public let stereoPairs: [StereoPair]
+    /// USB stereo source pairs, 1-indexed. Explicit hardware routing — always honoured.
+    public let usbStereoPairs: [StereoPair]
     /// Channel names keyed by 1-based WAV track number. Empty-string names are omitted.
     public let channelNames: [Int: String]
     /// Scene name extracted from active_scene path (e.g. "LIVE TRIPLE B").
@@ -60,12 +58,12 @@ public func parseSnap(at url: URL) throws -> SnapInfo {
     let ioIn   = (ae["io"] as? [String: Any]).flatMap { $0["in"] as? [String: Any] }
     let usbIO  = ioIn?["USB"] as? [String: Any]
 
-    let routes            = channelRoutes(channels: ch, sorted: sorted, usbIO: usbIO)
-    let (pairs, usbPairs) = collectPairs(sorted: sorted, routes: routes)
-    let names             = collectNames(sorted: sorted, routes: routes, usbPairs: usbPairs, ioIn: ioIn)
+    let routes   = channelRoutes(channels: ch, sorted: sorted, usbIO: usbIO)
+    let usbPairs = collectUsbPairs(sorted: sorted, routes: routes)
+    let names    = collectNames(sorted: sorted, routes: routes, usbPairs: usbPairs, ioIn: ioIn)
     let (sceneName, showName) = sceneAndShow(from: dict["active_scene"] as? String)
 
-    return SnapInfo(stereoPairs: pairs, channelNames: names, sceneName: sceneName, showName: showName)
+    return SnapInfo(usbStereoPairs: usbPairs, channelNames: names, sceneName: sceneName, showName: showName)
 }
 
 // MARK: - Helpers
@@ -74,7 +72,6 @@ public func parseSnap(at url: URL) throws -> SnapInfo {
 private struct ChannelRoute {
     let trackKey: Int       // 1-based WAV track number (= USB input for USB stereo, channel number otherwise)
     let isUsbStereo: Bool
-    let clink: Bool
     let name: String?
     let inputGroup: String? // ae_data.ch.N.in.conn.grp
     let inputNumber: Int?   // ae_data.ch.N.in.conn.in
@@ -90,7 +87,6 @@ private func channelRoutes(
     for n in sorted {
         guard let info = channels["\(n)"] as? [String: Any] else { continue }
         let conn  = (info["in"] as? [String: Any]).flatMap { $0["conn"] as? [String: Any] }
-        let clink = info["clink"] as? Bool ?? false
         let name  = info["name"] as? String
         let grp   = conn?["grp"] as? String
         let inNum = conn?["in"] as? Int
@@ -99,38 +95,29 @@ private func channelRoutes(
            let mode  = (usbIO?["\(usbIn)"] as? [String: Any])?["mode"] as? String,
            mode == "ST" || mode == "M/S" {
             result[n] = ChannelRoute(trackKey: usbIn, isUsbStereo: true,
-                                     clink: clink, name: name,
-                                     inputGroup: grp, inputNumber: inNum)
+                                     name: name, inputGroup: grp, inputNumber: inNum)
         } else {
             result[n] = ChannelRoute(trackKey: n, isUsbStereo: false,
-                                     clink: clink, name: name,
-                                     inputGroup: grp, inputNumber: inNum)
+                                     name: name, inputGroup: grp, inputNumber: inNum)
         }
     }
     return result
 }
 
-/// Collects stereo pairs from LCL (clink) and USB stereo sources.
-/// Both sides of every pair are claimed to prevent duplicates when a USB input number
-/// coincides with a Wing channel number that also has clink=true.
-private func collectPairs(
-    sorted: [Int],
-    routes: [Int: ChannelRoute]
-) -> (pairs: [StereoPair], usbPairs: [StereoPair]) {
+/// Collects USB stereo pairs. Each USB stereo channel occupies two consecutive WAV tracks.
+/// Claimed set prevents duplicates when multiple Wing channels share the same USB input.
+private func collectUsbPairs(sorted: [Int], routes: [Int: ChannelRoute]) -> [StereoPair] {
     var pairs: [StereoPair] = []
-    var usbPairs: [StereoPair] = []
     var claimed = Set<Int>()
     for n in sorted {
-        guard let route = routes[n] else { continue }
-        guard route.isUsbStereo || route.clink,
+        guard let route = routes[n], route.isUsbStereo,
               !claimed.contains(route.trackKey) else { continue }
         let pair = StereoPair(left: route.trackKey, right: route.trackKey + 1)
         pairs.append(pair)
         claimed.insert(route.trackKey)
         claimed.insert(route.trackKey + 1)
-        if route.isUsbStereo { usbPairs.append(pair) }
     }
-    return (pairs, usbPairs)
+    return pairs
 }
 
 /// Collects channel names keyed by WAV track number.

@@ -61,23 +61,23 @@ final class SnapTests: XCTestCase {
     // MARK: - Channel names
 
     func testChannelNameDirect() throws {
-        let info = try snap(channels: ["1": ["name": "Kick", "clink": false]])
+        let info = try snap(channels: ["1": ["name": "Kick"]])
         XCTAssertEqual(info.channelNames[1], "Kick")
     }
 
     func testChannelNameEmptyOmitted() throws {
-        let info = try snap(channels: ["1": ["name": "", "clink": false]])
+        let info = try snap(channels: ["1": ["name": ""]])
         XCTAssertNil(info.channelNames[1])
     }
 
     func testChannelNameSanitized() throws {
-        let info = try snap(channels: ["1": ["name": "Bass/Guitar", "clink": false]])
+        let info = try snap(channels: ["1": ["name": "Bass/Guitar"]])
         XCTAssertEqual(info.channelNames[1], "BassGuitar")
     }
 
     func testChannelNameFallbackToInputRouting() throws {
         let info = try snap(
-            channels: ["1": ["name": "", "clink": false,
+            channels: ["1": ["name": "",
                              "in": ["conn": ["grp": "local", "in": 1]]]],
             io: ["in": ["local": ["1": ["name": "My Input"]]]]
         )
@@ -86,7 +86,7 @@ final class SnapTests: XCTestCase {
 
     func testChannelNameDirectTakesPriorityOverRouting() throws {
         let info = try snap(
-            channels: ["1": ["name": "Direct", "clink": false,
+            channels: ["1": ["name": "Direct",
                              "in": ["conn": ["grp": "local", "in": 1]]]],
             io: ["in": ["local": ["1": ["name": "Routing"]]]]
         )
@@ -95,72 +95,26 @@ final class SnapTests: XCTestCase {
 
     func testChannelNameFallbackEmptyRoutingOmitted() throws {
         let info = try snap(
-            channels: ["1": ["name": "", "clink": false,
+            channels: ["1": ["name": "",
                              "in": ["conn": ["grp": "local", "in": 1]]]],
             io: ["in": ["local": ["1": ["name": ""]]]]
         )
         XCTAssertNil(info.channelNames[1])
     }
 
-    // MARK: - Stereo pairs
-
-    func testStereoPairBasic() throws {
-        let info = try snap(channels: [
-            "1": ["name": "", "clink": true],
-            "2": ["name": "", "clink": true]
-        ])
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left, 1)
-        XCTAssertEqual(info.stereoPairs[0].right, 2)
-    }
-
-    func testStereoPairRightSideNotDuplicated() throws {
-        // Wing sets clink=true on both channels; channel 2 must not produce a second pair.
-        let info = try snap(channels: [
-            "1": ["name": "", "clink": true],
-            "2": ["name": "", "clink": true]
-        ])
-        XCTAssertEqual(info.stereoPairs.count, 1)
-    }
-
-    func testMultipleStereoPairs() throws {
-        let info = try snap(channels: [
-            "1": ["name": "", "clink": true],
-            "2": ["name": "", "clink": true],
-            "3": ["name": "", "clink": true],
-            "4": ["name": "", "clink": true]
-        ])
-        XCTAssertEqual(info.stereoPairs.count, 2)
-        XCTAssertEqual(info.stereoPairs[0].left, 1)
-        XCTAssertEqual(info.stereoPairs[1].left, 3)
-    }
-
-    func testNoPairsWhenClinkFalse() throws {
-        let info = try snap(channels: [
-            "1": ["name": "Kick", "clink": false],
-            "2": ["name": "Snare", "clink": false]
-        ])
-        XCTAssertTrue(info.stereoPairs.isEmpty)
-    }
-
-    func testNoPairsWhenClinkAbsent() throws {
-        let info = try snap(channels: ["1": ["name": "Kick"]])
-        XCTAssertTrue(info.stereoPairs.isEmpty)
-    }
-
     // MARK: - USB stereo pairs
 
-    // Wing USB stereo channels have clink=false; stereo is indicated by io.in.USB.N.mode="ST".
+    // Wing USB stereo: stereo is indicated by io.in.USB.N.mode="ST".
     // The pair is (usbIn, usbIn+1) and the name is keyed by usbIn, not by Wing channel number.
     func testUsbStereoChannelProducesPair() throws {
         let info = try snap(
-            channels: ["1": ["name": "BD", "clink": false,
+            channels: ["1": ["name": "BD",
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "ST"]]]]
         )
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left,  1)
-        XCTAssertEqual(info.stereoPairs[0].right, 2)
+        XCTAssertEqual(info.usbStereoPairs.count, 1)
+        XCTAssertEqual(info.usbStereoPairs[0].left,  1)
+        XCTAssertEqual(info.usbStereoPairs[0].right, 2)
         // Name keyed by WAV track 1 (= USB in 1), not Wing ch 1 (same here, but explicit)
         XCTAssertEqual(info.channelNames[1], "BD")
         XCTAssertNil(info.channelNames[2])
@@ -168,22 +122,22 @@ final class SnapTests: XCTestCase {
 
     func testUsbMonoChannelNoPair() throws {
         let info = try snap(
-            channels: ["1": ["name": "BD", "clink": false,
+            channels: ["1": ["name": "BD",
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "M"]]]]
         )
-        XCTAssertTrue(info.stereoPairs.isEmpty)
+        XCTAssertTrue(info.usbStereoPairs.isEmpty)
     }
 
     func testUsbMidSideChannelProducesPair() throws {
         let info = try snap(
-            channels: ["1": ["name": "OH", "clink": false,
+            channels: ["1": ["name": "OH",
                              "in": ["conn": ["grp": "USB", "in": 3]]]],
             io: ["in": ["USB": ["3": ["mode": "M/S"]]]]
         )
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left,  3)
-        XCTAssertEqual(info.stereoPairs[0].right, 4)
+        XCTAssertEqual(info.usbStereoPairs.count, 1)
+        XCTAssertEqual(info.usbStereoPairs[0].left,  3)
+        XCTAssertEqual(info.usbStereoPairs[0].right, 4)
         XCTAssertEqual(info.channelNames[3], "OH")
     }
 
@@ -192,10 +146,10 @@ final class SnapTests: XCTestCase {
     // Expected: 4 pairs keyed by USB input number; names keyed by left USB track.
     func testUsbStereoFourChannels() throws {
         let channels: [String: Any] = [
-            "1": ["name": "BD",   "clink": false, "in": ["conn": ["grp": "USB", "in": 1]]],
-            "2": ["name": "SD",   "clink": false, "in": ["conn": ["grp": "USB", "in": 3]]],
-            "3": ["name": "Toms", "clink": false, "in": ["conn": ["grp": "USB", "in": 5]]],
-            "4": ["name": "OH",   "clink": false, "in": ["conn": ["grp": "USB", "in": 7]]]
+            "1": ["name": "BD",   "in": ["conn": ["grp": "USB", "in": 1]]],
+            "2": ["name": "SD",   "in": ["conn": ["grp": "USB", "in": 3]]],
+            "3": ["name": "Toms", "in": ["conn": ["grp": "USB", "in": 5]]],
+            "4": ["name": "OH",   "in": ["conn": ["grp": "USB", "in": 7]]]
         ]
         let io: [String: Any] = ["in": ["USB": [
             "1": ["mode": "ST"], "3": ["mode": "ST"],
@@ -203,10 +157,10 @@ final class SnapTests: XCTestCase {
         ]]]
         let info = try snap(channels: channels, io: io)
 
-        XCTAssertEqual(info.stereoPairs.count, 4)
-        let lefts = info.stereoPairs.map(\.left)
+        XCTAssertEqual(info.usbStereoPairs.count, 4)
+        let lefts = info.usbStereoPairs.map(\.left)
         XCTAssertEqual(lefts, [1, 3, 5, 7])
-        let rights = info.stereoPairs.map(\.right)
+        let rights = info.usbStereoPairs.map(\.right)
         XCTAssertEqual(rights, [2, 4, 6, 8])
 
         XCTAssertEqual(info.channelNames[1], "BD")
@@ -220,29 +174,11 @@ final class SnapTests: XCTestCase {
         XCTAssertNil(info.channelNames[8])
     }
 
-    // When a USB input number coincides with a Wing channel number that also has clink=true,
-    // only one pair must be produced — not two.
-    func testUsbAndClinkSameTrackNoDuplicate() throws {
-        let info = try snap(
-            channels: [
-                // ch1 → USB in 3 (ST): produces pair(3,4)
-                "1": ["name": "BD",    "clink": false, "in": ["conn": ["grp": "USB", "in": 3]]],
-                // ch3 → LCL clink: would also claim pair(3,4) if not deduplicated
-                "3": ["name": "Synth", "clink": true],
-                "4": ["name": "Bass",  "clink": true]
-            ],
-            io: ["in": ["USB": ["3": ["mode": "ST"]]]]
-        )
-        XCTAssertEqual(info.stereoPairs.count, 1)
-        XCTAssertEqual(info.stereoPairs[0].left,  3)
-        XCTAssertEqual(info.stereoPairs[0].right, 4)
-    }
-
     // MARK: - Real snap fixture
 
     // Parses the real Wing Rack snap from the bug reporter (case07_usb_stereo).
     // 4 Wing channels with USB stereo sources (BD/SD/Toms/OH on USB 1,3,5,7),
-    // plus LCL and clink channels with overlapping track numbers.
+    // plus LCL channels with overlapping track numbers.
     // Verifies that USB stereo pairs and names are correct with no duplicates.
     func testRealSnapUsbStereo() throws {
         let snapURL = URL(fileURLWithPath: #filePath)
@@ -252,7 +188,7 @@ final class SnapTests: XCTestCase {
         let info = try parseSnap(at: snapURL)
 
         // The 4 USB stereo pairs must appear exactly once each, in order.
-        let lefts = info.stereoPairs.map(\.left)
+        let lefts = info.usbStereoPairs.map(\.left)
         XCTAssertTrue(lefts.contains(1), "missing BD pair")
         XCTAssertTrue(lefts.contains(3), "missing SD pair")
         XCTAssertTrue(lefts.contains(5), "missing Toms pair")

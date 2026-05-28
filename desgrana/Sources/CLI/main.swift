@@ -13,7 +13,6 @@ struct CLIArgs {
     var infoOnly: Bool
     var stereoPairs: [StereoPair]
     var snapURL: URL?
-    var useAutoStereo: Bool
     var shortNames: Bool
     var dryRun: Bool
 
@@ -25,7 +24,6 @@ struct CLIArgs {
         var infoOnly = false
         var stereoPairs: [StereoPair] = []
         var snapURL: URL?
-        var useAutoStereo = false
         var shortNames = false
         var dryRun = false
         var i = 0
@@ -51,8 +49,6 @@ struct CLIArgs {
                     }
                     stereoPairs.append(StereoPair(left: l, right: r))
                 }
-            case "--auto-stereo":
-                useAutoStereo = true
             case "--short-names":
                 shortNames = true
             case "--dry-run":
@@ -79,7 +75,6 @@ struct CLIArgs {
             infoOnly: infoOnly,
             stereoPairs: stereoPairs,
             snapURL: snapURL,
-            useAutoStereo: useAutoStereo,
             shortNames: shortNames,
             dryRun: dryRun
         )
@@ -122,21 +117,23 @@ struct DesgranaCLI {
             do {
                 snapInfo = try parseSnapOrScene(at: url)
                 let src = cliArgs.snapURL != nil ? url.lastPathComponent : "\(url.lastPathComponent) (auto)"
-                print("Snap: \(src) — \(snapInfo!.channelNames.count) named channels, \(snapInfo!.stereoPairs.count) stereo pairs")
+                print("Snap: \(src) — \(snapInfo!.channelNames.count) named channels, \(snapInfo!.usbStereoPairs.count) USB stereo pairs")
             } catch {
                 warn("Could not parse snap file: \(error)")
             }
         }
 
-        // Stereo pairs: --auto-stereo > --stereo > all mono (clink ignored)
+        // Stereo pairs: --stereo (manual override) > snap-derived (USB + L/R names) > all mono
         let activePairs: [StereoPair]
-        if cliArgs.useAutoStereo {
-            guard let info = sessionInfo else {
-                fatal("--auto-stereo requires SE_LOG.BIN (channel count unknown)")
-            }
-            activePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: info.numChannels)
-        } else if !cliArgs.stereoPairs.isEmpty {
+        if !cliArgs.stereoPairs.isEmpty {
             activePairs = cliArgs.stereoPairs
+        } else if let snap = snapInfo, let info = sessionInfo {
+            let numCh = info.numChannels
+            let usbPairs = filterStereoPairs(snap.usbStereoPairs, channelCount: numCh)
+            let usbTracks = Set(usbPairs.flatMap { [$0.left, $0.right] })
+            let lclPairs = detectStereoPairsFromNames(snap.channelNames, channelCount: numCh)
+                .filter { !usbTracks.contains($0.left) }
+            activePairs = (usbPairs + lclPairs).sorted { $0.left < $1.left }
         } else {
             activePairs = []
         }
@@ -331,9 +328,8 @@ struct DesgranaCLI {
         OPTIONS:
             --output, -o <path>     Output directory (default: <session-dir>_extract/)
             --prefix, -p <string>   Prefix for output filenames
-            --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides --snap pairs)
-            --snap   <file>         Console snapshot (.snap Wing / .scn X32) for stereo pairs and channel names
-            --auto-stereo           Detect stereo pairs from channel names (ignores snap clink)
+            --stereo, -s <pairs>    Stereo pairs, e.g. 1:2,3:4 (overrides snap-derived pairs)
+            --snap   <file>         Console snapshot (.snap Wing / .scn X32) for channel names and USB stereo pairs
             --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
             --dry-run               Show what would be extracted without writing any files
             --info,   -i            Show session info only, without extracting

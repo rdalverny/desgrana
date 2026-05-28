@@ -12,18 +12,6 @@ private struct Track {
     var hasSignal: Bool = false
 }
 
-// MARK: - Discovery
-
-public func wavBitDepth(in dir: URL) -> UInt32? {
-    guard let first = findWavTakes(in: dir).first else { return nil }
-    let wav = UnsafeMutablePointer<drwav>.allocate(capacity: 1)
-    defer { wav.deallocate() }
-    guard first.path.withCString({ drwav_init_file(wav, $0, nil) }) == 1 else { return nil }
-    let bits = UInt32(wav.pointee.bitsPerSample)
-    drwav_uninit(wav)
-    return bits
-}
-
 // MARK: - Splitter
 // swiftlint:disable cyclomatic_complexity
 

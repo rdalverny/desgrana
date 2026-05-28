@@ -103,12 +103,6 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
-                Toggle("Auto-detect stereo pairs from channel names", isOn: $vm.useAutoStereo)
-                Text("Pairs adjacent channels sharing a base name with L/R suffix (e.g. OH L + OH R).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section {
                 if let dir = vm.customOutputDir {
                     LabeledContent("Output folder") {
                         Text(dir.path)
@@ -149,7 +143,6 @@ struct SettingsView: View {
                     Spacer()
                     Button("Reset to defaults") {
                         vm.shortFilenames = true
-                        vm.useAutoStereo = true
                         vm.customOutputDir = nil
                         updateEnabled = true
                         updateIntervalDays = 30

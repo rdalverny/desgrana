@@ -197,19 +197,19 @@ CASES: list = [
             SignalSpec(FREQS[2], SAMPLE_RATE // 2),
             SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
         ],
-        # Snap provides channel names; --auto-stereo pairs OH_L+OH_R by name (Kick/Snare stay mono).
+        # Snap provides channel names; OH_L+OH_R are paired by name, Kick/Snare stay mono.
         snap_data={
             "active_scene": "I:/TEST_SHOW/Test_Scene.snap",
             "ae_data": {
                 "ch": {
-                    "1": {"name": "Kick",  "clink": True},
-                    "2": {"name": "Snare", "clink": True},
-                    "3": {"name": "OH_L",  "clink": False},
-                    "4": {"name": "OH_R",  "clink": False},
+                    "1": {"name": "Kick"},
+                    "2": {"name": "Snare"},
+                    "3": {"name": "OH_L"},
+                    "4": {"name": "OH_R"},
                 },
             },
         },
-        desgrana_extra_args=["--auto-stereo", "--short-names"],
+        desgrana_extra_args=["--short-names"],
         markers=MARKER_FRAMES,
     ),
     TestCase(
