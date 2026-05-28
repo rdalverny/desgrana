@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Romain d'Alverny
 // SPDX-License-Identifier: MIT
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 // MARK: - Version comparison
 
