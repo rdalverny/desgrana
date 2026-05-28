@@ -16,29 +16,29 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
-#include <QLocale>
 #include <QMimeData>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStyle>
-#include <QSysInfo>
 #include <QThread>
-#include <QUrlQuery>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+// ---------------------------------------------------------------------------
+// UpdateCheck settings keys
+// ---------------------------------------------------------------------------
+static const char* kUpdateCheckEnabled      = "updateCheck/enabled";
+static const char* kUpdateCheckIntervalDays = "updateCheck/intervalDays";
+static const char* kUpdateCheckLastTs       = "updateCheck/lastTimestamp";
 
 // ---------------------------------------------------------------------------
 // Palette-aware stylesheet helpers
@@ -113,7 +113,6 @@ DesgranaWindow::DesgranaWindow(QWidget *parent) : QWidget(parent) {
 
     showIdle();
 
-    m_nam = new QNetworkAccessManager(this);
     checkForUpdate();
 
     applyDynamicStyles();
@@ -839,69 +838,42 @@ void DesgranaWindow::handleChannelRowClick(QWidget *row) {
 // Update check
 // ---------------------------------------------------------------------------
 
-static QString platformOSV() {
-    return QSysInfo::productType() + QSysInfo::productVersion().split('.').first();
-}
-
-static bool isNewerVersion(const QString &latest, const QString &current) {
-    auto parse = [](const QString &v) {
-        QList<int> parts;
-        for (const auto &p : v.split('.')) parts << p.toInt();
-        while (parts.size() < 3) parts << 0;
-        return parts;
-    };
-    const auto l = parse(latest), c = parse(current);
-    for (int i = 0; i < 3; i++) {
-        if (l[i] > c[i]) return true;
-        if (l[i] < c[i]) return false;
-    }
-    return false;
-}
-
 void DesgranaWindow::checkForUpdate() {
     QSettings s;
-    if (!s.value("updateCheck/enabled", true).toBool()) return;
+    if (!s.value(kUpdateCheckEnabled, true).toBool()) return;
 
-    const int intervalDays = s.value("updateCheck/intervalDays", 30).toInt();
-    const qint64 lastCheck = s.value("updateCheck/lastTimestamp", 0LL).toLongLong();
-    const qint64 now       = QDateTime::currentSecsSinceEpoch();
+    const qint64  lastCheck   = s.value(kUpdateCheckLastTs, 0LL).toLongLong();
+    const int32_t intervalDays = s.value(kUpdateCheckIntervalDays, 30).toInt();
+    const qint64  now          = QDateTime::currentSecsSinceEpoch();
     if (now - lastCheck < static_cast<qint64>(intervalDays) * 86400) return;
 
-    QUrl url("https://romaindalverny.com/atelier/desgrana/version.json");
-    QUrlQuery q;
-    q.addQueryItem("os",   QSysInfo::productType());
-    q.addQueryItem("osv",  platformOSV());
-    q.addQueryItem("arch", QSysInfo::currentCpuArchitecture());
-    q.addQueryItem("v",    DESGRANA_VERSION);
-    q.addQueryItem("l",    QLocale::system().name().section('_', 0, 0));
-    url.setQuery(q);
+    // Mark the check as performed before spawning the thread, so a second
+    // launch during a slow request won't trigger a duplicate check.
+    s.setValue(kUpdateCheckLastTs, now);
 
-    QNetworkReply *reply = m_nam->get(QNetworkRequest(url));
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onUpdateReply(reply);
+    // desgrana_check_update blocks until the HTTP response arrives — run it
+    // on a background thread and marshal the result back to the main thread.
+    QThread *thread = QThread::create([this]() {
+        desgrana_check_update(
+            DESGRANA_VERSION,
+            [](const char *latest, const char * /*notes*/, const char *url, void *ud) {
+                if (!latest) return;
+                auto *win      = static_cast<DesgranaWindow *>(ud);
+                QString latestStr = QString::fromUtf8(latest);
+                QString urlStr    = url ? QString::fromUtf8(url) : QString();
+                QMetaObject::invokeMethod(win, [win, latestStr, urlStr]() {
+                    const QString link = urlStr.isEmpty()
+                        ? latestStr
+                        : QString("<a href=\"%1\">%2</a>").arg(urlStr, latestStr);
+                    win->m_updateLabel->setText(QString("Update available: %1").arg(link));
+                    win->m_updateLabel->setVisible(true);
+                }, Qt::QueuedConnection);
+            },
+            this
+        );
     });
-}
-
-void DesgranaWindow::onUpdateReply(QNetworkReply *reply) {
-    reply->deleteLater();
-    if (reply->error() != QNetworkReply::NoError) return;
-
-    const QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
-    const QString latest   = json["version"].toString();
-    const QString url      = json["url"].toString();
-
-    if (latest.isEmpty()) return;
-
-    QSettings s;
-    s.setValue("updateCheck/lastTimestamp", QDateTime::currentSecsSinceEpoch());
-
-    if (!isNewerVersion(latest, DESGRANA_VERSION)) return;
-
-    const QString link = url.isEmpty()
-        ? latest
-        : QString("<a href=\"%1\">%2</a>").arg(url, latest);
-    m_updateLabel->setText(QString("Update available: %1").arg(link));
-    m_updateLabel->setVisible(true);
+    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    thread->start();
 }
 
 // ---------------------------------------------------------------------------
