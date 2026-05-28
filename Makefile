@@ -109,7 +109,8 @@ lint:
 	cd desgrana && swiftlint lint --strict
 
 clean:
-	rm -rf desgrana/.build var/ dist/ $(APP) Desgrana.zip
+	rm -rf desgrana/.build var/ dist/ $(APP) Desgrana.zip \
+	    Desgrana.iconset/ Desgrana.xcassets/
 
 fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
@@ -176,3 +177,22 @@ test-debian:
 		-v "$(PWD)/desgrana/Tests":/tests:ro \
 		desgrana-tester \
 		bash -c "dpkg -i /pkgs/desgrana_*.deb && python3 /tests/test_split.py /usr/bin/desgrana"
+
+
+
+icon:
+	python3 scripts/make_icon.py
+	iconutil -c icns Desgrana.iconset \
+	    -o app-template/Contents/Resources/AppIcon.icns
+	mkdir -p var/build/icon-assets
+	xcrun actool \
+	    --compile var/build/icon-assets \
+	    --platform macosx \
+	    --minimum-deployment-target 15.3 \
+	    --app-icon AppIcon \
+	    --output-partial-info-plist var/build/icon-assets/partial-info.plist \
+	    --skip-app-store-deployment \
+	    Desgrana.xcassets 2>/dev/null
+	cp var/build/icon-assets/Assets.car \
+	    app-template/Contents/Resources/Assets.car
+	@echo "Icon generated: AppIcon.icns + Assets.car"
