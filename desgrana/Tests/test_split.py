@@ -216,13 +216,57 @@ CASES: list = [
         name="case06_silent",
         num_channels=4,
         sample_rate=SAMPLE_RATE,
-        total_frames=TOTAL_FRAMES,
+        total_frames=SAMPLE_RATE // 2,
         channel_signals=[
             SignalSpec(FREQS[0], 0),
             SignalSpec(FREQS[1], 0),
-            SignalSpec(FREQS[2], TOTAL_FRAMES),  # ch3: offset past end -> stays +0.0, silent
+            SignalSpec(FREQS[2], SAMPLE_RATE // 2),  # ch3: offset past end -> stays +0.0, silent
             SignalSpec(FREQS[3], 0),
         ],
+        desgrana_extra_args=[],
+        markers=[],
+    ),
+    # case08: 4 Wing channels each routing to a USB stereo input (BD/SD/Toms/OH).
+    # Reproduces the pairing scenario from issue #2 (xt99): USB stereo sources
+    # where io.in.USB.N.mode="ST" drives pair detection, not L/R name suffixes.
+    # 8 WAV channels: USB inputs 1-8, grouped as pairs (1,2),(3,4),(5,6),(7,8).
+    # Even channels have no name; pairing comes entirely from the snap.
+    TestCase(
+        name="case08_usb_stereo",
+        num_channels=8,
+        sample_rate=SAMPLE_RATE,
+        total_frames=SAMPLE_RATE // 2,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),                    # USB 1: BD L
+            SignalSpec(FREQS[0], SAMPLE_RATE // 8),     # USB 2: BD R
+            SignalSpec(FREQS[1], 0),                    # USB 3: SD L
+            SignalSpec(FREQS[1], SAMPLE_RATE // 8),     # USB 4: SD R
+            SignalSpec(FREQS[2], 0),                    # USB 5: Toms L
+            SignalSpec(FREQS[2], SAMPLE_RATE // 8),     # USB 6: Toms R
+            SignalSpec(FREQS[3], 0),                    # USB 7: OH L
+            SignalSpec(FREQS[3], SAMPLE_RATE // 8),     # USB 8: OH R
+        ],
+        snap_data={
+            "active_scene": "U:/USB Stereo Show/USB stereo.snap",
+            "ae_data": {
+                "ch": {
+                    "1": {"name": "BD",   "in": {"conn": {"grp": "USB", "in": 1}}},
+                    "2": {"name": "SD",   "in": {"conn": {"grp": "USB", "in": 3}}},
+                    "3": {"name": "Toms", "in": {"conn": {"grp": "USB", "in": 5}}},
+                    "4": {"name": "OH",   "in": {"conn": {"grp": "USB", "in": 7}}},
+                },
+                "io": {
+                    "in": {
+                        "USB": {
+                            "1": {"mode": "ST"},
+                            "3": {"mode": "ST"},
+                            "5": {"mode": "ST"},
+                            "7": {"mode": "ST"},
+                        }
+                    }
+                },
+            },
+        },
         desgrana_extra_args=[],
         markers=[],
     ),

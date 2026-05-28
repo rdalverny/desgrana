@@ -63,4 +63,33 @@ final class ApplyUsbUnpairRenameTests: XCTestCase {
         XCTAssertEqual(names[3], "OH_L")
         XCTAssertEqual(names[4], "OH_R")
     }
+
+    // MARK: - issue #2 pairing scenarios (BD/SD/Toms/OH on USB 1,3,5,7)
+
+    private let usbPairs4: [StereoPair] = [
+        StereoPair(left: 1, right: 2),
+        StereoPair(left: 3, right: 4),
+        StereoPair(left: 5, right: 6),
+        StereoPair(left: 7, right: 8),
+    ]
+    private let snapNames4: [Int: String] = [1: "BD", 3: "SD", 5: "Toms", 7: "OH"]
+
+    // Unpair BD: both mono tracks must get _L/_R; other pairs are untouched.
+    func testUnpairBDProducesLRSuffix() {
+        let active = usbPairs4.filter { $0.left != 1 }
+        let names = applyUsbUnpairRename(names: snapNames4, usbPairs: usbPairs4, activePairs: active)
+        XCTAssertEqual(names[1], "BD_L")
+        XCTAssertEqual(names[2], "BD_R")
+        XCTAssertEqual(names[3], "SD")
+        XCTAssertEqual(names[5], "Toms")
+        XCTAssertEqual(names[7], "OH")
+    }
+
+    // Unpair SD then re-pair it: name must stay "SD" with no suffix.
+    func testUnpairThenRepairSDPreservesName() {
+        // After re-pairing, activePairs is identical to the original snap pairs.
+        let names = applyUsbUnpairRename(names: snapNames4, usbPairs: usbPairs4, activePairs: usbPairs4)
+        XCTAssertEqual(names[3], "SD")
+        XCTAssertNil(names[4])
+    }
 }

@@ -1,0 +1,61 @@
+{
+  "active_scene": "U:/USB Stereo Show/USB stereo.snap",
+  "ae_data": {
+    "ch": {
+      "1": {
+        "name": "BD",
+        "in": {
+          "conn": {
+            "grp": "USB",
+            "in": 1
+          }
+        }
+      },
+      "2": {
+        "name": "SD",
+        "in": {
+          "conn": {
+            "grp": "USB",
+            "in": 3
+          }
+        }
+      },
+      "3": {
+        "name": "Toms",
+        "in": {
+          "conn": {
+            "grp": "USB",
+            "in": 5
+          }
+        }
+      },
+      "4": {
+        "name": "OH",
+        "in": {
+          "conn": {
+            "grp": "USB",
+            "in": 7
+          }
+        }
+      }
+    },
+    "io": {
+      "in": {
+        "USB": {
+          "1": {
+            "mode": "ST"
+          },
+          "3": {
+            "mode": "ST"
+          },
+          "5": {
+            "mode": "ST"
+          },
+          "7": {
+            "mode": "ST"
+          }
+        }
+      }
+    }
+  }
+}
