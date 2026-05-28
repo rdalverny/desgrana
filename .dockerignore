@@ -1,6 +1,7 @@
 .git/
 desgrana/.build/
-desgrana/Tests/
+desgrana/Tests/SD Card/
+desgrana/Tests/SD Card no snap/
 dist/
 old_docs/
 var/
