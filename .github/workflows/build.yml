@@ -49,11 +49,11 @@ jobs:
           arch="${{ inputs.arch }}"
           arch="${arch:-both}"
           if [ "$arch" = "amd64" ]; then
-            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64"}]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64","rpm_arch":"x86_64"}]}' >> $GITHUB_OUTPUT
           elif [ "$arch" = "arm64" ]; then
-            echo 'matrix={"include":[{"platform":"linux/arm64","deb_arch":"arm64"}]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"include":[{"platform":"linux/arm64","deb_arch":"arm64","rpm_arch":"aarch64"}]}' >> $GITHUB_OUTPUT
           else
-            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64"},{"platform":"linux/arm64","deb_arch":"arm64"}]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64","rpm_arch":"x86_64"},{"platform":"linux/arm64","deb_arch":"arm64","rpm_arch":"aarch64"}]}' >> $GITHUB_OUTPUT
           fi
 
   # ── Linux: build binaries + package .deb + .rpm ────────────────────────────
@@ -92,7 +92,8 @@ jobs:
       - name: Build .deb
         run: |
           docker buildx build \
-            --platform ${{ matrix.platform }} \
+            --platform linux/amd64 \
+            --build-arg TARGET_ARCH=${{ matrix.deb_arch }} \
             -f packaging/linux/deb/packager.dockerfile \
             --output type=local,dest=dist \
             .
@@ -100,7 +101,8 @@ jobs:
       - name: Build .rpm
         run: |
           docker buildx build \
-            --platform ${{ matrix.platform }} \
+            --platform linux/amd64 \
+            --build-arg TARGET_ARCH=${{ matrix.rpm_arch }} \
             -f packaging/linux/rpm/packager.dockerfile \
             --output type=local,dest=dist \
             .
@@ -114,7 +116,7 @@ jobs:
       - name: Upload .rpm
         uses: actions/upload-artifact@v7
         with:
-          name: desgrana-${{ github.run_id }}-linux-${{ matrix.deb_arch }}.rpm
+          name: desgrana-${{ github.run_id }}-linux-${{ matrix.rpm_arch }}.rpm
           path: dist/*.rpm
 
   # ── Windows CLI (x64) ───────────────────────────────────────────────────────
