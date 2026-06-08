@@ -440,7 +440,7 @@ struct ContentView: View {
     private func buildRows() -> [OutputRow] {
         let pairs          = vm.effectivePairs
         let names          = vm.effectiveChannelNames
-        let total          = vm.sessionInfo?.numChannels ?? 0
+        let total          = vm.sessionInfo?.numChannels ?? vm.inferredChannels ?? 0
         let pairedChannels = Set(pairs.flatMap { [$0.left, $0.right] })
         var rows: [OutputRow] = []
 
@@ -655,9 +655,10 @@ struct ContentView: View {
     func handlePendingURL() {
         guard let url = appDelegate.pendingURL else { return }
         appDelegate.pendingURL = nil
-        if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
+        let ext = url.pathExtension.lowercased()
+        if ["snap", "scn"].contains(ext) {
             vm.loadSnap(url: url)
-        } else if url.hasDirectoryPath || isDirectory(url) {
+        } else if url.hasDirectoryPath || isDirectory(url) || ext == "wav" {
             vm.loadSession(url: url)
         }
     }
@@ -699,9 +700,10 @@ struct ContentView: View {
                   let url = URL(dataRepresentation: data, relativeTo: nil)
             else { return }
             Task { @MainActor in
-                if ["snap", "scn"].contains(url.pathExtension.lowercased()) {
+                let ext = url.pathExtension.lowercased()
+                if ["snap", "scn"].contains(ext) {
                     vm.loadSnap(url: url)
-                } else if url.hasDirectoryPath || isDirectory(url) {
+                } else if url.hasDirectoryPath || isDirectory(url) || ext == "wav" {
                     vm.loadSession(url: url)
                 }
             }

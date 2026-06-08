@@ -44,6 +44,12 @@ class SplitViewModel: ObservableObject {
     @Published var customOutputDir: URL?
     @Published var shortFilenames: Bool = true
     @Published private(set) var lastMarkers: [(time: Double, name: String)] = []
+    /// Resolved takes for the current input (hex session, single file, or single WAV in a dir).
+    @Published var resolvedTakes: [URL] = []
+    /// Channel count inferred from the WAV header when there is no SE_LOG.bin (other recorders).
+    @Published var inferredChannels: Int?
+    /// Track names from the WAV itself when there is no snap (placeholder until iXML parsing lands).
+    @Published var fallbackChannelNames: [Int: String] = [:]
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -65,7 +71,7 @@ class SplitViewModel: ObservableObject {
     // LCL pairs are detected from channel names (L/R suffixes); no name means mono.
     // clink is not used — it reflects live console behaviour, not recording intent.
     var snapDerivedPairs: [StereoPair] {
-        let numCh = sessionInfo?.numChannels ?? 0
+        let numCh = sessionInfo?.numChannels ?? inferredChannels ?? 0
         guard numCh > 0 else { return [] }
 
         let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
@@ -85,7 +91,7 @@ class SplitViewModel: ObservableObject {
     // of any USB stereo pair that has been manually unlinked.
     var effectiveChannelNames: [Int: String] {
         applyUsbUnpairRename(
-            names: snapInfo?.channelNames ?? [:],
+            names: snapInfo?.channelNames ?? fallbackChannelNames,
             usbPairs: snapInfo?.usbStereoPairs ?? [],
             activePairs: effectivePairs
         )
@@ -120,14 +126,28 @@ class SplitViewModel: ObservableObject {
     }
 
     func loadSession(url: URL) {
+        // Resolve whatever was dropped: a session folder (hex takes), a single WAV file,
+        // or a folder with one WAV. Several non-hex WAVs in a folder is refused.
+        let resolved = resolveSessionTakes(at: url)
+        if case .ambiguous = resolved {
+            reset()
+            state = .error("This folder contains several WAV files. Drop a single file, or a session folder.")
+            return
+        }
+
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+        let isFileInput = !isDir.boolValue
+        let dir = isFileInput ? url.deletingLastPathComponent() : url
+
         let selog = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
             .lazy
-            .map { url.appendingPathComponent($0) }
+            .map { dir.appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0.path) }
 
         sessionInfo = selog.flatMap { try? parseSELog(at: $0) }
 
-        if let snapURL = findConsoleSnapshot(in: url) {
+        if let snapURL = findConsoleSnapshot(in: dir) {
             snapInfo = try? parseSnapOrScene(at: snapURL)
             snapName = snapURL.lastPathComponent
         } else {
@@ -136,12 +156,27 @@ class SplitViewModel: ObservableObject {
         }
         userOverridePairs = nil
 
-        wavFiles = findWavTakes(in: url)
-        sessionName = bestSessionName(sessionDir: url)
-        if wavFiles.isEmpty {
+        if case .ok(let t) = resolved { resolvedTakes = t } else { resolvedTakes = [] }
+        wavFiles = resolvedTakes
+
+        // No SE_LOG: read the channel count from the first WAV header so the track list shows up.
+        inferredChannels = sessionInfo == nil
+            ? resolvedTakes.first.flatMap { probeWavHeader(at: $0)?.channels }
+            : nil
+
+        // No snap: try track names embedded in the WAV (placeholder until iXML parsing lands).
+        fallbackChannelNames = snapInfo == nil
+            ? (resolvedTakes.first.map { parseIXMLTrackNames(at: $0) } ?? [:])
+            : [:]
+
+        sessionName = isFileInput
+            ? url.deletingPathExtension().lastPathComponent
+            : bestSessionName(sessionDir: dir)
+
+        if resolvedTakes.isEmpty {
             state = .error("No WAV takes found in this directory.")
         } else {
-            state = .ready(url)
+            state = .ready(dir)
         }
     }
 
@@ -190,6 +225,8 @@ class SplitViewModel: ObservableObject {
         }
 
         let capturedFrames = framesBeforeTake
+        let capturedTakes = resolvedTakes
+        let fallbackCh = inferredChannels
         Task.detached { [weak self] in
             do {
                 let result = try splitSession(
@@ -199,6 +236,7 @@ class SplitViewModel: ObservableObject {
                     stereoPairs: pairs,
                     channelNames: names,
                     useShortFilenames: shortNames,
+                    takes: capturedTakes,
                     progress: { take, total, framesInTake in
                         let before = capturedFrames[take] ?? 0
                         let fraction = totalFrames > 0
@@ -216,12 +254,14 @@ class SplitViewModel: ObservableObject {
                     exportMIDIMarkers(info, to: outputDir, prefix: pfx)
                 }
 
-                let channelCount = info?.numChannels ?? 0
-                let duration = info?.totalDuration ?? 0
+                let totalCh = info?.numChannels ?? fallbackCh ?? 0
+                let channelCount = totalCh
+                let duration = info?.totalDuration
+                    ?? (result.sampleRate > 0 ? Double(result.totalFrames) / result.sampleRate : 0)
                 let extractedMono = result.keptMono
                 let extractedStereo = result.keptStereo
                 let silentStereo = pairs.count - extractedStereo
-                let monoTrackCount = max((info?.numChannels ?? 0) - pairedChs.count, 0)
+                let monoTrackCount = max(totalCh - pairedChs.count, 0)
                 let silentMono = monoTrackCount - extractedMono
 
                 let markerList: [(time: Double, name: String)] = (info?.markerSamples ?? [])
@@ -268,5 +308,8 @@ class SplitViewModel: ObservableObject {
         sessionName = ""
         userOverridePairs = nil
         lastMarkers = []
+        resolvedTakes = []
+        inferredChannels = nil
+        fallbackChannelNames = [:]
     }
 }
