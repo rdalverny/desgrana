@@ -22,7 +22,7 @@ SPM_UNIV_DIR   := desgrana/.build/apple/Products/Release
 
 .PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \
         test test-generate package shipit release sign notarize icon \
-        patch minor clean lint lint-fix format format-check package-debian test-image test-debian
+        patch minor clean lint lint-fix format format-check package-debian test-image test-debian web
 
 # ── Build ─────────────────────────────────────────────────────────
 
@@ -114,6 +114,14 @@ clean:
 
 fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
+
+# ── Web ──────────────────────────────────────────────────────────
+# Build the deployable site into web/dist/ (gitignored) from web/template.html.j2
+# + web/i18n/*.toml: en -> web/dist/index.html, fr -> web/dist/fr/index.html, plus
+# a copy of every asset (demo.mp4, poster, version.json, icon…). Deploy = upload
+# web/dist/. Update version/dates in web/i18n/common.toml on each release.
+web:
+	uv run scripts/build_web.py
 
 # ── Linux ────────────────────────────────────────────────────────
 SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
