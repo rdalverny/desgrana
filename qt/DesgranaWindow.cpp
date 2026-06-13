@@ -18,7 +18,9 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QMimeData>
+#include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
@@ -70,6 +72,75 @@ static QString dropZoneTargetedStyle(const QPalette &pal) {
         "                  background: %2; }")
         .arg(border.name(), paletteRgba(fill));
 }
+
+// ---------------------------------------------------------------------------
+// DAW detection and launch
+// ---------------------------------------------------------------------------
+
+namespace {
+
+struct DawTarget {
+    QString name;  // shown on the button
+    int     kind;  // desgrana_daw_kind
+    QString exe;   // resolved executable path
+};
+
+// DAWs found on PATH. Each entry lists candidate binary names (version-suffixed
+// first); the first hit wins. Mirrors the macOS DAW list (Ardour/Reaper/Audacity).
+std::vector<DawTarget> detectDaws() {
+    struct Candidate {
+        const char *name;
+        int         kind;
+        std::vector<const char *> bins;
+    };
+    const std::vector<Candidate> candidates = {
+        {"Ardour",   DESGRANA_DAW_ARDOUR,   {"ardour8", "ardour7", "ardour6", "ardour", "Ardour"}},
+        {"Reaper",   DESGRANA_DAW_REAPER,   {"reaper", "Reaper"}},
+        {"Audacity", DESGRANA_DAW_AUDACITY, {"audacity", "Audacity"}},
+    };
+
+    std::vector<DawTarget> found;
+    for (const auto &c : candidates) {
+        for (const char *bin : c.bins) {
+            const QString path = QStandardPaths::findExecutable(QString::fromLatin1(bin));
+            if (!path.isEmpty()) {
+                found.push_back({QString::fromLatin1(c.name), c.kind, path});
+                break;
+            }
+        }
+    }
+    return found;
+}
+
+// Generate the session file for the extracted WAVs in outputDir, then launch the DAW
+// on it. sessionDir is the original session folder; the bridge reads its SE_LOG to
+// derive markers.
+void launchDaw(int kind, const QString &exe, const QString &outputDir,
+               const QString &sessionDir, double durationSec, QWidget *parent) {
+    const std::string outDir  = outputDir.toStdString();
+    const std::string sessDir = sessionDir.toStdString();
+    char sessionPath[4096] = {0};
+    char err[512] = {0};
+
+    const int32_t rc = desgrana_export_daw_session(
+        outDir.c_str(), sessDir.c_str(), kind, durationSec,
+        sessionPath, sizeof(sessionPath),
+        err, sizeof(err));
+
+    if (rc != 0) {
+        QMessageBox::warning(parent, "Open in DAW",
+            QString("Could not generate the session file:\n%1").arg(QString::fromUtf8(err)));
+        return;
+    }
+
+    const QString file = QString::fromUtf8(sessionPath);
+    if (!QProcess::startDetached(exe, QStringList{file})) {
+        QMessageBox::warning(parent, "Open in DAW",
+            QString("Could not launch:\n%1").arg(exe));
+    }
+}
+
+} // namespace
 
 // ---------------------------------------------------------------------------
 // DesgranaWindow
@@ -366,6 +437,27 @@ void DesgranaWindow::buildDonePage() {
     btnRow->addWidget(newSessionBtn);
     btnRow->addWidget(m_openDirBtn);
 
+    // "Open in <DAW>" row, one button per installed DAW (Ardour/Reaper/Audacity).
+    // Detected once at build time; hidden entirely when no DAW is found.
+    QHBoxLayout *dawRow = nullptr;
+    const std::vector<DawTarget> daws = detectDaws();
+    if (!daws.empty()) {
+        dawRow = new QHBoxLayout;
+        dawRow->setAlignment(Qt::AlignCenter);
+        dawRow->setSpacing(12);
+        for (const DawTarget &d : daws) {
+            auto *b = new QPushButton(QString("Open in %1").arg(d.name));
+            b->setStyleSheet(
+                "QPushButton { border-radius: 4px; padding: 6px 20px; }");
+            const int kind = d.kind;
+            const QString exe = d.exe;
+            connect(b, &QPushButton::clicked, this, [this, kind, exe]() {
+                launchDaw(kind, exe, m_lastOutputPath, m_sessionPath, m_duration, this);
+            });
+            dawRow->addWidget(b);
+        }
+    }
+
     auto *layout = new QVBoxLayout(m_donePage);
     layout->setContentsMargins(32, 24, 32, 24);
     layout->setSpacing(0);
@@ -375,6 +467,10 @@ void DesgranaWindow::buildDonePage() {
     layout->addWidget(m_silentLabel);
     layout->addSpacing(16);
     layout->addLayout(btnRow);
+    if (dawRow) {
+        layout->addSpacing(QFontMetrics(font()).height() + 10);
+        layout->addLayout(dawRow);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +511,14 @@ void DesgranaWindow::showReady() {
     const int rows   = m_channels - stereo; // mono rows + stereo rows
     const int rowH   = QFontMetrics(font()).height() + 12;
     m_channelScroll->setFixedHeight(qMin(rows, 8) * rowH);
+
+    // Estimate the bytes the extraction will write: roughly the total size of the
+    // source WAV takes (splitting reorganizes the same samples into per-channel files).
+    m_expectedOutputBytes = 0;
+    const QFileInfoList takes = QDir(m_sessionPath)
+        .entryInfoList(QStringList{"*.wav", "*.WAV"}, QDir::Files);
+    for (const QFileInfo &fi : takes) m_expectedOutputBytes += fi.size();
+
     updateOutputPath();
     switchToPage(1);
 }

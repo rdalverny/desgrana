@@ -261,6 +261,86 @@ public func desgrana_check_update(
     }
 }
 
+// MARK: - DAW session export
+
+/// Generates a DAW session file (Reaper / Ardour / Audacity) referencing the WAVs
+/// already extracted in `outputDir`. Channels and sample rate are read from the WAV
+/// headers via cross-platform RIFF parsing (no AVFoundation on Linux). Markers are
+/// optional. On success writes the generated file's path into `outSessionPath` and
+/// returns 0; returns -1 on error (fills errBuf).
+@_cdecl("desgrana_export_daw_session")
+public func desgrana_export_daw_session(
+    _ outputDir: UnsafePointer<CChar>,
+    _ sessionDir: UnsafePointer<CChar>?,
+    _ dawKind: Int32,
+    _ durationSec: Double,
+    _ outSessionPath: UnsafeMutablePointer<CChar>?,
+    _ outPathLen: Int32,
+    _ errBuf: UnsafeMutablePointer<CChar>?,
+    _ errLen: Int32
+) -> Int32 {
+    let dir = URL(fileURLWithPath: String(cString: outputDir))
+
+    // Collect extracted WAVs in sorted filename order (matches the macOS path).
+    let contents = (try? FileManager.default.contentsOfDirectory(
+        at: dir, includingPropertiesForKeys: nil)) ?? []
+    let wavURLs = contents
+        .filter { $0.pathExtension.lowercased() == "wav" }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    guard !wavURLs.isEmpty else {
+        cStringCopy("no WAV files in output directory", into: errBuf, maxLen: Int(errLen))
+        return -1
+    }
+
+    // Channels per WAV + session sample rate from the first WAV (RIFF, cross-platform).
+    var wavs: [(url: URL, channels: Int)] = []
+    var sampleRate = 48_000.0
+    for (i, url) in wavURLs.enumerated() {
+        let header = probeWavHeader(at: url)
+        wavs.append((url, max(header?.channels ?? 1, 1)))
+        if i == 0, let sr = header?.sampleRate, sr > 0 { sampleRate = sr }
+    }
+
+    // Markers from the session's SE_LOG (position = sample / sampleRate, "Marker N"),
+    // matching the macOS app. The output dir holds only WAVs, so read the session dir.
+    var markers: [(time: Double, name: String)] = []
+    if let sp = sessionDir {
+        let sdir = URL(fileURLWithPath: String(cString: sp))
+        let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+            .lazy.map { sdir.appendingPathComponent($0) }
+            .first { FileManager.default.fileExists(atPath: $0.path) }
+        if let info = selogURL.flatMap({ try? parseSELog(at: $0) }), !info.markerSamples.isEmpty {
+            let sr = Double(info.sampleRate > 0 ? info.sampleRate : 48_000)
+            markers = info.markerSamples.enumerated().map { i, s in
+                (time: Double(s) / sr, name: "Marker \(i + 1)")
+            }
+        }
+    }
+
+    do {
+        let generated: URL
+        switch dawKind {
+        case 0:
+            generated = try generateRPP(wavs: wavs, duration: durationSec,
+                                        sampleRate: sampleRate, markers: markers, outputDir: dir)
+        case 1:
+            generated = try generateArdourSession(wavs: wavs, duration: durationSec,
+                                                  sampleRate: sampleRate, markers: markers, outputDir: dir)
+        case 2:
+            generated = try generateAudacityLOF(wavs: wavs, duration: durationSec,
+                                                sampleRate: sampleRate, markers: markers, outputDir: dir)
+        default:
+            cStringCopy("unknown DAW kind \(dawKind)", into: errBuf, maxLen: Int(errLen))
+            return -1
+        }
+        cStringCopy(generated.path, into: outSessionPath, maxLen: Int(outPathLen))
+        return 0
+    } catch {
+        cStringCopy("\(error)", into: errBuf, maxLen: Int(errLen))
+        return -1
+    }
+}
+
 // MARK: - Helpers
 
 private func cStringCopy(_ str: String, into buf: UnsafeMutablePointer<CChar>?, maxLen: Int) {

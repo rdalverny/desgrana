@@ -119,6 +119,40 @@ void desgrana_check_update(
     void       *user_data
 );
 
+/** Which DAW a session file is generated for. */
+typedef enum {
+    DESGRANA_DAW_REAPER   = 0,  /* generateRPP            → .rpp           */
+    DESGRANA_DAW_ARDOUR   = 1,  /* generateArdourSession  → .ardour        */
+    DESGRANA_DAW_AUDACITY = 2   /* generateAudacityLOF    → .lof (+ .txt)  */
+} desgrana_daw_kind;
+
+/**
+ * Generate a DAW session file referencing the WAVs already extracted in output_dir.
+ *
+ * The sample rate is read from the first WAV's header (RIFF, cross-platform); the
+ * caller supplies the session duration (from desgrana_probe). WAVs are taken in
+ * sorted filename order, matching the macOS app.
+ *
+ * session_dir: the original session folder. When non-NULL its SE_LOG is read and
+ *   markers are derived from it (position = sample / sample_rate, name "Marker N"),
+ *   matching the macOS app. For Audacity these go to a sibling <name>.txt labels
+ *   file (LOF carries no markers). Pass NULL to omit markers.
+ *
+ * out_session_path: receives the absolute path of the generated file (nullable).
+ *
+ * Returns 0 on success, -1 on error (err_buf filled).
+ */
+int32_t desgrana_export_daw_session(
+    const char *output_dir,
+    const char *session_dir,        /* nullable — for SE_LOG markers */
+    int32_t     daw_kind,           /* desgrana_daw_kind */
+    double      duration_sec,
+    char       *out_session_path,   /* nullable */
+    int32_t     out_path_len,
+    char       *err_buf,            /* nullable */
+    int32_t     err_len
+);
+
 #ifdef __cplusplus
 }
 #endif
