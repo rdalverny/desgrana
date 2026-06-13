@@ -10,7 +10,11 @@
 #     --output type=local,dest=dist \
 #     .
 
+ARG TARGET_ARCH=x86_64
+
 FROM fedora:41 AS packager
+
+ARG TARGET_ARCH
 
 RUN dnf install -y rpm-build qt6-qtbase libcurl && dnf clean all
 
@@ -27,6 +31,7 @@ COPY packaging/linux/rpm/desgrana.spec    ./desgrana.spec
 RUN VERSION=$(cat VERSION) && \
     mkdir -p /build/rpmbuild/{BUILD,RPMS,SRPMS,SPECS,SOURCES} && \
     rpmbuild -bb \
+        --target ${TARGET_ARCH} \
         --define "_topdir /build/rpmbuild" \
         --define "_sourcedir /build/src" \
         --define "_pkg_version $VERSION" \

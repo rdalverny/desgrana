@@ -11,13 +11,13 @@ import SwiftUI
 struct DAWInfo: Identifiable {
     let name: String
     let appURL: URL
-    enum OpenMode { case reaper, openURLs, ardour }
+    enum OpenMode { case reaper, openURLs, ardour, audacity }
     let mode: OpenMode
     var id: String { name }
 }
 
 func installedDAWs() -> [DAWInfo] {
-    [installedLogicPro(), installedReaper(), installedArdour()]
+    [installedLogicPro(), installedReaper(), installedArdour(), installedAudacity()]
         .compactMap { $0 }
 }
 
@@ -64,6 +64,15 @@ func openInDAW(
                                                         markers: markers, outputDir: dir)
         else { return }
         NSWorkspace.shared.open(ardourURL)
+
+    case .audacity:
+        let (wavs, _) = collectOutputFiles(in: dir)
+        guard !wavs.isEmpty,
+              let lofURL = try? generateAudacityLOF(wavs: wavs.map { ($0, channelCount(of: $0)) },
+                                                    duration: duration, sampleRate: sampleRate,
+                                                    markers: markers, outputDir: dir)
+        else { return }
+        openLOFInAudacity(lofURL, appURL: daw.appURL)
 
     case .openURLs:
         let (wavs, midiURL) = collectOutputFiles(in: dir)

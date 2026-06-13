@@ -6,7 +6,7 @@
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     app.setApplicationName("Desgrana");
-    app.setOrganizationName("Beriwave");
+    app.setOrganizationName("elephathom");
 
     DesgranaWindow win;
     win.show();

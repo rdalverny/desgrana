@@ -25,9 +25,11 @@ public func splitSession(
     stereoPairs: [StereoPair] = [],
     channelNames: [Int: String] = [:],
     useShortFilenames: Bool = false,
+    takes: [URL]? = nil,
     progress: ProgressCallback? = nil
 ) throws -> SplitResult {
-    let wavFiles = findWavTakes(in: sessionDir)
+    // Use the explicitly resolved takes if provided, else fall back to hex-named discovery.
+    let wavFiles = takes ?? findWavTakes(in: sessionDir)
     guard !wavFiles.isEmpty else { throw SplitError.noWavFiles }
 
     // Read source format from first file

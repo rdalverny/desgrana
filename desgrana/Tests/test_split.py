@@ -952,8 +952,8 @@ def run_cli_error_tests(binary: str) -> int:
         check("--prefix missing value -> exit 1",[tmp, "--prefix"],                1, "requires a value")
         check("--snap missing value -> exit 1",  [tmp, "--snap"],                  1, "requires a path")
 
-    check("missing directory -> exit 1",
-          ["/nonexistent_desgrana_xyz_12345"], 1, "Directory not found")
+    check("missing path -> exit 1",
+          ["/nonexistent_desgrana_xyz_12345"], 1, "Not found")
 
     return failures
 
@@ -1029,6 +1029,125 @@ def run_cli_output_tests(binary: str, fixtures_dir: str) -> int:
     return failures
 
 
+# ── Fallback input tests (non-hex WAV, single file, ambiguous folder) ─────────
+
+def run_fallback_tests(binary: str, var_dir: str) -> int:
+    """Test the 'other recorders' fallback: a non-hex WAV in a folder, a single WAV
+    file passed directly, and refusal of a folder with several non-hex WAVs."""
+    print(f"\n{'=' * 60}")
+    print("  Fallback input (non-hex WAV / single file / ambiguous)")
+    print(f"{'=' * 60}\n")
+
+    failures = 0
+    base = os.path.join(var_dir, "fallback")
+    if os.path.isdir(base):
+        shutil.rmtree(base)
+    os.makedirs(base)
+
+    # A small 2-channel WAV, both channels with signal (neither silent).
+    case = TestCase(
+        name="fallback",
+        num_channels=2,
+        sample_rate=SAMPLE_RATE,
+        total_frames=SAMPLE_RATE // 2,
+        channel_signals=[SignalSpec(FREQS[0], 0), SignalSpec(FREQS[1], 0)],
+    )
+
+    def run(args: list) -> subprocess.CompletedProcess:
+        return subprocess.run([binary] + args, capture_output=True, text=True)
+
+    # 1. Directory with a single non-hex WAV, no SE_LOG.bin -> extracts.
+    d1 = os.path.join(base, "dir_single")
+    os.makedirs(d1)
+    write_wav_synthetic(os.path.join(d1, "myshow.wav"), case)
+    out1 = os.path.join(base, "out1")
+    r = run([d1, "--output", out1, "--short-names"])
+    produced = set(os.listdir(out1)) if os.path.isdir(out1) else set()
+    if r.returncode == 0 and {"ch01.wav", "ch02.wav"} <= produced:
+        print("  OK    folder with single non-hex WAV -> ch01.wav, ch02.wav")
+    else:
+        print(f"  FAIL  folder with single non-hex WAV (rc={r.returncode}, files={sorted(produced)})")
+        print(f"         stderr: {r.stderr.strip()!r}")
+        failures += 1
+
+    # 2. A single WAV file passed directly -> extracts.
+    out2 = os.path.join(base, "out2")
+    r = run([os.path.join(d1, "myshow.wav"), "--output", out2, "--short-names"])
+    produced = set(os.listdir(out2)) if os.path.isdir(out2) else set()
+    if r.returncode == 0 and {"ch01.wav", "ch02.wav"} <= produced:
+        print("  OK    single WAV file argument -> ch01.wav, ch02.wav")
+    else:
+        print(f"  FAIL  single WAV file argument (rc={r.returncode}, files={sorted(produced)})")
+        print(f"         stderr: {r.stderr.strip()!r}")
+        failures += 1
+
+    # 3. Folder with several non-hex WAVs -> refused (exit 2, clear message).
+    d3 = os.path.join(base, "dir_multi")
+    os.makedirs(d3)
+    write_wav_synthetic(os.path.join(d3, "first_song.wav"), case)
+    write_wav_synthetic(os.path.join(d3, "second_song.wav"), case)
+    r = run([d3, "--output", os.path.join(base, "out3")])
+    if r.returncode == 2 and "multiple wav" in r.stderr.lower():
+        print("  OK    folder with several non-hex WAVs -> refused (exit 2)")
+    else:
+        print(f"  FAIL  ambiguous folder not refused (rc={r.returncode})")
+        print(f"         stderr: {r.stderr.strip()!r}")
+        failures += 1
+
+    if failures == 0:
+        print("\n  OK  all checks passed")
+    else:
+        print(f"\n  {failures} check(s) failed")
+    return failures
+
+
+# ── iXML track names (field recorders) ───────────────────────────────────────
+
+def run_ixml_test(binary: str, var_dir: str) -> int:
+    """A WAV carrying an iXML chunk should have its tracks named from <TRACK_LIST>."""
+    print(f"\n{'=' * 60}")
+    print("  iXML track names")
+    print(f"{'=' * 60}\n")
+
+    base = os.path.join(var_dir, "ixml")
+    if os.path.isdir(base):
+        shutil.rmtree(base)
+    os.makedirs(base)
+
+    nc, sr, nf = 2, SAMPLE_RATE, SAMPLE_RATE // 2
+    chans = [make_channel_samples(SignalSpec(FREQS[0], 0), nf, sr),
+             make_channel_samples(SignalSpec(FREQS[1], 0), nf, sr)]
+    pcm = ar.array("f", (chans[c][f] for f in range(nf) for c in range(nc))).tobytes()
+
+    block_align = nc * 4
+    fmt = struct.pack("<HHIIHH", 3, nc, sr, sr * block_align, block_align, 32) + struct.pack("<H", 0)
+    ixml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<BWFXML><TRACK_LIST><TRACK_COUNT>2</TRACK_COUNT>"
+        "<TRACK><CHANNEL_INDEX>1</CHANNEL_INDEX><INTERLEAVE_INDEX>1</INTERLEAVE_INDEX><NAME>Boom</NAME></TRACK>"
+        "<TRACK><CHANNEL_INDEX>2</CHANNEL_INDEX><INTERLEAVE_INDEX>2</INTERLEAVE_INDEX><NAME>Lav</NAME></TRACK>"
+        "</TRACK_LIST></BWFXML>"
+    ).encode("utf-8")
+    if len(ixml) % 2:
+        ixml += b"\n"  # keep RIFF chunks even-aligned
+
+    riff = b"WAVE" + _pack_chunk(b"fmt ", fmt) + _pack_chunk(b"iXML", ixml) + _pack_chunk(b"data", pcm)
+    path = os.path.join(base, "field.wav")
+    with open(path, "wb") as f:
+        f.write(_pack_chunk(b"RIFF", riff))
+
+    out = os.path.join(base, "out")
+    r = subprocess.run([binary, path, "--output", out, "--short-names"], capture_output=True, text=True)
+    produced = set(os.listdir(out)) if os.path.isdir(out) else set()
+
+    if r.returncode == 0 and {"Boom.wav", "Lav.wav"} <= produced:
+        print("  OK    iXML names applied -> Boom.wav, Lav.wav")
+        return 0
+    print(f"  FAIL  iXML names not applied (rc={r.returncode}, files={sorted(produced)})")
+    print(f"         stderr: {r.stderr.strip()!r}")
+    return 1
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -1066,6 +1185,8 @@ def main() -> None:
 
     total_failures += run_cli_error_tests(binary)
     total_failures += run_cli_output_tests(binary, fixtures_dir)
+    total_failures += run_fallback_tests(binary, var_dir)
+    total_failures += run_ixml_test(binary, var_dir)
 
     for case in CASES:
         if case.source_wav_rel is not None:

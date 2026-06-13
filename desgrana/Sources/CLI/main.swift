@@ -94,10 +94,34 @@ struct DesgranaCLI {
         let cliArgs = CLIArgs.parse(args)
         let path = cliArgs.sessionPath
 
-        let sessionDir = URL(fileURLWithPath: path, isDirectory: true)
-        guard FileManager.default.fileExists(atPath: sessionDir.path) else {
-            fatal("Directory not found: \(sessionDir.path)")
+        let inputURL = URL(fileURLWithPath: path)
+        var isInputDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: inputURL.path, isDirectory: &isInputDir) else {
+            fatal("Not found: \(inputURL.path)")
         }
+
+        // Resolve takes: a session folder (hex takes), a single WAV file, or a folder with
+        // a single WAV (other recorders). A folder with several non-hex WAVs is refused.
+        let takes: [URL]
+        switch resolveSessionTakes(at: inputURL) {
+        case .ok(let t):
+            takes = t
+        case .empty:
+            takes = []
+        case .ambiguous(let files):
+            fatal("""
+                Multiple WAV files in this folder — can't tell which to extract. \
+                Pass a single .wav file, or a Behringer session folder with numbered takes. \
+                Found: \(files.map { $0.lastPathComponent }.joined(separator: ", "))
+                """, exitCode: 2)
+        }
+
+        // Directory used for SE_LOG/snap lookup and for naming. For a single file, it's its
+        // parent; the base name is the file's name (so outputs are <name>_ch01.wav).
+        let isFileInput = !isInputDir.boolValue
+        let sessionDir = isFileInput ? inputURL.deletingLastPathComponent() : inputURL
+        let baseName = isFileInput ? inputURL.deletingPathExtension().lastPathComponent
+                                   : inputURL.lastPathComponent
 
         // Find SE_LOG.bin
         let selog = findSELog(in: sessionDir)
@@ -137,10 +161,15 @@ struct DesgranaCLI {
         } else {
             activePairs = []
         }
-        let channelNames = snapInfo?.channelNames ?? [:]
+        var channelNames = snapInfo?.channelNames ?? [:]
+        // No snap names: try track names embedded in the WAV (field recorders).
+        // Placeholder today — parseIXMLTrackNames returns [:] until iXML parsing lands.
+        if channelNames.isEmpty, let first = takes.first {
+            channelNames = parseIXMLTrackNames(at: first)
+        }
 
         // Takes status (used in both --info and split modes)
-        let wavFiles = findWavTakes(in: sessionDir)
+        let wavFiles = takes
 
         // Info-only mode
         if cliArgs.infoOnly {
@@ -174,8 +203,10 @@ struct DesgranaCLI {
         if let op = cliArgs.outputPath {
             outputDir = URL(fileURLWithPath: op, isDirectory: true)
         } else {
-            outputDir = sessionDir.deletingLastPathComponent()
-                .appendingPathComponent(sessionDir.lastPathComponent + "_extract")
+            // Sibling of the input, named <base>_extract (folder for a folder, in the
+            // file's own directory for a single file).
+            let container = isFileInput ? sessionDir : sessionDir.deletingLastPathComponent()
+            outputDir = container.appendingPathComponent(baseName + "_extract")
         }
 
         // Determine prefix
@@ -185,7 +216,7 @@ struct DesgranaCLI {
         } else if let info = sessionInfo, !info.sessionName.isEmpty {
             pfx = info.sessionName.replacingOccurrences(of: " ", with: "_") + "_"
         } else {
-            pfx = sessionDir.lastPathComponent + "_"
+            pfx = baseName + "_"
         }
 
         // Dry-run: show what would be created without writing anything
@@ -208,7 +239,8 @@ struct DesgranaCLI {
                 prefix: pfx,
                 stereoPairs: activePairs,
                 channelNames: channelNames,
-                useShortFilenames: cliArgs.shortNames
+                useShortFilenames: cliArgs.shortNames,
+                takes: wavFiles
             )
 
             // Export markers
