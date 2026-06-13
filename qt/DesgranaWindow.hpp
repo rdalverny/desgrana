@@ -31,6 +31,7 @@ protected:
 
 private slots:
     void browseOutput();
+    void browseSession();
     void startSplit();
     void onProgress(int take, int total, double fraction);
     void onSplitDone(int silentSkipped, int keptMono, int keptStereo);

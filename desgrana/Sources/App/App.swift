@@ -278,6 +278,12 @@ struct ContentView: View {
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { chooseSession() }
+        .onHover { hovered in
+            if hovered { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+        .help("Click to choose a session folder, or drop one here")
     }
 
     // MARK: - Transient view (splitting / done / error)
@@ -714,6 +720,17 @@ struct ContentView: View {
         panel.directoryURL = vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)
         if panel.runModal() == .OK, let url = panel.url {
             vm.customOutputDir = url
+        }
+    }
+
+    func chooseSession() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.title = "Choose a session folder"
+        if panel.runModal() == .OK, let url = panel.url {
+            vm.loadSession(url: url)
         }
     }
 
