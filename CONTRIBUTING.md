@@ -146,6 +146,7 @@ installed and returns a `DAWInfo` if so.
 | `.openURLs` | DAW accepts files opened directly (Logic Pro, most DAWs) | `NSWorkspace` opens the WAV+MIDI files in the app                    |
 | `.reaper`   | Reaper                                                   | Generates a `.rpp` session via `generateRPP` and opens it            |
 | `.ardour`   | Ardour                                                   | Generates an Ardour session via `generateArdourSession` and opens it |
+| `.audacity` | Audacity                                                 | Generates a `.lof` (+ labels file for markers) via `generateAudacityLOF` and opens it |
 
 If the DAW can import WAVs via a simple file-open, `.openURLs` is almost
 always the right choice.
