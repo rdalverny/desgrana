@@ -116,7 +116,9 @@ fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
 
 # ── Linux ────────────────────────────────────────────────────────
-SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
+#SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
+SWIFT_RUNTIME_DIR ?= $(shell d=$$(dirname "$$(realpath "$$(command -v swiftc)")")/../lib/swift/linux; \
+	[ -e "$$d/libswiftCore.so" ] && cd "$$d" && pwd || echo /usr/lib/swift/linux)
 
 ARCH ?= amd64
 

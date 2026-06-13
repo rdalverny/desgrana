@@ -31,6 +31,7 @@ protected:
 
 private slots:
     void browseOutput();
+    void browseSession();
     void startSplit();
     void onProgress(int take, int total, double fraction);
     void onSplitDone(int silentSkipped, int keptMono, int keptStereo);
@@ -76,6 +77,7 @@ private:
     std::map<int, QLabel*> m_chnumLabels;
     QLineEdit   *m_outputEdit;
     QLabel      *m_outputWarningLabel;
+    QLabel      *m_lowDiskWarningLabel = nullptr;
     QPushButton *m_browseBtn;
     QPushButton *m_splitBtn;
 
@@ -101,6 +103,7 @@ private:
     QString m_lastOutputPath;
     int     m_channels  = 0;
     double  m_duration  = 0;
+    qint64  m_expectedOutputBytes = 0;  // ~size the extraction will write
     bool    m_useShortNames = true;
 
     static constexpr int kSnapCap = 64;

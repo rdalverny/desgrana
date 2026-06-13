@@ -278,6 +278,12 @@ struct ContentView: View {
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { chooseSession() }
+        .onHover { hovered in
+            if hovered { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+        .help("Click to choose a session folder, or drop one here")
     }
 
     // MARK: - Transient view (splitting / done / error)
@@ -619,6 +625,11 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+            if let lowDisk = lowDiskWarning(sessionDir: sessionDir, outputURL: outputURL) {
+                Label(lowDisk, systemImage: "externaldrive.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 4)
@@ -635,6 +646,37 @@ struct ContentView: View {
         }
         .help("Click to change the output folder")
         .padding(.horizontal, -4)
+    }
+
+    /// Returns a warning string when the destination volume has less than 2x the
+    /// expected extracted size free, else nil. Expected size is approximated by the
+    /// total size of the source WAV takes (extraction reorganizes the same samples).
+    func lowDiskWarning(sessionDir: URL, outputURL: URL) -> String? {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: sessionDir, includingPropertiesForKeys: [.fileSizeKey])) ?? []
+        let expected = contents
+            .filter { $0.pathExtension.lowercased() == "wav" }
+            .reduce(Int64(0)) { acc, url in
+                acc + Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+            }
+        guard expected > 0 else { return nil }
+
+        // Available capacity on the nearest existing ancestor (the dir may not exist yet).
+        var probe = outputURL
+        while !FileManager.default.fileExists(atPath: probe.path) {
+            let parent = probe.deletingLastPathComponent()
+            if parent.path == probe.path { break }
+            probe = parent
+        }
+        let avail = (try? probe.resourceValues(
+            forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?
+            .volumeAvailableCapacityForImportantUsage ?? 0
+        let needed = expected * 2
+        guard avail < needed else { return nil }
+
+        let fmt = ByteCountFormatter()
+        return "Low disk space: \(fmt.string(fromByteCount: avail)) free, "
+            + "about \(fmt.string(fromByteCount: needed)) recommended."
     }
 
     func formatDuration(_ seconds: Double) -> String {
@@ -678,6 +720,17 @@ struct ContentView: View {
         panel.directoryURL = vm.customOutputDir ?? vm.defaultOutputDir(for: sessionDir)
         if panel.runModal() == .OK, let url = panel.url {
             vm.customOutputDir = url
+        }
+    }
+
+    func chooseSession() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
+        panel.title = "Choose a session folder"
+        if panel.runModal() == .OK, let url = panel.url {
+            vm.loadSession(url: url)
         }
     }
 
