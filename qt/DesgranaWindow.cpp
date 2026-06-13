@@ -18,6 +18,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QLocale>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProcess>
@@ -26,6 +27,7 @@
 #include <QScrollArea>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QStyle>
 #include <QThread>
 #include <QVBoxLayout>
@@ -335,6 +337,16 @@ void DesgranaWindow::buildReadyPage() {
     m_outputWarningLabel->setWordWrap(true);
     m_outputWarningLabel->setVisible(false);
 
+    m_lowDiskWarningLabel = new QLabel;
+    m_lowDiskWarningLabel->setStyleSheet("QLabel { color: #FF3B30; }");
+    {
+        QFont f = m_lowDiskWarningLabel->font();
+        f.setPixelSize(11);
+        m_lowDiskWarningLabel->setFont(f);
+    }
+    m_lowDiskWarningLabel->setWordWrap(true);
+    m_lowDiskWarningLabel->setVisible(false);
+
     // Bottom row: browse (left) + extract (right), mirroring macOS layout
     m_browseBtn = new QPushButton("Choose a different folder\xe2\x80\xa6");
     connect(m_browseBtn, &QPushButton::clicked, this, &DesgranaWindow::browseOutput);
@@ -364,6 +376,7 @@ void DesgranaWindow::buildReadyPage() {
     layout->addWidget(outputLabel);
     layout->addWidget(m_outputEdit);
     layout->addWidget(m_outputWarningLabel);
+    layout->addWidget(m_lowDiskWarningLabel);
     layout->addSpacing(12);
     layout->addLayout(btnRow);
 }
@@ -659,6 +672,33 @@ void DesgranaWindow::updateOutputPath() {
 void DesgranaWindow::checkOutputExists() {
     const bool exists = QDir(m_outputEdit->text()).exists();
     m_outputWarningLabel->setVisible(exists);
+
+    // Warn if the destination volume has less than 2x the expected output size.
+    // Resolve the storage of the nearest existing ancestor (the target dir may not
+    // exist yet).
+    bool lowDisk = false;
+    if (m_expectedOutputBytes > 0) {
+        QString probe = m_outputEdit->text();
+        while (!probe.isEmpty() && !QDir(probe).exists()) {
+            const QString parent = QFileInfo(probe).absolutePath();
+            if (parent == probe) break;   // reached the root
+            probe = parent;
+        }
+        const QStorageInfo storage(probe);
+        if (storage.isValid()) {
+            const qint64 avail  = storage.bytesAvailable();
+            const qint64 needed = m_expectedOutputBytes * 2;
+            if (avail < needed) {
+                lowDisk = true;
+                m_lowDiskWarningLabel->setText(
+                    QString("Low disk space: %1 free, about %2 recommended.")
+                        .arg(QLocale().formattedDataSize(avail),
+                             QLocale().formattedDataSize(needed)));
+            }
+        }
+    }
+    m_lowDiskWarningLabel->setVisible(lowDisk);
+
     adjustSize();
 }
 
