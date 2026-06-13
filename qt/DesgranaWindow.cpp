@@ -236,6 +236,13 @@ void DesgranaWindow::buildIdlePage() {
     // Stylesheet applied dynamically in applyDynamicStyles() to use QPalette colors.
     m_dropZoneFrame = new QFrame;
     m_dropZoneFrame->setObjectName("dropZone");
+    // Clicking the drop zone opens a folder picker, as an alternative to drag-drop.
+    // Make the child labels transparent to mouse events so clicks anywhere in the
+    // zone reach the frame's event filter.
+    m_dropZoneFrame->setCursor(Qt::PointingHandCursor);
+    m_dropZoneFrame->installEventFilter(this);
+    for (QLabel *l : {iconLabel, line1, line2, m_idleErrorLabel})
+        l->setAttribute(Qt::WA_TransparentForMouseEvents);
 
     auto *dzLayout = new QVBoxLayout(m_dropZoneFrame);
     dzLayout->setAlignment(Qt::AlignCenter);
@@ -713,6 +720,13 @@ void DesgranaWindow::browseOutput() {
     if (!selected.isEmpty()) m_outputEdit->setText(selected.first());
 }
 
+void DesgranaWindow::browseSession() {
+    const QString dir = QFileDialog::getExistingDirectory(
+        this, "Choose a session folder",
+        QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
+    if (!dir.isEmpty()) loadSession(dir);
+}
+
 // ---------------------------------------------------------------------------
 // Extraction
 // ---------------------------------------------------------------------------
@@ -939,6 +953,10 @@ bool DesgranaWindow::eventFilter(QObject *obj, QEvent *event) {
             handleChannelRowClick(w);
             return true;
         }
+    }
+    if (obj == m_dropZoneFrame && event->type() == QEvent::MouseButtonRelease) {
+        browseSession();
+        return true;
     }
     return QWidget::eventFilter(obj, event);
 }
