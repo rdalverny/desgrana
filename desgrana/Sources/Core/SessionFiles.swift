@@ -117,21 +117,36 @@ public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
     return WavHeaderInfo(channels: channels, sampleRate: sampleRate, duration: duration)
 }
 
-/// Reads per-channel track names embedded in the WAV's `iXML` chunk, when present.
-///
-/// Field recorders (Sound Devices, Zoom F-series, Tascam) embed an `iXML` chunk with a
-/// `<TRACK_LIST>` carrying a `<NAME>` per channel — the in-file analogue of the Wing
-/// `.snap`. Parsing it would let the "other recorder" fallback name tracks instead of
-/// numbering them, then existing L/R-suffix pairing applies on top.
-///
-/// Placeholder (iXML): not implemented. Returns an empty map, so callers fall back to
-/// numbered channels (current behaviour). To implement: locate the `iXML` RIFF chunk,
-/// parse its XML `<TRACK_LIST>/<TRACK>` entries and map `<INTERLEAVE_INDEX>` (1-indexed)
-/// → `<NAME>`. Verify the exact schema against the iXML spec and a real recorder sample
-/// first. Tracked separately as "read track names from field recorders (iXML)".
-public func parseIXMLTrackNames(at url: URL) -> [Int: String] {
-    // iXML placeholder: parse the iXML chunk's <TRACK_LIST> here and return [channel: name].
-    return [:]
+/// Returns the raw payload of the first RIFF chunk with `id` (4 chars, e.g. "iXML"), or nil.
+/// Walks the chunk list, seeking past payloads (so it tolerates a large `data` chunk before
+/// the target — though metadata chunks normally precede `data`).
+func riffChunk(at url: URL, id: String) -> Data? {
+    guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+    defer { try? fh.close() }
+    func read(_ n: Int) -> [UInt8]? {
+        guard let d = try? fh.read(upToCount: n), d.count == n else { return nil }
+        return [UInt8](d)
+    }
+    func tag(_ b: [UInt8], _ o: Int) -> String { String(bytes: b[o ..< o + 4], encoding: .ascii) ?? "" }
+    func u32(_ b: [UInt8], _ o: Int) -> UInt64 {
+        UInt64(b[o]) | (UInt64(b[o + 1]) << 8) | (UInt64(b[o + 2]) << 16) | (UInt64(b[o + 3]) << 24)
+    }
+    guard let riff = read(12), tag(riff, 0) == "RIFF" || tag(riff, 0) == "RF64", tag(riff, 8) == "WAVE" else {
+        return nil
+    }
+    var offset: UInt64 = 12
+    while let hdr = read(8) {
+        let cid = tag(hdr, 0)
+        let size = u32(hdr, 4)
+        offset += 8                                   // now at payload start
+        if cid == id {
+            guard let d = try? fh.read(upToCount: Int(size)), d.count == Int(size) else { return nil }
+            return d
+        }
+        offset += size + (size & 1)                   // skip payload + RIFF pad byte
+        guard (try? fh.seek(toOffset: offset)) != nil else { return nil }
+    }
+    return nil
 }
 
 /// Derives a filename suffix from channel name(s).

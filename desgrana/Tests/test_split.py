@@ -1101,6 +1101,53 @@ def run_fallback_tests(binary: str, var_dir: str) -> int:
     return failures
 
 
+# ── iXML track names (field recorders) ───────────────────────────────────────
+
+def run_ixml_test(binary: str, var_dir: str) -> int:
+    """A WAV carrying an iXML chunk should have its tracks named from <TRACK_LIST>."""
+    print(f"\n{'=' * 60}")
+    print("  iXML track names")
+    print(f"{'=' * 60}\n")
+
+    base = os.path.join(var_dir, "ixml")
+    if os.path.isdir(base):
+        shutil.rmtree(base)
+    os.makedirs(base)
+
+    nc, sr, nf = 2, SAMPLE_RATE, SAMPLE_RATE // 2
+    chans = [make_channel_samples(SignalSpec(FREQS[0], 0), nf, sr),
+             make_channel_samples(SignalSpec(FREQS[1], 0), nf, sr)]
+    pcm = ar.array("f", (chans[c][f] for f in range(nf) for c in range(nc))).tobytes()
+
+    block_align = nc * 4
+    fmt = struct.pack("<HHIIHH", 3, nc, sr, sr * block_align, block_align, 32) + struct.pack("<H", 0)
+    ixml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<BWFXML><TRACK_LIST><TRACK_COUNT>2</TRACK_COUNT>"
+        "<TRACK><CHANNEL_INDEX>1</CHANNEL_INDEX><INTERLEAVE_INDEX>1</INTERLEAVE_INDEX><NAME>Boom</NAME></TRACK>"
+        "<TRACK><CHANNEL_INDEX>2</CHANNEL_INDEX><INTERLEAVE_INDEX>2</INTERLEAVE_INDEX><NAME>Lav</NAME></TRACK>"
+        "</TRACK_LIST></BWFXML>"
+    ).encode("utf-8")
+    if len(ixml) % 2:
+        ixml += b"\n"  # keep RIFF chunks even-aligned
+
+    riff = b"WAVE" + _pack_chunk(b"fmt ", fmt) + _pack_chunk(b"iXML", ixml) + _pack_chunk(b"data", pcm)
+    path = os.path.join(base, "field.wav")
+    with open(path, "wb") as f:
+        f.write(_pack_chunk(b"RIFF", riff))
+
+    out = os.path.join(base, "out")
+    r = subprocess.run([binary, path, "--output", out, "--short-names"], capture_output=True, text=True)
+    produced = set(os.listdir(out)) if os.path.isdir(out) else set()
+
+    if r.returncode == 0 and {"Boom.wav", "Lav.wav"} <= produced:
+        print("  OK    iXML names applied -> Boom.wav, Lav.wav")
+        return 0
+    print(f"  FAIL  iXML names not applied (rc={r.returncode}, files={sorted(produced)})")
+    print(f"         stderr: {r.stderr.strip()!r}")
+    return 1
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -1139,6 +1186,7 @@ def main() -> None:
     total_failures += run_cli_error_tests(binary)
     total_failures += run_cli_output_tests(binary, fixtures_dir)
     total_failures += run_fallback_tests(binary, var_dir)
+    total_failures += run_ixml_test(binary, var_dir)
 
     for case in CASES:
         if case.source_wav_rel is not None:
