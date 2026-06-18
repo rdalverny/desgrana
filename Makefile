@@ -1,5 +1,6 @@
 -include Makefile.local
 
+NAME           := Desgrana
 VERSION        := $(shell cat VERSION)
 DATE           := $(shell date +"%B %-d %Y")
 GITHUB_REPO    := rdalverny/desgrana
@@ -7,8 +8,8 @@ GITHUB_BASE    := https://github.com/$(GITHUB_REPO)/releases/download
 TEAM_ID        ?=
 SIGN_IDENTITY  ?= Developer ID Application: $(TEAM_ID)
 NOTARY_PROFILE ?=
-ENTITLEMENTS   := desgrana/Sources/App/Desgrana.entitlements
-APP            := Desgrana.app
+ENTITLEMENTS   := desgrana/Sources/App/$(NAME).entitlements
+APP            := $(NAME).app
 BUILD          := var/build
 DIST           := dist
 APP_BUILD      := $(BUILD)/$(APP)
@@ -17,8 +18,11 @@ PLIST          := $(APP_BUILD)/Contents/Info.plist
 DOCKER         ?= docker
 BUILDX_BUILDER = multi
 
-SPM_NATIVE_DIR := desgrana/.build/release
-SPM_UNIV_DIR   := desgrana/.build/apple/Products/Release
+SPM_NATIVE_DIR  := desgrana/.build/release
+SPM_UNIV_DIR    := desgrana/.build/apple/Products/Release
+SPM_APP_PRODUCT := $(SPM_APP_PRODUCT)
+CLI_BUILD       := $(CLI_BUILD)
+DMG             := $(DIST)/$(NAME)-$(VERSION).dmg
 
 .PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \
         test test-generate package shipit release sign notarize icon \
@@ -29,30 +33,30 @@ SPM_UNIV_DIR   := desgrana/.build/apple/Products/Release
 cli:
 	cd desgrana && swift build -c release --product desgrana
 	mkdir -p $(BUILD)
-	cp $(SPM_NATIVE_DIR)/desgrana $(BUILD)/desgrana
-	strip -S $(BUILD)/desgrana
-	@echo "CLI → $(BUILD)/desgrana"
+	cp $(SPM_NATIVE_DIR)/desgrana $(CLI_BUILD)
+	strip -S $(CLI_BUILD)
+	@echo "CLI → $(CLI_BUILD)"
 
 cli-universal:
 	cd desgrana && swift build -c release --product desgrana --arch arm64 --arch x86_64
 	mkdir -p $(BUILD)
-	cp $(SPM_UNIV_DIR)/desgrana $(BUILD)/desgrana
-	strip -S $(BUILD)/desgrana
-	@echo "CLI (universal) → $(BUILD)/desgrana"
+	cp $(SPM_UNIV_DIR)/desgrana $(CLI_BUILD)
+	strip -S $(CLI_BUILD)
+	@echo "CLI (universal) → $(CLI_BUILD)"
 
 app:
-	cd desgrana && swift build -c release --product DesgranaApp
+	cd desgrana && swift build -c release --product $(SPM_APP_PRODUCT)
 
 app-universal:
-	cd desgrana && swift build -c release --product DesgranaApp --arch arm64 --arch x86_64
+	cd desgrana && swift build -c release --product $(SPM_APP_PRODUCT) --arch arm64 --arch x86_64
 
 bundle: app
 	rm -rf $(APP_BUILD)
 	mkdir -p $(BUILD)
 	cp -r app-template/ $(APP_BUILD)
 	mkdir -p $(APP_BUILD)/Contents/MacOS
-	cp $(SPM_NATIVE_DIR)/DesgranaApp $(APP_BUILD)/Contents/MacOS/
-	strip -S $(APP_BUILD)/Contents/MacOS/DesgranaApp
+	cp $(SPM_NATIVE_DIR)/$(SPM_APP_PRODUCT) $(APP_BUILD)/Contents/MacOS/
+	strip -S $(APP_BUILD)/Contents/MacOS/$(SPM_APP_PRODUCT)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
 	@echo "Built: $(APP_BUILD) ($(VERSION))"
@@ -62,8 +66,8 @@ bundle-universal: app-universal
 	mkdir -p $(BUILD)
 	cp -r app-template/ $(APP_BUILD)
 	mkdir -p $(APP_BUILD)/Contents/MacOS
-	cp $(SPM_UNIV_DIR)/DesgranaApp $(APP_BUILD)/Contents/MacOS/
-	strip -S $(APP_BUILD)/Contents/MacOS/DesgranaApp
+	cp $(SPM_UNIV_DIR)/$(SPM_APP_PRODUCT) $(APP_BUILD)/Contents/MacOS/
+	strip -S $(APP_BUILD)/Contents/MacOS/$(SPM_APP_PRODUCT)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
 	@echo "Built (universal): $(APP_BUILD) ($(VERSION))"
@@ -72,13 +76,46 @@ test-unit:
 	cd desgrana && swift test
 
 test: cli test-unit
-	python3 desgrana/Tests/test_split.py $(BUILD)/desgrana
+	python3 desgrana/Tests/test_split.py $(CLI_BUILD)
 
 test-generate: cli
-	python3 desgrana/Tests/test_split.py --generate $(BUILD)/desgrana
+	python3 desgrana/Tests/test_split.py --generate $(CLI_BUILD)
 
 build: cli bundle
 build-universal: cli-universal bundle-universal
+
+run: build
+	rm -rf /Applications/$(APP) && cp -r var/build/$(APP) /Applications/
+	open -a $(NAME)
+
+# ── signature, notarization
+sign: build
+	codesign --deep --force --options runtime \
+		--entitlements $(ENTITLEMENTS) \
+		--sign "$(SIGN_IDENTITY)" \
+		$(APP_BUILD)
+	codesign --verify --verbose $(APP_BUILD)
+
+	codesign --force --options runtime \
+		--sign "$(SIGN_IDENTITY)" \
+		$(CLI_BUILD)
+	codesign --verify --verbose $(CLI_BUILD)
+	@echo "Signed → $(APP_BUILD), $(CLI_BUILD)"
+
+package: sign
+	mkdir -p $(DIST)
+	bash packaging/macos/make-dmg.sh \
+		"$(APP_BUILD)" \
+		"$(CLI_BUILD)" \
+		"$(VERSION)" \
+		"$(DMG)"
+
+notarize: package
+	xcrun notarytool submit "$(DMG)" \
+		--keychain-profile "$(NOTARY_PROFILE)" \
+		--wait
+	xcrun stapler staple "$(DMG)"
+	@echo "Notarized → $(DIST)/$(NAME)-$(VERSION).dmg"
 
 
 # ── version ─────────────────────────────────────────────────────────
@@ -109,8 +146,13 @@ lint:
 	cd desgrana && swiftlint lint --strict
 
 clean:
-	rm -rf desgrana/.build var/ dist/ $(APP) Desgrana.zip \
-	    Desgrana.iconset/ Desgrana.xcassets/
+	rm -rf desgrana/.build \
+		var/ \
+		dist/ \
+		$(APP) \
+		$(NAME).zip \
+		$(NAME).iconset/ \
+		$(NAME).xcassets/
 
 fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
@@ -184,7 +226,7 @@ test-debian:
 
 icon:
 	python3 scripts/make_icon.py
-	iconutil -c icns Desgrana.iconset \
+	iconutil -c icns $(NAME).iconset \
 	    -o app-template/Contents/Resources/AppIcon.icns
 	mkdir -p var/build/icon-assets
 	xcrun actool \
@@ -194,7 +236,7 @@ icon:
 	    --app-icon AppIcon \
 	    --output-partial-info-plist var/build/icon-assets/partial-info.plist \
 	    --skip-app-store-deployment \
-	    Desgrana.xcassets 2>/dev/null
+	    $(NAME).xcassets 2>/dev/null
 	cp var/build/icon-assets/Assets.car \
 	    app-template/Contents/Resources/Assets.car
 	@echo "Icon generated: AppIcon.icns + Assets.car"
