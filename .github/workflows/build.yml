@@ -4,13 +4,6 @@ on:
   push:
     tags: ['*']
   workflow_dispatch:
-    inputs:
-      arch:
-        description: 'Architecture(s) to build'
-        required: false
-        default: 'both'
-        type: choice
-        options: [both, amd64, arm64]
 
 jobs:
 
@@ -36,44 +29,25 @@ jobs:
           name: desgrana-${{ github.run_id }}-macos-cli
           path: desgrana/.build/release/desgrana
 
-  # ── Linux: resolve matrix from arch input ──────────────────────────────────
-
-  linux-matrix:
-    name: Linux matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set.outputs.matrix }}
-    steps:
-      - id: set
-        run: |
-          arch="${{ inputs.arch }}"
-          arch="${arch:-both}"
-          if [ "$arch" = "amd64" ]; then
-            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64","rpm_arch":"x86_64"}]}' >> $GITHUB_OUTPUT
-          elif [ "$arch" = "arm64" ]; then
-            echo 'matrix={"include":[{"platform":"linux/arm64","deb_arch":"arm64","rpm_arch":"aarch64"}]}' >> $GITHUB_OUTPUT
-          else
-            echo 'matrix={"include":[{"platform":"linux/amd64","deb_arch":"amd64","rpm_arch":"x86_64"},{"platform":"linux/arm64","deb_arch":"arm64","rpm_arch":"aarch64"}]}' >> $GITHUB_OUTPUT
-          fi
-
   # ── Linux: build binaries + package .deb + .rpm ────────────────────────────
-  # Each arch runs independently: compile, then package deb and rpm in sequence.
-  # No cross-arch waiting — amd64 packages as soon as its build is done.
+  # Each arch runs on a native runner — no QEMU, no cross-compilation.
+  # arm64 runners are available for public repos (GitHub-hosted, public preview).
 
   linux-package:
     name: Linux package (${{ matrix.deb_arch }})
-    needs: linux-matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs_on }}
     strategy:
-      matrix: ${{ fromJson(needs.linux-matrix.outputs.matrix) }}
+      matrix:
+        include:
+          - runs_on: ubuntu-24.04
+            deb_arch: amd64
+            rpm_arch: x86_64
+          - runs_on: ubuntu-24.04-arm64
+            deb_arch: arm64
+            rpm_arch: aarch64
 
     steps:
       - uses: actions/checkout@v6
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          cache-image: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -81,7 +55,6 @@ jobs:
       - name: Build binaries
         run: |
           docker buildx build \
-            --platform ${{ matrix.platform }} \
             --target binaries \
             -f packaging/linux/deb/builder.dockerfile \
             --cache-from type=gha,scope=linux-${{ matrix.deb_arch }} \
@@ -92,8 +65,6 @@ jobs:
       - name: Build .deb
         run: |
           docker buildx build \
-            --platform linux/amd64 \
-            --build-arg TARGET_ARCH=${{ matrix.deb_arch }} \
             -f packaging/linux/deb/packager.dockerfile \
             --output type=local,dest=dist \
             .
@@ -101,7 +72,6 @@ jobs:
       - name: Build .rpm
         run: |
           docker buildx build \
-            --platform linux/amd64 \
             --build-arg TARGET_ARCH=${{ matrix.rpm_arch }} \
             -f packaging/linux/rpm/packager.dockerfile \
             --output type=local,dest=dist \

@@ -89,7 +89,7 @@ run: build
 	open -a $(NAME)
 
 # ── signature, notarization
-sign: build
+sign: build-universal
 	codesign --deep --force --options runtime \
 		--entitlements $(ENTITLEMENTS) \
 		--sign "$(SIGN_IDENTITY)" \
