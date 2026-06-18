@@ -1,0 +1,190 @@
+# Français
+# Le HTML est autorisé dans les champs *_html
+# et dans les réponses FAQ / notes de version.
+
+[meta]
+title = "Desgrana — Pour extraire un WAV multipiste en pistes séparées"
+keywords = "desgrana, wav, multipiste, demux, extraction, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multipiste, WAV, enregistrement live, enregistrement concert, session, extraction audio, séparer pistes, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux"
+description = "Application gratuite pour macOS et Linux qui extrait les enregistrements multipistes Behringer Wing et X32 en pistes WAV séparées et nommées, prêtes à l'emploi dans un DAW. Open source, licence MIT."
+og_title = "Desgrana — Extracteur multipiste Behringer Wing/X32"
+
+jsonld_description = "Extrait les enregistrements multipistes WAV Behringer Wing/X32 en pistes mono ou stéréo séparées et nommées, prêtes pour n'importe quel DAW."
+
+[hero]
+title_main = "Desgrana,"
+title_sub  = "un extracteur de sessions multipistes Behringer Wing (ou X32)"
+tagline    = "Comment extraire les pistes d'un enregistrement live Wing ou X32 ?"
+
+[download]
+macos_label = "Télécharger Desgrana {v} pour macOS"
+macos_meta  = '''macOS 13 ou suivant &nbsp;·&nbsp; Apple Silicon &amp; Intel &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a> &nbsp;·&nbsp; Mis à jour le {date}'''
+linux_label = "Télécharger Desgrana {v} pour Linux"
+linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; x86_64 &amp; arm64 &nbsp;·&nbsp; .deb et .rpm &nbsp;·&nbsp; Mis à jour le {date}'''
+platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
+
+[situation]
+heading = "La situation"
+paragraphs = [
+  "Quand une session est enregistrée sur une Behringer Wing ou X32, elle atterrit dans un seul fichier WAV avec toutes les pistes entrelacées (il y a de bonnes raisons à ça).",
+  "La plupart des DAW (Logic Pro, Pro Tools, Ableton Live et tant d'autres) ne savent pas encore l'ouvrir directement en pistes séparées : vous obtenez au mieux une piste stéréo, ou rien. Reaper se débrouille mieux, mais les pistes restent anonymes et toutes séparées.",
+  "Desgrana lit ce fichier, sépare chaque canal en une piste mono ou stéréo, récupère les noms de canaux depuis le snapshot de votre console, et dépose le tout dans un dossier que votre DAW peut charger immédiatement.",
+]
+
+[features]
+heading = "Avec Desgrana"
+items = [
+  "Déposez le dossier de la session, vérifiez les paires mono/stéréo, cliquez : c'est prêt.",
+  "Le son de chaque piste reste intact : pas de conversion, pas de rééchantillonnage.",
+  "Les noms des pistes et les paires stéréo sont récupérés et appliqués automatiquement.",
+  "Seules les pistes réellement enregistrées apparaissent.",
+  "Les sessions longues sur plusieurs fichiers (de 4 Go) sont réarrangées en pistes continues.",
+  "Les marqueurs de session sont également récupérés (chunks cue dans le WAV ou fichier MIDI).",
+  "Application macOS signée et notariée.",
+  "Tout se passe sur votre machine.",
+  "Ça sépare aussi n'importe quel WAV autre que Behringer en autant de pistes mono.",
+  "Open source, licence MIT.",
+]
+
+[faq]
+heading = "FAQ"
+
+[[faq.items]]
+q = "Pourquoi je ne peux pas ouvrir mon enregistrement Wing ou X32 directement dans Logic Pro ou Reaper ?"
+a_html = '''<p>La carte écrit un seul WAV multicanal entrelacé.
+        Logic Pro l'importe en stéréo ; Reaper sait l'éclater en pistes, mais elles ressortent
+        numérotées et sans nom. Desgrana le découpe en WAV nommés, organise les pistes stéréo ou mono, prêtes pour n'importe quel DAW.</p>'''
+
+[[faq.items]]
+id = "platforms"
+q = "Quelles plateformes sont supportées ?"
+a_html = '''<p>Desgrana est disponible pour macOS 13+ et Linux (Debian/Ubuntu 12+, Fedora 41+)
+          depuis la version 1.8.</p>
+        <p>Aucune version Windows n'est prévue pour l'instant.
+          Voir <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>'''
+
+[[faq.items]]
+q = "Quelles consoles sont supportées ?"
+a_html = '''
+        <table>
+          <tr><td>Behringer Wing (et Rack, Compact)</td><td>✅ Testée</td></tr>
+          <tr><td>Behringer X32</td><td rowspan="2">Expérimental</td></tr>
+          <tr><td>Midas M32</td></tr>
+        </table>
+        <p><a href="https://github.com/rdalverny/desgrana/issues/9">Vos retours sont les bienvenus</a>.</p>'''
+
+[[faq.items]]
+q = "Ai-je besoin du fichier <code>.snap</code> ou <code>SE_LOG.bin</code> ?"
+a_html = '''<p>Non — sans eux, Desgrana extrait quand même chaque voie en fichier mono numéroté.</p>
+        <p>Avec, vous avez plus : <code>SE_LOG.bin</code> apporte les marqueurs et le nombre exact
+        de pistes ; le snapshot (<code>.snap</code> Wing / <code>.scn</code> X32) nomme les pistes et
+        détecte les paires stéréo. Déposez l'un ou l'autre dans le dossier de session, il est
+        récupéré automatiquement.</p>'''
+
+[[faq.items]]
+q = "Les marqueurs de session sont-ils conservés ?"
+a_html = '''<p>Oui. Intégrés en chunks <code>cue</code> dans chaque WAV et exportés en fichier MIDI
+        (plus CSV et texte).
+        Importez le MIDI : ils se placent au bon endroit dans votre DAW,
+        quel que soit le tempo du projet.</p>'''
+
+[[faq.items]]
+q = "Est-ce que ça envoie des données en ligne ?"
+a_html = '''<p>Non, ça fonctionne en local, sur votre machine.</p>
+        <p>La seule requête sortante
+          est une vérification de mise à jour une fois par mois,
+          que vous pouvez désactiver dans les réglages de l'application.</p>'''
+
+[[faq.items]]
+q = "Puis-je renommer les pistes avant de les extraire ?"
+a_html = '''<p>Les noms viennent du snapshot de la console. Corrigez-les sur la console, ou dans
+      votre DAW après import. Desgrana ne fait que découper la session pour la rendre digeste.</p>'''
+
+[[faq.items]]
+q = "J'enregistre directement dans Reaper depuis ma console, ai-je besoin de Desgrana ?"
+a_html = '''<p>Pas pour cette session-là : Reaper enregistre les pistes individuelles directement, déjà séparées.</p>
+        <p>Desgrana est utile si vous faites aussi tourner une W-Live ou X-Live comme backup simultané,
+        si vous recevez des sessions enregistrées par quelqu'un d'autre sur une Wing ou X32 sans ordinateur,
+        ou si vous devez accéder à des sessions archivées d'un concert précédent.</p>'''
+
+[[faq.items]]
+q = "Une autre question ?"
+a_html = '''N'hésitez pas à me contacter
+        <a href="https://github.com/rdalverny/desgrana">sur GitHub</a>
+        ou <a href="mailto:rwx@romaindalverny.com">par e-mail</a>.'''
+
+[changelog]
+heading = "Nouveautés"
+
+[[changelog.items]]
+version = "1.9.0"
+date = "28 mai 2026"
+notes_html = "Nouvelle logique de paires stéréo. Changement cassant : suppression du flag autoStereo."
+
+[[changelog.items]]
+version = "1.8.1"
+date = "26 mai 2026"
+notes_html = "Détection correcte des paires stéréo USB de la Wing."
+
+[[changelog.items]]
+version = "1.8"
+date = "13 mai 2026"
+notes_html = '''Linux : interface (Qt) et CLI, packagées en .deb (amd64/arm64) et .rpm (x86_64/aarch64).<br>
+          Support X32/M32 expérimental.<br>
+          Avertissement si le dossier de sortie existe déjà.'''
+
+[[changelog.items]]
+version = "1.7"
+date = "8 mai 2026"
+notes_html = '''Interface simplifiée.<br>
+          Noms de fichiers courts et auto-stéréo activés par défaut.<br>
+          Fenêtre de préférences (⌘,) : dossier de sortie, style de nommage,
+          intervalle de vérification des mises à jour (hebdomadaire / mensuel / 6 mois).<br>
+          CLI : flags <code>--auto-stereo</code> et <code>--short-names</code> ;
+          extrait toutes les pistes en mono par défaut.'''
+
+[[changelog.items]]
+version = "1.6.5"
+date = "2 mai 2026"
+notes_html = '''Première version publique sur GitHub.<br>
+          Site déplacé vers romaindalverny.com.'''
+
+[[changelog.items]]
+version = "1.6"
+date = "24 avr. 2026"
+notes_html = '''Extraction byte-exact — aucune conversion de format, aucune perte de précision quelle que soit la profondeur de bits.<br>
+          Installeur DMG.<br>
+          Vérifie discrètement les mises à jour.<br>
+          Ouvre la session extraite directement dans Logic Pro ou Reaper.'''
+
+[[changelog.items]]
+version = "1.5"
+date = "21 avr. 2026"
+notes_html = '''La sortie atterrit sur le Bureau par défaut (configurable).<br>
+          Nom de session auto-détecté et éditable.<br>
+          Option de nom de fichier court (<code>KICK.wav</code> au lieu de <code>Session_ch01_KICK.wav</code>).<br>
+          Édition manuelle des paires stéréo avant export.<br>
+          Correction de la détection des paires stéréo depuis le snapshot Wing.'''
+
+[[changelog.items]]
+version = "1.2 – 1.4"
+date = "18–20 avr. 2026"
+notes_html = '''Séparation des sessions multicanal en pistes individuelles.<br>
+          Export de marqueurs : chunks cue WAV, CSV, fichier MIDI standard
+          (SMF type 0, SMPTE 25 fps — s'importe dans Logic Pro).<br>
+          Support SE_LOG.bin et snapshot Wing, glisser-déposer.<br>
+          Interface plus propre. Détail du résultat affiché après export.'''
+
+[roadmap]
+heading = "Plans"
+paragraphs = [
+  '''Valider le bon fonctionnement sur les X32/M32, ainsi que les retours utilisateurs.
+    Améliorer l'export vers les DAW.''',
+  '''Le code source est sur <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
+      Rapports de bugs et contributions bienvenus, voir
+      <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
+]
+
+[footer]
+text = '''Desgrana &nbsp;·&nbsp;
+      par <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
+      Mis à jour en juin 2026'''

@@ -11,3 +11,6 @@ localdocs/
 Makefile.local
 qt/build/
 var/
+
+# Generated web build (run: make web)
+web/dist/
