@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
+/// Case variants to try when locating the Behringer SE_LOG binary on case-sensitive filesystems.
+public let seLogCandidates = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+
 /// All `.wav` files directly in `dir`, sorted by name.
 func wavFilesInDir(_ dir: URL) -> [URL] {
     guard let contents = try? FileManager.default.contentsOfDirectory(
