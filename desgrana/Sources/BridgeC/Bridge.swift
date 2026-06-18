@@ -45,7 +45,7 @@ public func desgrana_probe(
 
     let dir = sessionDirectory(from: input)
 
-    let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+    let selogURL = seLogCandidates
         .map { dir.appendingPathComponent($0) }
         .first { FileManager.default.fileExists(atPath: $0.path) }
 
@@ -150,7 +150,7 @@ public func desgrana_split(
     }
 
     // Build per-take frame offsets from SE_LOG for deterministic progress.
-    let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+    let selogURL = seLogCandidates
         .lazy.map { sessionDir.appendingPathComponent($0) }
         .first { FileManager.default.fileExists(atPath: $0.path) }
     let seInfo = selogURL.flatMap { try? parseSELog(at: $0) }
@@ -335,7 +335,7 @@ public func desgrana_export_daw_session(
     var markers: [(time: Double, name: String)] = []
     if let sp = sessionDir {
         let sdir = sessionDirectory(from: URL(fileURLWithPath: String(cString: sp)))
-        let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+        let selogURL = seLogCandidates
             .lazy.map { sdir.appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0.path) }
         if let info = selogURL.flatMap({ try? parseSELog(at: $0) }), !info.markerSamples.isEmpty {

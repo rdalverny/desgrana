@@ -140,7 +140,7 @@ class SplitViewModel: ObservableObject {
         let isFileInput = !isDir.boolValue
         let dir = isFileInput ? url.deletingLastPathComponent() : url
 
-        let selog = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
+        let selog = seLogCandidates
             .lazy
             .map { dir.appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0.path) }

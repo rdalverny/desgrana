@@ -277,7 +277,7 @@ struct DesgranaCLI {
     // MARK: - Human-readable helpers
 
     static func findSELog(in dir: URL) -> URL? {
-        for name in ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"] {
+        for name in seLogCandidates {
             let url = dir.appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: url.path) {
                 return url
