@@ -535,9 +535,15 @@ void DesgranaWindow::showReady() {
     // Estimate the bytes the extraction will write: roughly the total size of the
     // source WAV takes (splitting reorganizes the same samples into per-channel files).
     m_expectedOutputBytes = 0;
-    const QFileInfoList takes = QDir(m_sessionPath)
-        .entryInfoList(QStringList{"*.wav", "*.WAV"}, QDir::Files);
-    for (const QFileInfo &fi : takes) m_expectedOutputBytes += fi.size();
+    const QFileInfo sessionInfo(m_sessionPath);
+    if (sessionInfo.isFile()) {
+        // Single multichannel WAV (other recorders).
+        m_expectedOutputBytes = sessionInfo.size();
+    } else {
+        const QFileInfoList takes = QDir(m_sessionPath)
+            .entryInfoList(QStringList{"*.wav", "*.WAV"}, QDir::Files);
+        for (const QFileInfo &fi : takes) m_expectedOutputBytes += fi.size();
+    }
 
     updateOutputPath();
     switchToPage(1);
@@ -590,7 +596,8 @@ void DesgranaWindow::dropEvent(QDropEvent *e) {
     const QString ext  = QFileInfo(path).suffix().toLower();
     if ((ext == "snap" || ext == "scn") && m_currentPage == 1) {
         loadSnap(path);
-    } else if (QDir(path).exists()) {
+    } else if (QDir(path).exists() || ext == "wav") {
+        // A folder (Behringer session) or a single multichannel WAV (other recorders).
         loadSession(path);
     }
 }
@@ -629,8 +636,12 @@ void DesgranaWindow::loadSession(const QString &path) {
     for (int i = 0; i < m_pairCount; i++)
         m_effectivePairs.push_back({m_pairLefts[i], m_pairRights[i]});
 
+    const QFileInfo info(path);
     if (*sceneName)
         m_sessionName = QString::fromUtf8(sceneName);
+    else if (info.isFile())
+        // Single WAV (other recorders): default to the file name, like the macOS app.
+        m_sessionName = info.completeBaseName();
     else
         m_sessionName = QString("NONAME_%1").arg(QDateTime::currentDateTime().toString("yyMMddHH"));
     showReady();

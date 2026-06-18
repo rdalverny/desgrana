@@ -27,15 +27,33 @@ public func desgrana_probe(
     _ errLen: Int32,
     _ outSnapFound: UnsafeMutablePointer<Int32>?
 ) -> Int32 {
-    let dir = URL(fileURLWithPath: String(cString: sessionPath))
+    let input = URL(fileURLWithPath: String(cString: sessionPath))
+
+    // Resolve a folder (hex takes) or a single WAV file (other recorders).
+    // SE_LOG/snap live next to the takes, so look them up in the containing directory.
+    let resolved = resolveSessionTakes(at: input)
+    if case .ambiguous = resolved {
+        cStringCopy("Several WAV files here. Drop a single file, or a session folder.",
+                    into: errBuf, maxLen: Int(errLen))
+        return -1
+    }
+    let takes: [URL] = { if case .ok(let t) = resolved { return t } else { return [] } }()
+    if takes.isEmpty {
+        cStringCopy("No WAV takes found", into: errBuf, maxLen: Int(errLen))
+        return -1
+    }
+
+    let dir = sessionDirectory(from: input)
 
     let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
         .map { dir.appendingPathComponent($0) }
         .first { FileManager.default.fileExists(atPath: $0.path) }
 
     let session = selogURL.flatMap { try? parseSELog(at: $0) }
-    outChannels.pointee = Int32(session?.numChannels ?? 0)
-    outDuration.pointee = session?.totalDuration ?? 0
+    // No SE_LOG: recover channel count and duration from the first WAV header.
+    let header = session == nil ? takes.first.flatMap { probeWavHeader(at: $0) } : nil
+    outChannels.pointee = Int32(session?.numChannels ?? header?.channels ?? 0)
+    outDuration.pointee = session?.totalDuration ?? header?.duration ?? 0
 
     let snap = findConsoleSnapshot(in: dir).flatMap { try? parseSnapOrScene(at: $0) }
     outSnapFound?.pointee = snap != nil ? 1 : 0
@@ -59,7 +77,9 @@ public func desgrana_probe(
 
     let chNameMax = 64
     if let keys = outChKeys, let buf = outChNames, let cnt = outChCount, chCapacity > 0 {
-        let chNames = snap?.channelNames ?? [:]
+        // No snap: fall back to track names embedded in the WAV (iXML), like macOS does.
+        let chNames = snap?.channelNames
+            ?? (takes.first.map { parseIXMLTrackNames(at: $0) } ?? [:])
         let sorted = chNames.sorted { $0.key < $1.key }
         let n = min(sorted.count, Int(chCapacity))
         for i in 0..<n {
@@ -69,10 +89,6 @@ public func desgrana_probe(
         cnt.pointee = Int32(n)
     }
 
-    if findWavTakes(in: dir).isEmpty {
-        cStringCopy("No WAV takes found", into: errBuf, maxLen: Int(errLen))
-        return -1
-    }
     return 0
 }
 
@@ -103,9 +119,21 @@ public func desgrana_split(
     _ errBuf: UnsafeMutablePointer<CChar>?,
     _ errLen: Int32
 ) -> Int32 {
-    let sessionDir = URL(fileURLWithPath: String(cString: sessionPath))
+    let input      = URL(fileURLWithPath: String(cString: sessionPath))
     let outputDir  = URL(fileURLWithPath: String(cString: outputPath))
     let pfx        = prefix.map { String(cString: $0) } ?? ""
+
+    // Resolve a folder (hex takes) or a single WAV file (other recorders).
+    // SE_LOG lives next to the takes, so use the containing directory for its lookup.
+    let resolved = resolveSessionTakes(at: input)
+    guard case .ok(let takes) = resolved else {
+        let msg = { if case .ambiguous = resolved {
+            return "Several WAV files here. Drop a single file, or a session folder."
+        } else { return "No WAV takes found" } }()
+        cStringCopy(msg, into: errBuf, maxLen: Int(errLen))
+        return -1
+    }
+    let sessionDir = sessionDirectory(from: input)
 
     var pairs: [StereoPair] = []
     if let lefts = pairLefts, let rights = pairRights, pairCount > 0 {
@@ -146,6 +174,7 @@ public func desgrana_split(
             stereoPairs: pairs,
             channelNames: names,
             useShortFilenames: pfx.isEmpty,
+            takes: takes,
             progress: { take, total, framesInTake in
                 let fraction: Double
                 if totalFrames > 0 {
@@ -305,7 +334,7 @@ public func desgrana_export_daw_session(
     // matching the macOS app. The output dir holds only WAVs, so read the session dir.
     var markers: [(time: Double, name: String)] = []
     if let sp = sessionDir {
-        let sdir = URL(fileURLWithPath: String(cString: sp))
+        let sdir = sessionDirectory(from: URL(fileURLWithPath: String(cString: sp)))
         let selogURL = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
             .lazy.map { sdir.appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0.path) }
@@ -342,6 +371,13 @@ public func desgrana_export_daw_session(
 }
 
 // MARK: - Helpers
+
+/// Returns `url` if it is a directory, otherwise its parent directory.
+private func sessionDirectory(from url: URL) -> URL {
+    var isDir: ObjCBool = false
+    let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+    return (exists && isDir.boolValue) ? url : url.deletingLastPathComponent()
+}
 
 private func cStringCopy(_ str: String, into buf: UnsafeMutablePointer<CChar>?, maxLen: Int) {
     guard let buf = buf, maxLen > 1 else { return }
