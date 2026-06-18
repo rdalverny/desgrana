@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.0] — 2026-06-18
+
+- Support plain multichannel WAV files,
+  fetch track names from iXML chunks if any
+- DAW session export for Linux (Reaper, Ardour, Audacity)
+- Warn before extraction when the destination disk is low on space
+- Session/file drop zone also opens a folder picker if clicked
+
 ## [1.9.0] — 2026-05-28
 
 - (breaking change) removed autoStereo/--auto-stereo flag

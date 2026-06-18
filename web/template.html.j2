@@ -186,7 +186,7 @@
           stroke-linecap="round"
           stroke-linejoin="round"/>
       </svg>
-      {{ download.macos_label.format(v=version) }}
+      {{ download.macos_label.format(v=version_display) }}
     </a>
     <p class="download-meta">
       {{ download.macos_meta.format(date=download_date) }}
@@ -200,7 +200,7 @@
           stroke-linecap="round"
           stroke-linejoin="round"/>
       </svg>
-      {{ download.linux_label.format(v=version) }}
+      {{ download.linux_label.format(v=version_display) }}
     </a>
     <p class="download-meta">
       {{ download.linux_meta.format(date=download_date) }}

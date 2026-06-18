@@ -115,6 +115,10 @@ def main() -> int:
     for name, loc in LOCALES.items():
         strings = load_toml(I18N / f"{name}.toml")
         canonical = base + loc["url_suffix"]
+        v = common["version"]
+        parts = v.split(".")
+        v_display = v[: -(len(parts[-1]) + 1)] if parts[-1] == "0" else v
+
         ctx = {
             **common,
             **strings,
@@ -126,6 +130,7 @@ def main() -> int:
             "switch_label": loc["switch_label"],
             "switch_href": loc["switch_href"],
             "download_date": format_date(common["download_date"], name),
+            "version_display": v_display,
             # hreflang alternates, identical on every page
             "alt_en": base,
             "alt_fr": base + "fr/",

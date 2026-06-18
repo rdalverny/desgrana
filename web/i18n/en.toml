@@ -57,8 +57,7 @@ a_html = '''<p>The card writes one interleaved multichannel WAV.
 [[faq.items]]
 id = "platforms"
 q = "Which platforms are supported?"
-a_html = '''<p>Desgrana is available for macOS 13+ and Linux (Debian/Ubuntu 12+, Fedora 41+)
-          as of version 1.8.</p>
+a_html = '''<p>Desgrana is available for macOS 13+ and Linux (Debian/Ubuntu 12+, Fedora 41+).</p>
         <p>No Windows version is planned as of now.
           See <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>'''
 
@@ -111,6 +110,14 @@ a_html = '''Feel free to reach out
 
 [changelog]
 heading = "What's new"
+
+[[changelog.items]]
+version = "1.10.0"
+date = "Jun 18 2026"
+notes_html = '''Support plain multichannel WAV files from any field recorder, with iXML track names.<br>
+          DAW session export for Linux (Reaper, Ardour, Audacity).<br>
+          Low disk space warning before extraction.<br>
+          Click the drop zone to open a folder picker.'''
 
 [[changelog.items]]
 version = "1.9.0"
@@ -174,13 +181,12 @@ notes_html = '''Split multichannel sessions into separate tracks.<br>
 [roadmap]
 heading = "Roadmap"
 paragraphs = [
-  '''Validate use cases with users, DAW exports improvements.''',
+  '''Improved X32/M32 support based on user feedback. Windows support is not planned — see <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
   '''Source code is on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
-      Bug reports and contributions welcome, see
-      <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
+      Bug reports and contributions welcome.''',
 ]
 
 [footer]
 text = '''Desgrana &nbsp;·&nbsp;
       by <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
-      Updated June 2026'''
+      Updated June 18, 2026'''

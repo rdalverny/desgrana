@@ -25,23 +25,23 @@ platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ<
 [situation]
 heading = "La situation"
 paragraphs = [
-  "Quand une session est enregistrée sur une Behringer Wing ou X32, elle atterrit dans un seul fichier WAV avec toutes les pistes entrelacées (il y a de bonnes raisons à ça).",
-  "La plupart des DAW (Logic Pro, Pro Tools, Ableton Live et tant d'autres) ne savent pas encore l'ouvrir directement en pistes séparées : vous obtenez au mieux une piste stéréo, ou rien. Reaper se débrouille mieux, mais les pistes restent anonymes et toutes séparées.",
-  "Desgrana lit ce fichier, sépare chaque canal en une piste mono ou stéréo, récupère les noms de canaux depuis le snapshot de votre console, et dépose le tout dans un dossier que votre DAW peut charger immédiatement.",
+  "Quand une session est enregistrée avec une Behringer Wing ou X32 sur une carte SD, elle aboutit dans un fichier WAV multipistes.",
+  "La plupart des stations audio (Logic Pro, Pro Tools, Ableton Live et tant d'autres) ne savent pas encore l'ouvrir directement en pistes séparées : vous obtenez au mieux une piste stéréo, ou rien. Reaper se débrouille mieux, mais les pistes restent anonymes et toutes séparées.",
+  "Desgrana lit la session complète, sépare chaque canal en une piste mono ou stéréo, récupère les noms de canaux depuis le snapshot de votre console, et dépose le tout dans un dossier que votre DAW peut charger immédiatement.",
 ]
 
 [features]
 heading = "Avec Desgrana"
 items = [
   "Déposez le dossier de la session, vérifiez les paires mono/stéréo, cliquez : c'est prêt.",
-  "Le son de chaque piste reste intact : pas de conversion, pas de rééchantillonnage.",
+  "Le son de chaque piste reste intact&nbsp;: pas de conversion, pas de rééchantillonnage.",
   "Les noms des pistes et les paires stéréo sont récupérés et appliqués automatiquement.",
   "Seules les pistes réellement enregistrées apparaissent.",
   "Les sessions longues sur plusieurs fichiers (de 4 Go) sont réarrangées en pistes continues.",
   "Les marqueurs de session sont également récupérés (chunks cue dans le WAV ou fichier MIDI).",
   "Application macOS signée et notariée.",
   "Tout se passe sur votre machine.",
-  "Ça sépare aussi n'importe quel WAV autre que Behringer en autant de pistes mono.",
+  "Ça fonctionne aussi avec n'importe quel autre WAV multipiste.",
   "Open source, licence MIT.",
 ]
 
@@ -57,9 +57,8 @@ a_html = '''<p>La carte écrit un seul WAV multicanal entrelacé.
 [[faq.items]]
 id = "platforms"
 q = "Quelles plateformes sont supportées ?"
-a_html = '''<p>Desgrana est disponible pour macOS 13+ et Linux (Debian/Ubuntu 12+, Fedora 41+)
-          depuis la version 1.8.</p>
-        <p>Aucune version Windows n'est prévue pour l'instant.
+a_html = '''<p>Desgrana est disponible pour macOS 13+ et Linux (Debian/Ubuntu 12+, Fedora 41+).</p>
+        <p>Pas de version Windows prévue pour l'instant.
           Voir <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>'''
 
 [[faq.items]]
@@ -74,7 +73,7 @@ a_html = '''
 
 [[faq.items]]
 q = "Ai-je besoin du fichier <code>.snap</code> ou <code>SE_LOG.bin</code> ?"
-a_html = '''<p>Non — sans eux, Desgrana extrait quand même chaque voie en fichier mono numéroté.</p>
+a_html = '''<p>Non. Sans eux, Desgrana extrait quand même chaque voie en fichier mono numéroté.</p>
         <p>Avec, vous avez plus : <code>SE_LOG.bin</code> apporte les marqueurs et le nombre exact
         de pistes ; le snapshot (<code>.snap</code> Wing / <code>.scn</code> X32) nomme les pistes et
         détecte les paires stéréo. Déposez l'un ou l'autre dans le dossier de session, il est
@@ -116,6 +115,14 @@ a_html = '''N'hésitez pas à me contacter
 heading = "Nouveautés"
 
 [[changelog.items]]
+version = "1.10.0"
+date = "18 juin 2026"
+notes_html = '''Support des fichiers WAV multicanaux directs, avec noms de pistes iXML.<br>
+          Export de session DAW sous Linux (Reaper, Ardour, Audacity).<br>
+          Avertissement espace disque insuffisant avant extraction.<br>
+          La drop zone de dépôt ouvre aussi un sélecteur de fichier/dossier.'''
+
+[[changelog.items]]
 version = "1.9.0"
 date = "28 mai 2026"
 notes_html = "Nouvelle logique de paires stéréo. Changement cassant : suppression du flag autoStereo."
@@ -151,15 +158,15 @@ notes_html = '''Première version publique sur GitHub.<br>
 [[changelog.items]]
 version = "1.6"
 date = "24 avr. 2026"
-notes_html = '''Extraction byte-exact — aucune conversion de format, aucune perte de précision quelle que soit la profondeur de bits.<br>
+notes_html = '''Extraction byte-exact — aucune conversion, aucune perte de précision quelle que soit la profondeur de bits.<br>
           Installeur DMG.<br>
-          Vérifie discrètement les mises à jour.<br>
+          Vérification silencieuse des mises à jour.<br>
           Ouvre la session extraite directement dans Logic Pro ou Reaper.'''
 
 [[changelog.items]]
 version = "1.5"
 date = "21 avr. 2026"
-notes_html = '''La sortie atterrit sur le Bureau par défaut (configurable).<br>
+notes_html = '''Dossier de sortie sur le Bureau par défaut (configurable).<br>
           Nom de session auto-détecté et éditable.<br>
           Option de nom de fichier court (<code>KICK.wav</code> au lieu de <code>Session_ch01_KICK.wav</code>).<br>
           Édition manuelle des paires stéréo avant export.<br>
@@ -175,16 +182,14 @@ notes_html = '''Séparation des sessions multicanal en pistes individuelles.<br>
           Interface plus propre. Détail du résultat affiché après export.'''
 
 [roadmap]
-heading = "Plans"
+heading = "Feuille de route"
 paragraphs = [
-  '''Valider le bon fonctionnement sur les X32/M32, ainsi que les retours utilisateurs.
-    Améliorer l'export vers les DAW.''',
+  '''Améliorer le support X32/M32 selon les retours terrain. Windows n'est pas prévu — voir <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
   '''Le code source est sur <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
-      Rapports de bugs et contributions bienvenus, voir
-      <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
+      Rapports de bugs et contributions bienvenus.''',
 ]
 
 [footer]
 text = '''Desgrana &nbsp;·&nbsp;
       par <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
-      Mis à jour en juin 2026'''
+      Mis à jour le 18 juin 2026'''

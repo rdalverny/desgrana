@@ -20,8 +20,8 @@ BUILDX_BUILDER = multi
 
 SPM_NATIVE_DIR  := desgrana/.build/release
 SPM_UNIV_DIR    := desgrana/.build/apple/Products/Release
-SPM_APP_PRODUCT := $(SPM_APP_PRODUCT)
-CLI_BUILD       := $(CLI_BUILD)
+SPM_APP_PRODUCT := DesgranaApp
+CLI_BUILD       := $(BUILD)/desgrana
 DMG             := $(DIST)/$(NAME)-$(VERSION).dmg
 
 .PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \

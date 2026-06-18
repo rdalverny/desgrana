@@ -1,11 +1,29 @@
-# Desgrana
+<p align="center">
+  <img src="./web/icon_128x128.png" alt="Desgrana" width="120" />
+</p>
 
-[![CI](https://github.com/rdalverny/desgrana/actions/workflows/build.yml/badge.svg)](https://github.com/rdalverny/desgrana/actions)
+<h1 align="center">Desgrana</h1>
 
-> From session to mix.
+<p align="center">
+From session to mix.
+<br>
+Extract channels from interleaved multitrack WAV files into individual
+mono/stereo named tracks.
+</p>
 
-> Extract channels from interleaved multitrack WAV files into individual
-> mono/stereo ones.
+<p align="center">
+  Free &amp; open source ·  macOS & Linux
+</p>
+
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-1a1a1a" />
+  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-1a1a1a" />
+  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-linux-1a1a1a" />
+  <a href="https://github.com/rdalverny/desgrana/actions"><img alt="CI" src="https://github.com/rdalverny/desgrana/actions/workflows/build.yml/badge.svg" /></a>
+</p>
+
+---
+
 
 **[Download & documentation → romaindalverny.com/atelier/desgrana](https://romaindalverny.com/atelier/desgrana/)**
 
