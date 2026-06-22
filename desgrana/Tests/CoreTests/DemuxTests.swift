@@ -40,4 +40,22 @@ final class DemuxTests: XCTestCase {
     func testInt32ZeroIsSilence() {
         XCTAssertFalse(mono([0x00, 0x00, 0x00, 0x00], bytesPerSample: 4, isFloat: false))
     }
+
+    // float64 -0.0 (0x8000000000000000) is silence; full-scale int64 negative is signal.
+    func testFloat64NegativeZeroIsSilence() {
+        XCTAssertFalse(mono([0, 0, 0, 0, 0, 0, 0, 0x80], bytesPerSample: 8, isFloat: true))
+    }
+
+    func testInt64FullScaleNegativeIsSignal() {
+        XCTAssertTrue(mono([0, 0, 0, 0, 0, 0, 0, 0x80], bytesPerSample: 8, isFloat: false))
+    }
+
+    // 1.0 double = 0x3FF0000000000000 → non-zero, signal.
+    func testFloat64NonZeroIsSignal() {
+        XCTAssertTrue(mono([0, 0, 0, 0, 0, 0, 0xF0, 0x3F], bytesPerSample: 8, isFloat: true))
+    }
+
+    func testFloat64PositiveZeroIsSilence() {
+        XCTAssertFalse(mono([0, 0, 0, 0, 0, 0, 0, 0], bytesPerSample: 8, isFloat: true))
+    }
 }
