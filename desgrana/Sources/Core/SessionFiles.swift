@@ -68,6 +68,7 @@ public struct WavHeaderInfo {
     }
 }
 
+// swiftlint:disable cyclomatic_complexity
 /// Parse just the `fmt `/`data` chunks of a WAV to recover channel count, sample rate and
 /// duration — used to populate the UI track list when there is no SE_LOG.bin (other
 /// recorders). Cross-platform (pure RIFF parsing), mirrors `read_wav_fmt` in the tests.
@@ -83,6 +84,9 @@ public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
     func u32(_ b: [UInt8], _ o: Int) -> UInt32 {
         UInt32(b[o]) | (UInt32(b[o + 1]) << 8) | (UInt32(b[o + 2]) << 16) | (UInt32(b[o + 3]) << 24)
     }
+    func u64(_ b: [UInt8], _ o: Int) -> UInt64 {
+        (0..<8).reduce(UInt64(0)) { $0 | (UInt64(b[o + $1]) << (8 * $1)) }
+    }
     func tag(_ b: [UInt8], _ o: Int) -> String { String(bytes: b[o ..< o + 4], encoding: .ascii) ?? "" }
 
     guard let riff = read(12), tag(riff, 0) == "RIFF" || tag(riff, 0) == "RF64", tag(riff, 8) == "WAVE" else {
@@ -93,18 +97,24 @@ public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
     var sampleRate = 0.0
     var bits = 0
     var dataSize: UInt64 = 0
+    var ds64DataSize: UInt64?    // real `data` size for RF64 (>4 GB) files
 
     // Walk chunks until we hit `data` (whose payload we never read) or EOF.
     while let hdr = read(8) {
         let id = tag(hdr, 0)
         let size = u32(hdr, 4)
-        if id == "fmt " {
+        if id == "ds64" {
+            // RF64 64-bit sizes: riffSize(8), dataSize(8), sampleCount(8), table...
+            guard let body = read(Int(size) + Int(size & 1)) else { break }
+            if body.count >= 16 { ds64DataSize = u64(body, 8) }
+        } else if id == "fmt " {
             guard let body = read(Int(size) + Int(size & 1)) else { break }
             channels   = u16(body, 2)
             sampleRate = Double(u32(body, 4))
             bits       = u16(body, 14)
         } else if id == "data" {
-            dataSize = UInt64(size)
+            // RF64 stores 0xFFFF_FFFF here and the real size in ds64.
+            dataSize = (size == 0xFFFF_FFFF) ? (ds64DataSize ?? 0) : UInt64(size)
             break
         } else {
             // Skip this chunk's payload (small: fact/bext/iXML come before `data`).
@@ -114,11 +124,12 @@ public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
 
     guard channels > 0, sampleRate > 0 else { return nil }
     let frameBytes = channels * max(bits / 8, 1)
-    let duration = (dataSize > 0 && dataSize != 0xFFFF_FFFF && frameBytes > 0)
+    let duration = (dataSize > 0 && frameBytes > 0)
         ? Double(dataSize) / Double(frameBytes) / sampleRate
         : 0
     return WavHeaderInfo(channels: channels, sampleRate: sampleRate, duration: duration)
 }
+// swiftlint:enable cyclomatic_complexity
 
 /// Returns the raw payload of the first RIFF chunk with `id` (4 chars, e.g. "iXML"), or nil.
 /// Walks the chunk list, seeking past payloads (so it tolerates a large `data` chunk before
@@ -134,17 +145,26 @@ func riffChunk(at url: URL, id: String) -> Data? {
     func u32(_ b: [UInt8], _ o: Int) -> UInt64 {
         UInt64(b[o]) | (UInt64(b[o + 1]) << 8) | (UInt64(b[o + 2]) << 16) | (UInt64(b[o + 3]) << 24)
     }
+    func u64(_ b: [UInt8], _ o: Int) -> UInt64 {
+        (0..<8).reduce(UInt64(0)) { $0 | (UInt64(b[o + $1]) << (8 * $1)) }
+    }
     guard let riff = read(12), tag(riff, 0) == "RIFF" || tag(riff, 0) == "RF64", tag(riff, 8) == "WAVE" else {
         return nil
     }
     var offset: UInt64 = 12
+    var ds64DataSize: UInt64?
     while let hdr = read(8) {
         let cid = tag(hdr, 0)
-        let size = u32(hdr, 4)
+        var size = u32(hdr, 4)
         offset += 8                                   // now at payload start
         if cid == id {
             guard let d = try? fh.read(upToCount: Int(size)), d.count == Int(size) else { return nil }
             return d
+        }
+        if cid == "ds64", let body = read(Int(size)), body.count >= 16 {
+            ds64DataSize = u64(body, 8)
+        } else if cid == "data", size == 0xFFFF_FFFF, let real = ds64DataSize {
+            size = real                               // RF64: real `data` size lives in ds64
         }
         offset += size + (size & 1)                   // skip payload + RIFF pad byte
         guard (try? fh.seek(toOffset: offset)) != nil else { return nil }

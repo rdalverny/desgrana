@@ -43,14 +43,31 @@ func appendRIFFChunk(to url: URL, id: String, payload: Data) -> Bool {
     guard (try? fh.seekToEnd()) != nil,
           (try? fh.write(contentsOf: chunk)) != nil else { return false }
 
-    // 0xFFFF_FFFF signals a >4 GB file (RIFF64); writing a new size would overflow and corrupt the header.
-    // Also guard against ordinary overflow for files just under the RIFF64 threshold.
-    if currentRiffSize != 0xFFFF_FFFF,
-       (0xFFFF_FFFE - currentRiffSize) >= UInt32(chunk.count) {
+    if currentRiffSize == 0xFFFF_FFFF {
+        // RF64 (>4 GB): the real RIFF size is a 64-bit field in the ds64 chunk
+        // (file offset 20 = 12-byte header + 8-byte ds64 chunk header). Grow it there.
+        growRF64RIFFSize(fh, by: UInt64(chunk.count))
+    } else if (0xFFFF_FFFE - currentRiffSize) >= UInt32(chunk.count) {
+        // Plain RIFF: grow the 32-bit size at offset 4, guarding against overflow.
         let newSize = currentRiffSize + UInt32(chunk.count)
         var sizeLE = newSize.littleEndian
         guard (try? fh.seek(toOffset: 4)) != nil else { return false }
         try? fh.write(contentsOf: Data(bytes: &sizeLE, count: 4))
     }
     return true
+}
+
+/// Grows the RF64 `ds64` riffSize field by `delta`, if the file is a well-formed
+/// RF64 with `ds64` as its first chunk (riffSize at file offset 20).
+private func growRF64RIFFSize(_ fh: FileHandle, by delta: UInt64) {
+    guard (try? fh.seek(toOffset: 12)) != nil,
+          let head = try? fh.read(upToCount: 8), head.count == 8,
+          String(bytes: head[0 ..< 4], encoding: .ascii) == "ds64",
+          (try? fh.seek(toOffset: 20)) != nil,
+          let cur = try? fh.read(upToCount: 8), cur.count == 8 else { return }
+    let bytes = [UInt8](cur)
+    let current = (0..<8).reduce(UInt64(0)) { $0 | (UInt64(bytes[$1]) << (8 * $1)) }
+    var le = (current &+ delta).littleEndian
+    guard (try? fh.seek(toOffset: 20)) != nil else { return }
+    try? fh.write(contentsOf: Data(bytes: &le, count: 8))
 }

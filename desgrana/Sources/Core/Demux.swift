@@ -22,6 +22,7 @@ import Foundation
 ///   - numChannels:  total channel count in the source
 ///   - ch:           0-indexed channel to extract
 ///   - bytesPerSample: bytes per sample (e.g. 4 for float32 / int32, 3 for int24)
+///   - isFloat:      true for IEEE float samples; masks the sign bit so ±0.0 both count as silence
 ///   - hasSignal:    set to true if any non-zero sample is found (never reset to false)
 public func demuxMono(
     from rawIn: UnsafePointer<UInt8>,
@@ -30,17 +31,20 @@ public func demuxMono(
     numChannels: Int,
     ch: Int,
     bytesPerSample: Int,
+    isFloat: Bool,
     hasSignal: inout Bool
 ) {
     switch bytesPerSample {
     case 4:
+        // float32: mask the sign bit so +0.0 and -0.0 are both silence.
+        // int32: compare raw, so full-scale negative (0x80000000) counts as signal.
+        let mask: UInt32 = isFloat ? 0x7FFF_FFFF : 0xFFFF_FFFF
         rawIn.withMemoryRebound(to: UInt32.self, capacity: frames * numChannels) { src in
             monoOut.withMemoryRebound(to: UInt32.self, capacity: frames) { dst in
                 for f in 0..<frames {
                     let v = src[f * numChannels + ch]
                     dst[f] = v
-                    // mask sign bit: treats both +0.0 and -0.0 as silence
-                    if !hasSignal && (v & 0x7FFFFFFF) != 0 { hasSignal = true }
+                    if !hasSignal && (v & mask) != 0 { hasSignal = true }
                 }
             }
         }
@@ -82,10 +86,13 @@ public func demuxStereo(
     left: Int,
     right: Int,
     bytesPerSample: Int,
+    isFloat: Bool,
     hasSignal: inout Bool
 ) {
     switch bytesPerSample {
     case 4:
+        // float32: mask the sign bit (±0.0 = silence). int32: compare raw.
+        let mask: UInt32 = isFloat ? 0x7FFF_FFFF : 0xFFFF_FFFF
         rawIn.withMemoryRebound(to: UInt32.self, capacity: frames * numChannels) { src in
             stereoOut.withMemoryRebound(to: UInt32.self, capacity: frames * 2) { dst in
                 for f in 0..<frames {
@@ -93,7 +100,7 @@ public func demuxStereo(
                     let r = src[f * numChannels + right]
                     dst[f * 2]     = l
                     dst[f * 2 + 1] = r
-                    if !hasSignal && ((l & 0x7FFFFFFF) != 0 || (r & 0x7FFFFFFF) != 0) { hasSignal = true }
+                    if !hasSignal && ((l & mask) != 0 || (r & mask) != 0) { hasSignal = true }
                 }
             }
         }
