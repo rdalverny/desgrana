@@ -243,8 +243,10 @@ struct DesgranaCLI {
                 takes: wavFiles
             )
 
-            // Embed per-channel track names (independent of markers)
+            // Embed per-channel track names + broadcast metadata (independent of markers)
             writeIXMLChunks(to: result.outputs)
+            writeBextChunks(to: result.outputs, source: wavFiles.first,
+                            sampleRate: sessionInfo?.sampleRate ?? Int(result.sampleRate))
 
             // Export markers
             if let info = sessionInfo, !info.markerSamples.isEmpty {

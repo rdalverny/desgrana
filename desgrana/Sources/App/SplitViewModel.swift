@@ -249,6 +249,8 @@ class SplitViewModel: ObservableObject {
                 )
 
                 writeIXMLChunks(to: result.outputs)
+                writeBextChunks(to: result.outputs, source: capturedTakes.first,
+                                sampleRate: info?.sampleRate ?? Int(result.sampleRate))
 
                 if let info, !info.markerSamples.isEmpty {
                     writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)
