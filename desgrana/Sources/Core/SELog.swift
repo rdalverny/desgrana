@@ -8,7 +8,7 @@ import Foundation
 // see https://github.com/pmaillot/X32-Behringer/blob/master/X32cpXliveMarkers.c#L247
 //
 //  Offset  Size    Content
-//  0       4       Session timestamp (hex yymmhhmm)
+//  0       4       Session timestamp (Unix epoch: seconds since 1970-01-01 UTC)
 //  4       4       Number of channels (uint32)
 //  8       4       Sample rate (uint32)
 //  12      4       Session timestamp (duplicate)
