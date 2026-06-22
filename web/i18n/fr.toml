@@ -3,7 +3,7 @@
 # et dans les réponses FAQ / notes de version.
 
 [meta]
-title = "Desgrana — Pour extraire un WAV multipiste en pistes séparées"
+title = "Desgrana - De la session au mix : extraire un multipiste Behringer Wing/X32"
 keywords = "desgrana, wav, multipiste, demux, extraction, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multipiste, WAV, enregistrement live, enregistrement concert, session, extraction audio, séparer pistes, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux"
 description = "Application gratuite pour macOS et Linux qui extrait les enregistrements multipistes Behringer Wing et X32 en pistes WAV séparées et nommées, prêtes à l'emploi dans un DAW. Open source, licence MIT."
 og_title = "Desgrana — Extracteur multipiste Behringer Wing/X32"
@@ -11,15 +11,14 @@ og_title = "Desgrana — Extracteur multipiste Behringer Wing/X32"
 jsonld_description = "Extrait les enregistrements multipistes WAV Behringer Wing/X32 en pistes mono ou stéréo séparées et nommées, prêtes pour n'importe quel DAW."
 
 [hero]
-title_main = "Desgrana,"
-title_sub  = "un extracteur de sessions multipistes Behringer Wing (ou X32)"
-tagline    = "Comment extraire les pistes d'un enregistrement live Wing ou X32 ?"
+title_main = "Desgrana"
+tagline    = "Extraire un enregistrement live Behringer Wing ou X32 en pistes nommées, prêtes pour votre DAW."
 
 [download]
 macos_label = "Télécharger Desgrana {v} pour macOS"
-macos_meta  = '''macOS 13 ou suivant &nbsp;·&nbsp; Apple Silicon &amp; Intel &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a> &nbsp;·&nbsp; Mis à jour le {date}'''
+macos_meta  = '''macOS 13 ou suivant &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a> &nbsp;·&nbsp; {date}'''
 linux_label = "Télécharger Desgrana {v} pour Linux"
-linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; x86_64 &amp; arm64 &nbsp;·&nbsp; .deb et .rpm &nbsp;·&nbsp; Mis à jour le {date}'''
+linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
 platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
 
 [situation]
@@ -33,16 +32,13 @@ paragraphs = [
 [features]
 heading = "Avec Desgrana"
 items = [
-  "Déposez le dossier de la session, vérifiez les paires mono/stéréo, cliquez : c'est prêt.",
+  "Déposez le dossier de la session, cliquez : c'est prêt.",
   "Le son de chaque piste reste intact&nbsp;: pas de conversion, pas de rééchantillonnage.",
   "Les noms des pistes et les paires stéréo sont récupérés et appliqués automatiquement.",
   "Seules les pistes réellement enregistrées apparaissent.",
   "Les sessions longues sur plusieurs fichiers (de 4 Go) sont réarrangées en pistes continues.",
   "Les marqueurs de session sont également récupérés (chunks cue dans le WAV ou fichier MIDI).",
-  "Application macOS signée et notariée.",
-  "Tout se passe sur votre machine.",
   "Ça fonctionne aussi avec n'importe quel autre WAV multipiste.",
-  "Open source, licence MIT.",
 ]
 
 [faq]

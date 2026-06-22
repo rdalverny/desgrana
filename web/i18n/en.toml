@@ -11,15 +11,14 @@ og_title = "Desgrana — Behringer Wing/X32 multitrack extractor"
 jsonld_description = "Extract Behringer Wing/X32 multitrack WAV recordings into separate named mono or stereo tracks, ready for any DAW."
 
 [hero]
-title_main = "Desgrana,"
-title_sub  = "a Behringer Wing (or X32) Session Multitrack Extractor"
-tagline    = "How to extract tracks from a Wing or X32 live recording?"
+title_main = "Desgrana"
+tagline    = "Extract a Behringer Wing or X32 live recording into named, DAW-ready tracks."
 
 [download]
 macos_label = "Download Desgrana {v} for macOS"
-macos_meta  = '''macOS 13 or later &nbsp;·&nbsp; Apple Silicon &amp; Intel &nbsp;·&nbsp; <a href="#changelog">See what's new</a> &nbsp;·&nbsp; Last updated {date}'''
+macos_meta  = '''macOS 13 or later &nbsp;·&nbsp; <a href="#changelog">See what's new</a> &nbsp;·&nbsp; {date}'''
 linux_label = "Download Desgrana {v} for Linux"
-linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; x86_64 &amp; arm64 &nbsp;·&nbsp; .deb and .rpm &nbsp;·&nbsp; Last updated {date}'''
+linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
 platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
 
 [situation]
@@ -40,9 +39,6 @@ items = [
   "Long sessions split across several files at the 4 GB limit are stitched back into one continuous track.",
   "If you used markers in your recording session, they land in your DAW, as cue chunks in the WAV or MIDI file.",
   "Not only Behringer sessions: drop any multichannel WAV file and it splits that too.",
-  "macOS signed and notarized application.",
-  "Works offline.",
-  "Open Source, MIT license.",
 ]
 
 [faq]
