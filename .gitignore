@@ -14,3 +14,6 @@ var/
 
 # Generated web build (run: make web)
 web/dist/
+
+# Generated at build time by `make buildinfo`
+desgrana/Sources/Core/BuildInfo.swift

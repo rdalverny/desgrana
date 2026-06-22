@@ -70,7 +70,7 @@ final class ApplyUsbUnpairRenameTests: XCTestCase {
         StereoPair(left: 1, right: 2),
         StereoPair(left: 3, right: 4),
         StereoPair(left: 5, right: 6),
-        StereoPair(left: 7, right: 8),
+        StereoPair(left: 7, right: 8)
     ]
     private let snapNames4: [Int: String] = [1: "BD", 3: "SD", 5: "Toms", 7: "OH"]
 

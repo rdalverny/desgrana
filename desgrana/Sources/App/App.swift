@@ -65,6 +65,10 @@ struct AboutView: View {
             VStack(spacing: 4) {
                 Text("Desgrana").font(.title2.bold())
                 Text("Version \(version)").font(.caption).foregroundStyle(.secondary)
+                Text("\(BuildInfo.gitDescribe) · \(BuildInfo.buildDate.prefix(10))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
             }
 
             Text("From session to mix.")

@@ -4,6 +4,17 @@ import Foundation
 
 // MARK: - DAW session file generators
 
+/// Quotes a string for an RPP token using Reaper's convention: pick a quote
+/// character (`"`, `'`, then backtick) that the string does not contain. If it
+/// contains all three, fall back to backticks with inner backticks turned into
+/// apostrophes. Always quoted, so spaces and empty strings are safe.
+func rppQuote(_ s: String) -> String {
+    for q in ["\"", "'", "`"] where !s.contains(q) {
+        return q + s + q
+    }
+    return "`" + s.replacingOccurrences(of: "`", with: "'") + "`"
+}
+
 /// Generates a Reaper .rpp session file referencing the given WAV files.
 /// Note: verify MARKER line syntax against a real .rpp saved by Reaper before shipping —
 /// the structure below matches Reaper 6+ community docs but minor version differences exist.
@@ -28,14 +39,14 @@ public func generateRPP(
         let trackName = wav.url.deletingPathExtension().lastPathComponent
         lines += [
             "  <TRACK \(guid())",
-            "    NAME \"\(trackName)\"",
+            "    NAME \(rppQuote(trackName))",
             "    <ITEM",
             "      POSITION 0",
             String(format: "      LENGTH %.6f", duration),
             "      LOOP 0",
             "      GUID \(guid())",
             "      <SOURCE WAVE",
-            "        FILE \"\(wav.url.path)\"",
+            "        FILE \(rppQuote(wav.url.path))",
             "      >",
             "    >",
             "  >"
@@ -44,8 +55,8 @@ public func generateRPP(
 
     for (i, marker) in markers.enumerated() {
         lines.append(String(format:
-            "  MARKER %d %.6f \"%@\" 0 0 1",
-            i + 1, marker.time, marker.name))
+            "  MARKER %d %.6f %@ 0 0 1",
+            i + 1, marker.time, rppQuote(marker.name)))
     }
 
     lines.append(">")

@@ -5,11 +5,6 @@ import Foundation
 // MARK: - Data helpers (write only)
 
 private extension Data {
-    mutating func appendLE(_ value: UInt32) {
-        var v = value.littleEndian
-        append(Data(bytes: &v, count: 4))
-    }
-
     mutating func appendBE(_ value: UInt16) {
         var v = value.bigEndian
         append(Data(bytes: &v, count: 2))
@@ -46,46 +41,19 @@ public func writeCueChunks(to urls: [URL], markers: [UInt32]) {
 }
 
 private func writeCueChunk(to url: URL, markers: [UInt32]) {
-    guard let fh = try? FileHandle(forUpdating: url) else { return }
-    defer { try? fh.close() }
-
-    // Read current RIFF size (offset 4, 4 bytes LE)
-    guard (try? fh.seek(toOffset: 4)) != nil,
-          let riffSizeBytes = try? fh.read(upToCount: 4),
-          riffSizeBytes.count == 4 else { return }
-    let currentRiffSize = riffSizeBytes.withUnsafeBytes { $0.load(as: UInt32.self).littleEndian }
-
-    // Build cue chunk
-    // Structure: "cue " + size(4) + count(4) + N × { id(4) position(4) "data"(4) chunkStart(4) blockStart(4) sampleOffset(4) }
+    // cue payload: count(4) + N × { id(4) position(4) "data"(4) chunkStart(4) blockStart(4) sampleOffset(4) }
     let n = UInt32(markers.count)
-    let chunkDataSize = 4 + n * 24
-
-    var chunk = Data()
-    chunk.append(contentsOf: "cue ".utf8)
-    chunk.appendLE(chunkDataSize)
-    chunk.appendLE(n)
+    var payload = Data()
+    payload.appendLE(n)
     for (i, sample) in markers.enumerated() {
-        chunk.appendLE(UInt32(i + 1))       // id
-        chunk.appendLE(sample)              // position (= sampleOffset for non-playlist)
-        chunk.append(contentsOf: "data".utf8)
-        chunk.appendLE(0)                   // chunkStart
-        chunk.appendLE(0)                   // blockStart
-        chunk.appendLE(sample)              // sampleOffset
+        payload.appendLE(UInt32(i + 1))     // id
+        payload.appendLE(sample)            // position (= sampleOffset for non-playlist)
+        payload.append(contentsOf: "data".utf8)
+        payload.appendLE(0)                 // chunkStart
+        payload.appendLE(0)                 // blockStart
+        payload.appendLE(sample)            // sampleOffset
     }
-
-    // Append chunk and update RIFF size (skip update if already maxed out)
-    guard (try? fh.seekToEnd()) != nil,
-          (try? fh.write(contentsOf: chunk)) != nil else { return }
-
-    // 0xFFFF_FFFF signals a >4 GB file (RIFF64); writing a new size would overflow and corrupt the header.
-    // Also guard against ordinary overflow for files just under the RIFF64 threshold.
-    if currentRiffSize != 0xFFFF_FFFF,
-       (0xFFFF_FFFE - currentRiffSize) >= UInt32(chunk.count) {
-        let newSize = currentRiffSize + UInt32(chunk.count)
-        var sizeLE = newSize.littleEndian
-        guard (try? fh.seek(toOffset: 4)) != nil else { return }
-        try? fh.write(contentsOf: Data(bytes: &sizeLE, count: 4))
-    }
+    appendRIFFChunk(to: url, id: "cue ", payload: payload)
 }
 
 // MARK: - MIDI SMF export

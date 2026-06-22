@@ -21,7 +21,8 @@ public func buildOutputSpecs(
             : String(format: "%@ch%02d-%02d\(suffix).wav", prefix, pair.left, pair.right)
         specs.append(OutputSpec(
             kind: .stereo(left: pair.left - 1, right: pair.right - 1),
-            url: outputDir.appendingPathComponent(filename)
+            url: outputDir.appendingPathComponent(filename),
+            trackNames: [channelNames[pair.left] ?? "", channelNames[pair.right] ?? ""]
         ))
     }
     for ch in 0 ..< numChannels where !pairedChannels.contains(ch + 1) {
@@ -31,7 +32,8 @@ public func buildOutputSpecs(
             : String(format: "%@ch%02d\(suffix).wav", prefix, ch + 1)
         specs.append(OutputSpec(
             kind: .mono(ch: ch),
-            url: outputDir.appendingPathComponent(filename)
+            url: outputDir.appendingPathComponent(filename),
+            trackNames: [channelNames[ch + 1] ?? ""]
         ))
     }
     return specs
@@ -45,7 +47,7 @@ public func collectSplitResult(
     totalFramesWritten: UInt64,
     sampleRate: Double
 ) -> SplitResult {
-    var keptURLs: [URL] = []
+    var keptOutputs: [OutputFile] = []
     var silentCount = 0
     var keptMonoCount = 0, keptStereoCount = 0
     for (spec, signal) in zip(specs, hasSignal) {
@@ -53,7 +55,7 @@ public func collectSplitResult(
             try? FileManager.default.removeItem(at: spec.url)
             silentCount += 1
         } else {
-            keptURLs.append(spec.url)
+            keptOutputs.append(OutputFile(url: spec.url, trackNames: spec.trackNames))
             switch spec.kind {
             case .mono:   keptMonoCount += 1
             case .stereo: keptStereoCount += 1
@@ -61,7 +63,7 @@ public func collectSplitResult(
         }
     }
     return SplitResult(
-        urls: keptURLs, keptMono: keptMonoCount, keptStereo: keptStereoCount,
+        outputs: keptOutputs, keptMono: keptMonoCount, keptStereo: keptStereoCount,
         silentSkipped: silentCount, totalFrames: totalFramesWritten, sampleRate: sampleRate
     )
 }

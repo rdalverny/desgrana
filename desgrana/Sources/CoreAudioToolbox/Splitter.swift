@@ -201,7 +201,7 @@ public func splitSession(
                 case .mono(let ch):
                     demuxMono(from: rawIn, to: monoOut, frames: frames,
                               numChannels: numChannels, ch: ch,
-                              bytesPerSample: bytesPerSample,
+                              bytesPerSample: bytesPerSample, isFloat: isFloat,
                               hasSignal: &tracks[ti].hasSignal)
                     var list = AudioBufferList(
                         mNumberBuffers: 1,
@@ -221,7 +221,7 @@ public func splitSession(
                 case .stereo(let left, let right):
                     demuxStereo(from: rawIn, to: stereoOut, frames: frames,
                                 numChannels: numChannels, left: left, right: right,
-                                bytesPerSample: bytesPerSample,
+                                bytesPerSample: bytesPerSample, isFloat: isFloat,
                                 hasSignal: &tracks[ti].hasSignal)
                     var list = AudioBufferList(
                         mNumberBuffers: 1,

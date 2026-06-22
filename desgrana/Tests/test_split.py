@@ -70,6 +70,7 @@ import array as ar
 import json
 import math
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -85,6 +86,11 @@ MARKER_FRAMES = [SAMPLE_RATE // 2, SAMPLE_RATE, SAMPLE_RATE + SAMPLE_RATE // 2]
 FREQS         = [440.0, 550.0, 660.0, 880.0]
 
 PREFIX = "test_"
+
+# Project version (repo-root VERSION), for the prov chunk check.
+EXPECTED_VERSION = open(
+    os.path.join(os.path.dirname(__file__), "..", "..", "VERSION"), encoding="utf-8"
+).read().strip()
 
 # ── Dataclasses ───────────────────────────────────────────────────────────────
 
@@ -141,6 +147,9 @@ class TestCase:
 
     # Used only by the real-data runner (None = auto-derive from active channels)
     expected_outputs: "list[ExpectedOutput] | None" = None
+
+    # Expected iXML track names per output file ({filename: [names]}); None = no check.
+    expected_ixml: "dict | None" = None
 
 
 # ── Test cases ────────────────────────────────────────────────────────────────
@@ -211,6 +220,11 @@ CASES: list = [
         },
         desgrana_extra_args=["--short-names"],
         markers=MARKER_FRAMES,
+        expected_ixml={
+            "Kick.wav":  ["Kick"],
+            "Snare.wav": ["Snare"],
+            "OH.wav":    ["OH L", "OH R"],
+        },
     ),
     TestCase(
         name="case06_silent",
@@ -269,6 +283,12 @@ CASES: list = [
         },
         desgrana_extra_args=[],
         markers=[],
+        expected_ixml={
+            "test_ch01-02_BD.wav":   ["BD L", "BD R"],
+            "test_ch03-04_SD.wav":   ["SD L", "SD R"],
+            "test_ch05-06_Toms.wav": ["Toms L", "Toms R"],
+            "test_ch07-08_OH.wav":   ["OH L", "OH R"],
+        },
     ),
     # case04: truncated from the real SD Card session WAV.
     # Not committed; skipped automatically when the source file is absent.
@@ -506,6 +526,49 @@ def read_cue_positions(wav_path: str) -> list:
     return []
 
 
+def read_ixml_names(wav_path: str) -> "list[str] | None":
+    """Return <NAME> values from the iXML chunk in document order, or None if absent."""
+    with open(wav_path, "rb") as f:
+        hdr = f.read(12)
+        if hdr[:4] not in (b"RIFF", b"RF64") or hdr[8:12] != b"WAVE":
+            return None
+        while True:
+            chunk_hdr = f.read(8)
+            if len(chunk_hdr) < 8:
+                break
+            tag, size = struct.unpack("<4sI", chunk_hdr)
+            if tag == b"iXML":
+                payload = f.read(size).rstrip(b"\x00").decode("utf-8", "replace")
+                return re.findall(r"<NAME>(.*?)</NAME>", payload)
+            f.seek(size + (size & 1), 1)
+    return None
+
+
+def read_bext(wav_path: str) -> "dict | None":
+    """Return the bext chunk fields, or None if absent."""
+    with open(wav_path, "rb") as f:
+        hdr = f.read(12)
+        if hdr[:4] not in (b"RIFF", b"RF64") or hdr[8:12] != b"WAVE":
+            return None
+        while True:
+            chunk_hdr = f.read(8)
+            if len(chunk_hdr) < 8:
+                break
+            tag, size = struct.unpack("<4sI", chunk_hdr)
+            if tag == b"bext":
+                body = f.read(size)
+                return {
+                    "originator": body[256:288].split(b"\x00")[0].decode("ascii", "replace"),
+                    "orig_ref":   body[288:320].split(b"\x00")[0].decode("ascii", "replace"),
+                    "date":       body[320:330].rstrip(b"\x00").decode("ascii", "replace"),
+                    "time":       body[330:338].rstrip(b"\x00").decode("ascii", "replace"),
+                    "time_ref":   struct.unpack("<Q", body[338:346])[0],
+                    "coding":     body[602:].rstrip(b"\x00").decode("ascii", "replace"),
+                }
+            f.seek(size + (size & 1), 1)
+    return None
+
+
 def read_midi_marker_events(mid_path: str) -> list:
     """Parse a Type-0 SMPTE SMF and return (absolute_tick, name) for every marker."""
     with open(mid_path, "rb") as f:
@@ -594,6 +657,42 @@ def verify_markers(case: TestCase, output_dir: str) -> int:
         print(f"         got      : {events}")
         print(f"         expected : {expected}")
         failures += 1
+    return failures
+
+
+def verify_bext(output_dir: str) -> int:
+    """Every output WAV must carry a bext chunk. Synthetic sources have no source
+    bext, so Originator is Desgrana, no fabricated timecode, and the coded
+    OriginatorReference + CodingHistory identify the build."""
+    failures = 0
+    for fname in sorted(f for f in os.listdir(output_dir) if f.lower().endswith(".wav")):
+        b = read_bext(os.path.join(output_dir, fname))
+        ok = (b is not None
+              and b["originator"] == "Desgrana"
+              and b["time_ref"] == 0
+              and b["date"] == "" and b["time"] == ""
+              and b["orig_ref"] == ""
+              and f"Desgrana {EXPECTED_VERSION}" in b["coding"])
+        if ok:
+            print(f"  OK    {fname}  bext  {b['coding'].strip()}")
+        else:
+            print(f"  FAIL  {fname}  bext = {b}")
+            failures += 1
+    return failures
+
+
+def verify_ixml(case: TestCase, output_dir: str) -> int:
+    """Verify embedded iXML track names against case.expected_ixml. Returns failure count."""
+    if not case.expected_ixml:
+        return 0
+    failures = 0
+    for fname, expected in case.expected_ixml.items():
+        got = read_ixml_names(os.path.join(output_dir, fname))
+        if got == expected:
+            print(f"  OK    {fname}  iXML = {got}")
+        else:
+            print(f"  FAIL  {fname}  iXML = {got}  (expected {expected})")
+            failures += 1
     return failures
 
 
@@ -808,6 +907,13 @@ def run_case_test(case: TestCase, binary: str, fixtures_dir: str, tmp_dir: str) 
 
     print("\n-- Comparing output to expected/")
     failures = compare_outputs(output_dir, expected_dir)
+
+    if case.expected_ixml:
+        print("\n-- Verifying iXML track names")
+        failures += verify_ixml(case, output_dir)
+
+    print("\n-- Verifying bext chunk")
+    failures += verify_bext(output_dir)
 
     if failures == 0:
         print("\n  OK  all checks passed")
