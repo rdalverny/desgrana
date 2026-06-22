@@ -152,7 +152,7 @@ public func splitSession(
                 case .mono(let ch):
                     demuxMono(from: rawIn, to: monoOut, frames: frames,
                               numChannels: numChannels, ch: ch,
-                              bytesPerSample: bytesPerSample,
+                              bytesPerSample: bytesPerSample, isFloat: formatTag == 3,
                               hasSignal: &tracks[ti].hasSignal)
                     let byteCount = frames * bytesPerSample
                     guard drwav_write_raw(tracks[ti].wavWriter, byteCount, monoOut) == byteCount else {
@@ -164,7 +164,7 @@ public func splitSession(
                 case .stereo(let left, let right):
                     demuxStereo(from: rawIn, to: stereoOut, frames: frames,
                                 numChannels: numChannels, left: left, right: right,
-                                bytesPerSample: bytesPerSample,
+                                bytesPerSample: bytesPerSample, isFloat: formatTag == 3,
                                 hasSignal: &tracks[ti].hasSignal)
                     let byteCount = frames * bytesPerSample * 2
                     guard drwav_write_raw(tracks[ti].wavWriter, byteCount, stereoOut) == byteCount else {
