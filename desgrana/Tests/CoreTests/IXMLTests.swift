@@ -65,4 +65,45 @@ final class IXMLTests: XCTestCase {
         """
         XCTAssertEqual(ixmlTrackNames(fromXML: xml), [1: "Snare"])
     }
+
+    // Numeric character references (decimal and hex) decode.
+    func testNumericEntityDecoding() {
+        let xml = "<TRACK_LIST><TRACK><INTERLEAVE_INDEX>1</INTERLEAVE_INDEX><NAME>Caf&#233; &#x4D;ic</NAME></TRACK></TRACK_LIST>"
+        XCTAssertEqual(ixmlTrackNames(fromXML: xml), [1: "Café Mic"])
+    }
+
+    // MARK: - Write path
+
+    // A mono name written out is read back unchanged.
+    func testMonoRoundTrip() {
+        let xml = ixmlDocument(forTrackNames: ["Kick"])
+        XCTAssertNotNil(xml)
+        XCTAssertEqual(ixmlTrackNames(fromXML: xml ?? ""), [1: "Kick"])
+    }
+
+    // Stereo writes two L/R tracks, recovered as positions 1 and 2.
+    func testStereoRoundTrip() {
+        let xml = ixmlDocument(forTrackNames: ["OH_L", "OH_R"])
+        XCTAssertEqual(ixmlTrackNames(fromXML: xml ?? ""), [1: "OH L", 2: "OH R"])
+    }
+
+    // Special characters survive a write/read round-trip via entity encoding.
+    func testNameWithEntitiesRoundTrip() {
+        let xml = ixmlDocument(forTrackNames: ["A & B <2>"])
+        XCTAssertEqual(ixmlTrackNames(fromXML: xml ?? ""), [1: "A & B <2>"])
+    }
+
+    // No name on either side → no document (and so no chunk is written).
+    func testNoNameProducesNoDocument() {
+        XCTAssertNil(ixmlDocument(forTrackNames: [""]))
+        XCTAssertNil(ixmlDocument(forTrackNames: ["", ""]))
+    }
+
+    // Stereo base derivation: shared L/R suffix, single named side, and none.
+    func testStereoLabels() {
+        XCTAssertEqual(stereoLabels(left: "OH_L", right: "OH_R").map { [$0.0, $0.1] }, ["OH L", "OH R"])
+        XCTAssertEqual(stereoLabels(left: "OH", right: "").map { [$0.0, $0.1] }, ["OH L", "OH R"])
+        XCTAssertEqual(stereoLabels(left: "", right: "OH-R").map { [$0.0, $0.1] }, ["OH L", "OH R"])
+        XCTAssertNil(stereoLabels(left: "", right: ""))
+    }
 }

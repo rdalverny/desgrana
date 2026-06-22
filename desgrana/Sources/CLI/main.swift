@@ -243,6 +243,9 @@ struct DesgranaCLI {
                 takes: wavFiles
             )
 
+            // Embed per-channel track names (independent of markers)
+            writeIXMLChunks(to: result.outputs)
+
             // Export markers
             if let info = sessionInfo, !info.markerSamples.isEmpty {
                 writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)

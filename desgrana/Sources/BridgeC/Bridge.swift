@@ -186,6 +186,7 @@ public func desgrana_split(
                 progressCb?(Int32(take), Int32(total), fraction, userData)
             }
         )
+        writeIXMLChunks(to: result.outputs)
         if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
         if let p = outKeptMono      { p.pointee = Int32(result.keptMono) }
         if let p = outKeptStereo    { p.pointee = Int32(result.keptStereo) }

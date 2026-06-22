@@ -34,12 +34,34 @@ private func ixmlAllGroups(_ pattern: String, in s: String) -> [String] {
 }
 
 private func decodeXMLEntities(_ s: String) -> String {
-    s.replacingOccurrences(of: "&lt;", with: "<")
+    decodeNumericEntities(s)
+     .replacingOccurrences(of: "&lt;", with: "<")
      .replacingOccurrences(of: "&gt;", with: ">")
      .replacingOccurrences(of: "&quot;", with: "\"")
      .replacingOccurrences(of: "&apos;", with: "'")
-     .replacingOccurrences(of: "&#39;", with: "'")
      .replacingOccurrences(of: "&amp;", with: "&")   // last, to avoid double-decoding
+}
+
+/// Decodes numeric character references `&#nnn;` (decimal) and `&#xHH;` (hex).
+/// Invalid or out-of-range references are left untouched.
+private func decodeNumericEntities(_ s: String) -> String {
+    guard s.contains("&#"), let re = ixmlRegex(#"&#(x?)([0-9A-Fa-f]+);"#) else { return s }
+    let ns = s as NSString
+    var out = ""
+    var last = 0
+    for m in re.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+        out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+        let isHex = ns.substring(with: m.range(at: 1)) == "x"
+        let digits = ns.substring(with: m.range(at: 2))
+        if let code = UInt32(digits, radix: isHex ? 16 : 10), let scalar = Unicode.Scalar(code) {
+            out.append(Character(scalar))
+        } else {
+            out += ns.substring(with: m.range)   // leave invalid references as-is
+        }
+        last = m.range.location + m.range.length
+    }
+    out += ns.substring(with: NSRange(location: last, length: ns.length - last))
+    return out
 }
 
 /// Reads per-channel track names from the WAV's `iXML` chunk, when present. Returns `[:]`
@@ -70,4 +92,69 @@ func ixmlTrackNames(fromXML xml: String) -> [Int: String] {
         names[index] = name
     }
     return names
+}
+
+// MARK: - iXML write
+//
+// Mirror of the reader above: embeds an `iXML` chunk carrying per-channel track
+// names into each output WAV, so the names survive a file rename and round-trip
+// back through `parseIXMLTrackNames`. Metadata-only — the audio `data` chunk is
+// never touched (see RIFFWrite.swift).
+
+/// Escapes the five XML predefined entities for safe inclusion in element text.
+func encodeXMLEntities(_ s: String) -> String {
+    s.replacingOccurrences(of: "&", with: "&amp;")    // first, to avoid double-encoding
+     .replacingOccurrences(of: "<", with: "&lt;")
+     .replacingOccurrences(of: ">", with: "&gt;")
+     .replacingOccurrences(of: "\"", with: "&quot;")
+     .replacingOccurrences(of: "'", with: "&apos;")
+}
+
+/// Derives `("<base> L", "<base> R")` from a stereo pair's raw channel names.
+/// Strips an existing `_L`/`-L`/` L` (and R) suffix to recover the base, and
+/// falls back to whichever side is named. Returns nil if neither side has a name.
+func stereoLabels(left: String, right: String) -> (String, String)? {
+    let seps = ["_", "-", " "]
+    func strip(_ s: String, _ side: Character) -> String {
+        for sep in seps where s.hasSuffix("\(sep)\(side)") { return String(s.dropLast(sep.count + 1)) }
+        return s
+    }
+    var base: String?
+    if !left.isEmpty, !right.isEmpty {
+        for sep in seps where left.hasSuffix("\(sep)L") && right.hasSuffix("\(sep)R") {
+            let lb = String(left.dropLast(sep.count + 1))
+            if lb == String(right.dropLast(sep.count + 1)), !lb.isEmpty { base = lb }
+        }
+    }
+    if base == nil { base = left.isEmpty ? (right.isEmpty ? nil : strip(right, "R")) : strip(left, "L") }
+    guard let b = base, !b.isEmpty else { return nil }
+    return ("\(b) L", "\(b) R")
+}
+
+/// Builds a minimal BWFXML document for a file's track names (1 entry = mono,
+/// 2 = stereo L/R). Returns nil when there is no name worth recording.
+func ixmlDocument(forTrackNames names: [String]) -> String? {
+    let labels: [String]
+    switch names.count {
+    case 1 where !names[0].isEmpty: labels = [names[0]]
+    case 2:
+        guard let (l, r) = stereoLabels(left: names[0], right: names[1]) else { return nil }
+        labels = [l, r]
+    default: return nil
+    }
+    let tracks = labels.enumerated().map { i, name in
+        "<TRACK><CHANNEL_INDEX>\(i + 1)</CHANNEL_INDEX><INTERLEAVE_INDEX>\(i + 1)</INTERLEAVE_INDEX>"
+            + "<NAME>\(encodeXMLEntities(name))</NAME></TRACK>"
+    }.joined()
+    return #"<?xml version="1.0" encoding="UTF-8"?>"#
+        + "<BWFXML><IXML_VERSION>1.61</IXML_VERSION>"
+        + "<TRACK_LIST><TRACK_COUNT>\(labels.count)</TRACK_COUNT>\(tracks)</TRACK_LIST></BWFXML>"
+}
+
+/// Writes an `iXML` chunk into each output WAV that has at least one named channel.
+public func writeIXMLChunks(to outputs: [OutputFile]) {
+    for file in outputs {
+        guard let xml = ixmlDocument(forTrackNames: file.trackNames) else { continue }
+        appendRIFFChunk(to: file.url, id: "iXML", payload: Data(xml.utf8))
+    }
 }

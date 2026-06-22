@@ -248,6 +248,8 @@ class SplitViewModel: ObservableObject {
                     }
                 )
 
+                writeIXMLChunks(to: result.outputs)
+
                 if let info, !info.markerSamples.isEmpty {
                     writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)
                     exportMarkers(info, to: outputDir, prefix: pfx)
