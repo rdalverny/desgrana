@@ -13,15 +13,27 @@ public struct StereoPair: Equatable {
     }
 }
 
+/// One written output file: its URL plus the per-channel track names
+/// (1 entry for a mono file, 2 for a stereo L/R file). Names may be empty
+/// when the source channel had no name.
+public struct OutputFile {
+    public let url: URL
+    public let trackNames: [String]
+    public init(url: URL, trackNames: [String]) {
+        self.url = url
+        self.trackNames = trackNames
+    }
+}
+
 public struct SplitResult {
-    public let urls: [URL]
+    public let outputs: [OutputFile]
     public let keptMono: Int
     public let keptStereo: Int
     public let silentSkipped: Int
     public let totalFrames: UInt64
     public let sampleRate: Double
-    public init(urls: [URL], keptMono: Int, keptStereo: Int, silentSkipped: Int, totalFrames: UInt64, sampleRate: Double) {
-        self.urls = urls
+    public init(outputs: [OutputFile], keptMono: Int, keptStereo: Int, silentSkipped: Int, totalFrames: UInt64, sampleRate: Double) {
+        self.outputs = outputs
         self.keptMono = keptMono
         self.keptStereo = keptStereo
         self.silentSkipped = silentSkipped
@@ -83,4 +95,12 @@ public enum TrackKind {
 public struct OutputSpec {
     public let kind: TrackKind
     public let url: URL
+    /// Per-channel source names for this file (1 for mono, 2 for stereo L/R).
+    /// Empty strings for unnamed channels. Used to embed iXML track names.
+    public let trackNames: [String]
+    public init(kind: TrackKind, url: URL, trackNames: [String] = []) {
+        self.kind = kind
+        self.url = url
+        self.trackNames = trackNames
+    }
 }

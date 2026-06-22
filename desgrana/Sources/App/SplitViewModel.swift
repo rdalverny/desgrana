@@ -249,7 +249,7 @@ class SplitViewModel: ObservableObject {
                 )
 
                 if let info, !info.markerSamples.isEmpty {
-                    writeCueChunks(to: result.urls, markers: info.markerSamples)
+                    writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)
                     exportMarkers(info, to: outputDir, prefix: pfx)
                     exportMIDIMarkers(info, to: outputDir, prefix: pfx)
                 }
