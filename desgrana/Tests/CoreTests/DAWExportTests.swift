@@ -99,6 +99,31 @@ final class DAWExportTests: XCTestCase {
         XCTAssertTrue(content.contains("MARKER 1 3.500000 \"Verse\""))
     }
 
+    func testRPPQuoteSelectsSafeChar() {
+        XCTAssertEqual(rppQuote("Kick"), "\"Kick\"")
+        XCTAssertEqual(rppQuote("with space"), "\"with space\"")
+        XCTAssertEqual(rppQuote(""), "\"\"")
+        XCTAssertEqual(rppQuote("has\"quote"), "'has\"quote'")     // contains " → use '
+        XCTAssertEqual(rppQuote("has'apos"), "\"has'apos\"")       // contains ' → use "
+        XCTAssertEqual(rppQuote("both\"and'"), "`both\"and'`")     // contains both → use `
+        XCTAssertEqual(rppQuote("all\"'`"), "`all\"''`")           // all three → ` with inner ` → '
+    }
+
+    func testRPPQuotesPathWithQuote() throws {
+        let dir = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // A path containing a double quote must not break the RPP token.
+        let wav = dir.appendingPathComponent("a\"b.wav")
+        let url = try generateRPP(wavs: [(wav, 1)], duration: 1, sampleRate: 48000,
+                                  markers: [], outputDir: dir)
+        let content = try String(contentsOf: url)
+
+        // FILE token wrapped in single quotes, path preserved verbatim inside.
+        XCTAssertTrue(content.contains("FILE '\(wav.path)'"))
+        XCTAssertFalse(content.contains("FILE \"\(wav.path)\""))
+    }
+
     func testRPPFilenameMatchesOutputDir() throws {
         let dir = try tmpDir()
         defer { try? FileManager.default.removeItem(at: dir) }
