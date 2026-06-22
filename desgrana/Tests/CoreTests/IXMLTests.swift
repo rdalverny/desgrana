@@ -106,4 +106,11 @@ final class IXMLTests: XCTestCase {
         XCTAssertEqual(stereoLabels(left: "", right: "OH-R").map { [$0.0, $0.1] }, ["OH L", "OH R"])
         XCTAssertNil(stereoLabels(left: "", right: ""))
     }
+
+    // Two genuinely different names on a pair are both kept, not collapsed to one base.
+    func testStereoLabelsPreservesDistinctNames() {
+        XCTAssertEqual(stereoLabels(left: "Boom", right: "Lav").map { [$0.0, $0.1] }, ["Boom", "Lav"])
+        let xml = ixmlDocument(forTrackNames: ["Boom", "Lav"])
+        XCTAssertEqual(ixmlTrackNames(fromXML: xml ?? ""), [1: "Boom", 2: "Lav"])
+    }
 }

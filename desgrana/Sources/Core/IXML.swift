@@ -110,25 +110,21 @@ func encodeXMLEntities(_ s: String) -> String {
      .replacingOccurrences(of: "'", with: "&apos;")
 }
 
-/// Derives `("<base> L", "<base> R")` from a stereo pair's raw channel names.
-/// Strips an existing `_L`/`-L`/` L` (and R) suffix to recover the base, and
-/// falls back to whichever side is named. Returns nil if neither side has a name.
+/// Derives the two channel labels for a stereo file from its raw channel names.
+/// When both sides share an `_L`/`-L`/` L` (and R) base, collapses to
+/// `("<base> L", "<base> R")`. When both are named but unrelated, keeps each name
+/// verbatim. When only one side is named, derives `L`/`R` from it. Returns nil if
+/// neither side has a name.
 func stereoLabels(left: String, right: String) -> (String, String)? {
-    let seps = ["_", "-", " "]
-    func strip(_ s: String, _ side: Character) -> String {
-        for sep in seps where s.hasSuffix("\(sep)\(side)") { return String(s.dropLast(sep.count + 1)) }
-        return s
+    if let base = sharedStereoBase(left: left, right: right) {
+        return ("\(base) L", "\(base) R")           // shared base → collapse
     }
-    var base: String?
     if !left.isEmpty, !right.isEmpty {
-        for sep in seps where left.hasSuffix("\(sep)L") && right.hasSuffix("\(sep)R") {
-            let lb = String(left.dropLast(sep.count + 1))
-            if lb == String(right.dropLast(sep.count + 1)), !lb.isEmpty { base = lb }
-        }
+        return (left, right)                          // distinct names → preserve both
     }
-    if base == nil { base = left.isEmpty ? (right.isEmpty ? nil : strip(right, "R")) : strip(left, "L") }
-    guard let b = base, !b.isEmpty else { return nil }
-    return ("\(b) L", "\(b) R")
+    let base = left.isEmpty ? strippedStereoSide(right, "R") : strippedStereoSide(left, "L")
+    guard !base.isEmpty else { return nil }
+    return ("\(base) L", "\(base) R")
 }
 
 /// Builds a minimal BWFXML document for a file's track names (1 entry = mono,

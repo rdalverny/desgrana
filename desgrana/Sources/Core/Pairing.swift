@@ -22,6 +22,29 @@ public func filterStereoPairs(_ pairs: [StereoPair], channelCount: Int) -> [Ster
     return result
 }
 
+/// Separators recognised between a stereo base name and its `L`/`R` side.
+private let stereoSeparators = ["_", "-", " "]
+
+/// If `left`/`right` share a common `_L`/`-L`/` L` (and `R`) base, returns that
+/// base; otherwise nil. Single source of truth for stereo-pair name folding, used
+/// by pair detection here, the output filename suffix (`channelNameSuffix`) and the
+/// iXML track labels (`stereoLabels`).
+func sharedStereoBase(left: String, right: String) -> String? {
+    guard !left.isEmpty, !right.isEmpty else { return nil }
+    for sep in stereoSeparators where left.hasSuffix("\(sep)L") && right.hasSuffix("\(sep)R") {
+        let lb = String(left.dropLast(sep.count + 1))
+        if lb == String(right.dropLast(sep.count + 1)), !lb.isEmpty { return lb }
+    }
+    return nil
+}
+
+/// Removes a trailing `_L`/`-L`/` L` (or R) side suffix from a single channel name,
+/// recovering its base (e.g. "OH_L" → "OH"). Returns the name unchanged if absent.
+func strippedStereoSide(_ s: String, _ side: Character) -> String {
+    for sep in stereoSeparators where s.hasSuffix("\(sep)\(side)") { return String(s.dropLast(sep.count + 1)) }
+    return s
+}
+
 /// Detects stereo pairs from channel names by looking for adjacent channels sharing
 /// a common base name with L/R suffixes (_L/_R, -L/-R, " L"/" R").
 /// Channels without names or without a matching suffix are left as mono.
@@ -32,18 +55,9 @@ public func detectStereoPairsFromNames(_ names: [Int: String], channelCount: Int
         guard !claimed.contains(ch) else { continue }
         let next = ch + 1
         guard !claimed.contains(next) else { continue }
-        let l = names[ch] ?? ""
-        let r = names[next] ?? ""
-        guard !l.isEmpty, !r.isEmpty else { continue }
-        for sep in ["_", "-", " "] {
-            if l.hasSuffix("\(sep)L") && r.hasSuffix("\(sep)R") {
-                let base = String(l.dropLast(sep.count + 1))
-                if base == String(r.dropLast(sep.count + 1)), !base.isEmpty {
-                    pairs.append(StereoPair(left: ch, right: next))
-                    claimed.insert(ch); claimed.insert(next)
-                    break
-                }
-            }
+        if sharedStereoBase(left: names[ch] ?? "", right: names[next] ?? "") != nil {
+            pairs.append(StereoPair(left: ch, right: next))
+            claimed.insert(ch); claimed.insert(next)
         }
     }
     return pairs

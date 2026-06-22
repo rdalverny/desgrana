@@ -171,14 +171,7 @@ public func channelNameSuffix(for channels: [Int], names: [Int: String]) -> Stri
     let parts = channels.map { names[$0] ?? "" }
     guard !parts.isEmpty else { return "" }
     if parts.count == 2 {
-        let l = parts[0], r = parts[1]
-        for sep in ["_", "-", " "] {
-            if l.hasSuffix("\(sep)L") && r.hasSuffix("\(sep)R") {
-                let base  = String(l.dropLast(sep.count + 1))
-                let rBase = String(r.dropLast(sep.count + 1))
-                if base == rBase && !base.isEmpty { return "_\(base)" }
-            }
-        }
+        if let base = sharedStereoBase(left: parts[0], right: parts[1]) { return "_\(base)" }
         let joined = parts.filter { !$0.isEmpty }.joined(separator: "-")
         return joined.isEmpty ? "" : "_\(joined)"
     }
