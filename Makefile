@@ -26,7 +26,7 @@ DMG             := $(DIST)/$(NAME)-$(VERSION).dmg
 
 .PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \
         test test-generate package shipit release sign notarize icon \
-        patch minor clean lint lint-fix format format-check package-debian test-image test-debian web
+        patch minor clean lint lint-fix format format-check package-debian test-image test-debian web tag
 
 # ── Build ─────────────────────────────────────────────────────────
 
@@ -117,6 +117,21 @@ notarize: package
 	xcrun stapler staple "$(DMG)"
 	@echo "Notarized → $(DIST)/$(NAME)-$(VERSION).dmg"
 
+
+# ── Tag & push ───────────────────────────────────────────────────────
+tag:
+	@TAG=v$(VERSION); \
+	 git diff --quiet && git diff --cached --quiet \
+	   || { echo "Uncommitted changes — aborting."; exit 1; }; \
+	 git fetch --quiet origin; \
+	 git diff --quiet HEAD origin/main \
+	   || { echo "main is not in sync with origin/main — push or pull first."; exit 1; }; \
+	 git rev-parse "$$TAG" >/dev/null 2>&1 \
+	   && { echo "Tag $$TAG already exists."; exit 1; } || true; \
+	 git tag "$$TAG"; \
+	 git push origin main "$$TAG"; \
+	 open "https://github.com/$(GITHUB_REPO)/actions"; \
+	 echo "Tagged and pushed $$TAG — opening Actions."
 
 # ── version ─────────────────────────────────────────────────────────
 define bump-version
