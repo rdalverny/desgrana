@@ -191,6 +191,14 @@ class SplitViewModel: ObservableObject {
         }
     }
 
+    /// Applies a progress tick only while a split is still running. Progress callbacks hop
+    /// to the main actor as independent tasks, so a late tick can otherwise land after the
+    /// final `.done`/`.error` and revert the UI to `.splitting` — guard against that here.
+    private func applyProgress(take: Int, totalTakes: Int, fraction: Double) {
+        guard case .splitting = state else { return }
+        state = .splitting(take: take, totalTakes: totalTakes, fraction: fraction)
+    }
+
     func split(sessionDir: URL) {
         let outputDir = customOutputDir ?? defaultOutputDir(for: sessionDir)
 
@@ -244,7 +252,7 @@ class SplitViewModel: ObservableObject {
                             ? min((before + Double(framesInTake)) / totalFrames, 1.0)
                             : 0
                         Task { @MainActor in
-                            self?.state = .splitting(take: take, totalTakes: total, fraction: fraction)
+                            self?.applyProgress(take: take, totalTakes: total, fraction: fraction)
                         }
                     }
                 )
