@@ -38,12 +38,13 @@ public func splitSession(
     let wavFiles = takes ?? findWavTakes(in: sessionDir)
     guard !wavFiles.isEmpty else { throw SplitError.noWavFiles }
 
-    // Source format from the first take.
+    // Source format and provenance bext from the first take, in one open.
     let firstReader = try openReader(wavFiles[0])
     let numChannels  = firstReader.format.channels
     let sampleRate   = Double(firstReader.format.sampleRate)
     let sourceBits   = firstReader.format.bitsPerSample
     let isFloat      = firstReader.format.isFloat
+    let sourceBext   = parseSourceBext(firstReader.metadataChunk("bext"))
     firstReader.close()
 
     let bytesPerSample = sourceBits / 8
@@ -70,7 +71,7 @@ public func splitSession(
     )
 
     // Metadata (bext/iXML/cue) embedded before `data` at file creation.
-    let meta = outputMetadata(for: specs, source: wavFiles.first,
+    let meta = outputMetadata(for: specs, sourceBext: sourceBext,
                               sampleRate: Int(sampleRate), markers: markers)
 
     // Create outputs (WAVWriter closes its handle on deinit, so writers made so far

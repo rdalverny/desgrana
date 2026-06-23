@@ -41,6 +41,19 @@ public final class WAVReader {
     /// Whole frames available.
     public var frameCount: UInt64 { format.blockAlign > 0 ? dataByteCount / UInt64(format.blockAlign) : 0 }
 
+    /// Metadata chunks found before `data`, keyed by 4-char id. Collected during the same
+    /// header walk so callers need not re-open the file. Pre-`data` only (bext/iXML/cue
+    /// conventionally precede `data`).
+    public let metadata: [String: Data]
+
+    /// Convenience lookup into `metadata` (e.g. `metadataChunk("bext")`).
+    public func metadataChunk(_ id: String) -> Data? { metadata[id] }
+
+    /// Small pre-`data` chunk ids worth keeping; others are skipped without reading payload.
+    private static let metadataIDs: Set<String> = ["bext", "iXML", "cue ", "smpl", "fact"]
+    /// Don't buffer a metadata chunk larger than this (guards against a pathological size).
+    private static let metadataCap: UInt64 = 4 << 20
+
     private let fh: FileHandle
     private var bytesRemaining: UInt64
     private var closed = false
@@ -70,6 +83,7 @@ public final class WAVReader {
         var rf64DataSize: UInt64?       // authoritative `data` size from ds64 (RF64)
         var dataStart: UInt64?
         var dataDeclared: UInt64 = 0    // 32-bit `data` size as written (sentinel-aware below)
+        var collected: [String: Data] = [:]
 
         var offset: UInt64 = 12
         chunks: while true {
@@ -98,7 +112,10 @@ public final class WAVReader {
                 }
 
             default:
-                break                                         // skip unknown chunk
+                if Self.metadataIDs.contains(cid), size <= Self.metadataCap,
+                   let body = readBytes(Int(size)) {
+                    collected[cid] = Data(body)
+                }
             }
 
             offset = payloadStart + size + pad
@@ -124,6 +141,7 @@ public final class WAVReader {
         self.format = fmt
         self.dataByteCount = resolved
         self.bytesRemaining = resolved
+        self.metadata = collected
         try? handle.seek(toOffset: start)
     }
 

@@ -12,13 +12,13 @@ import Foundation
 /// Metadata chunks to embed in each output, aligned with `specs`. `bext` is always
 /// present (synthesized when the source has none); `iXML` only when the file has a
 /// named channel; `cue ` only when there are markers.
-public func outputMetadata(
+func outputMetadata(
     for specs: [OutputSpec],
-    source: URL?,
+    sourceBext: SourceBext?,
     sampleRate: Int,
     markers: [UInt32]
 ) -> [[(id: String, payload: Data)]] {
-    let bext = bextPayload(source: parseSourceBext(at: source), sampleRate: sampleRate)
+    let bext = bextPayload(source: sourceBext, sampleRate: sampleRate)
     let cue: Data? = markers.isEmpty ? nil : cuePayload(markers)
     return specs.map { spec in
         var chunks: [(id: String, payload: Data)] = [("bext", bext)]

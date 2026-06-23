@@ -36,9 +36,14 @@ struct SourceBext {
 
 /// Reads the provenance fields from a source take's `bext` chunk, if any.
 func parseSourceBext(at url: URL?) -> SourceBext? {
-    guard let url, let payload = riffChunk(at: url, id: "bext"), payload.count >= Bext.timeReference + 8 else {
-        return nil
-    }
+    guard let url else { return nil }
+    return parseSourceBext(riffChunk(at: url, id: "bext"))
+}
+
+/// Parses provenance fields from an already-read `bext` payload (lets the splitter reuse
+/// the chunk WAVReader already collected instead of re-opening the source).
+func parseSourceBext(_ payload: Data?) -> SourceBext? {
+    guard let payload, payload.count >= Bext.timeReference + 8 else { return nil }
     let b = [UInt8](payload)
     func ascii(_ off: Int, _ len: Int) -> String {
         let slice = b[off ..< off + len].prefix { $0 != 0 }
