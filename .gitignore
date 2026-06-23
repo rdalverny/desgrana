@@ -19,5 +19,8 @@ web/dist/
 desgrana/Sources/Core/BuildInfo.swift
 mailmap
 
-# Local private test files
+# Local private test files & doc
 desgrana/Tests/Private
+/*.md
+*.afdesign
+*.mov
