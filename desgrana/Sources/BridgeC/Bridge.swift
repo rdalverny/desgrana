@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 import DesgranaCore
-import DesgranaCoreWav
 
 // MARK: - Probe
 

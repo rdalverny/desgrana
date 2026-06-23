@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 import SwiftUI
 import DesgranaCore
-import DesgranaCoreAudioToolbox
 
 extension Notification.Name {
     static let checkForUpdatesNow = Notification.Name("DesgranaCheckForUpdatesNow")
