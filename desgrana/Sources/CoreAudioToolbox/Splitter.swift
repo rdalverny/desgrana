@@ -8,7 +8,7 @@ import DesgranaCore
 
 private struct Track {
     let spec: OutputSpec
-    let fileRef: ExtAudioFileRef
+    let writer: WAVWriter
     var hasSignal: Bool = false
 }
 
@@ -26,6 +26,7 @@ public func splitSession(
     channelNames: [Int: String] = [:],
     useShortFilenames: Bool = false,
     takes: [URL]? = nil,
+    markers: [UInt32] = [],
     progress: ProgressCallback? = nil
 ) throws -> SplitResult {
     // Use the explicitly resolved takes if provided, else fall back to hex-named discovery.
@@ -51,17 +52,6 @@ public func splitSession(
     let sampleRate     = srcFmt.mSampleRate
     let bytesPerSample = Int(srcFmt.mBitsPerChannel) / 8
     let frameStride    = numChannels * bytesPerSample
-
-    // Derive mono / stereo output formats from source (just change channel count)
-    var monoFmt   = srcFmt
-    monoFmt.mChannelsPerFrame = 1
-    monoFmt.mBytesPerFrame    = UInt32(bytesPerSample)
-    monoFmt.mBytesPerPacket   = UInt32(bytesPerSample)
-
-    var stereoFmt = srcFmt
-    stereoFmt.mChannelsPerFrame = 2
-    stereoFmt.mBytesPerFrame    = UInt32(bytesPerSample * 2)
-    stereoFmt.mBytesPerPacket   = UInt32(bytesPerSample * 2)
 
     // Validate stereo pairs
     let (activePairs, pairedChannels) = validateStereoPairs(stereoPairs, channelCount: numChannels)
@@ -92,39 +82,23 @@ public func splitSession(
         useShortFilenames: useShortFilenames
     )
 
-    // Create output files
-    func makeOutputFile(_ url: URL, fmt: inout AudioStreamBasicDescription) throws -> ExtAudioFileRef {
-        var outFile: ExtAudioFileRef?
-        var s = ExtAudioFileCreateWithURL(
-            url as CFURL, kAudioFileWAVEType, &fmt, nil,
-            AudioFileFlags.eraseFile.rawValue, &outFile
-        )
-        guard s == noErr, let f = outFile else {
-            throw SplitError.cannotCreateOutput("\(url.lastPathComponent) (OSStatus \(s))")
-        }
-        // Client format = file format: no conversion, raw bytes passed through
-        s = ExtAudioFileSetProperty(f, kExtAudioFileProperty_ClientDataFormat,
-            UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &fmt)
-        guard s == noErr else {
-            ExtAudioFileDispose(f)
-            throw SplitError.cannotSetClientFormat(s)
-        }
-        return f
-    }
+    // Metadata (bext/iXML/cue) embedded before `data` at file creation.
+    let meta = outputMetadata(for: specs, source: wavFiles.first,
+                              sampleRate: Int(sampleRate), markers: markers)
 
+    // Create output files (WAVWriter closes its file handle on deinit, so writers
+    // created so far are cleaned up if a later one throws). Reading stays on
+    // ExtAudioFile; only the output side moves to WAVWriter.
+    let bits = Int(srcFmt.mBitsPerChannel)
     var tracks: [Track] = []
-    do {
-        for spec in specs {
-            let fileRef: ExtAudioFileRef
-            switch spec.kind {
-            case .stereo: fileRef = try makeOutputFile(spec.url, fmt: &stereoFmt)
-            case .mono:   fileRef = try makeOutputFile(spec.url, fmt: &monoFmt)
-            }
-            tracks.append(Track(spec: spec, fileRef: fileRef))
-        }
-    } catch {
-        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
-        throw error
+    for (spec, chunks) in zip(specs, meta) {
+        let writer = try WAVWriter(
+            url: spec.url,
+            format: WAVFormat(channels: spec.kind.channelCount, sampleRate: Int(sampleRate),
+                              bitsPerSample: bits, isFloat: isFloat),
+            metadata: chunks
+        )
+        tracks.append(Track(spec: spec, writer: writer))
     }
 
     // Allocate raw byte buffers
@@ -146,7 +120,6 @@ public func splitSession(
         var takeFile: ExtAudioFileRef?
         status = ExtAudioFileOpenURL(wavURL as CFURL, &takeFile)
         guard status == noErr, let tf = takeFile else {
-            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotOpenInput("\(wavURL.lastPathComponent) (OSStatus \(status))")
         }
 
@@ -155,7 +128,6 @@ public func splitSession(
         ExtAudioFileGetProperty(tf, kExtAudioFileProperty_FileDataFormat, &sz, &takeFmt)
         guard Int(takeFmt.mChannelsPerFrame) == numChannels else {
             ExtAudioFileDispose(tf)
-            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.channelMismatch(
                 expected: numChannels, got: Int(takeFmt.mChannelsPerFrame),
                 file: wavURL.lastPathComponent
@@ -168,7 +140,6 @@ public func splitSession(
             UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &clientFmt)
         guard status == noErr else {
             ExtAudioFileDispose(tf)
-            tracks.forEach { ExtAudioFileDispose($0.fileRef) }
             throw SplitError.cannotSetClientFormat(status)
         }
 
@@ -190,53 +161,34 @@ public func splitSession(
             status = ExtAudioFileRead(tf, &framesToRead, &bufferList)
             guard status == noErr else {
                 ExtAudioFileDispose(tf)
-                tracks.forEach { ExtAudioFileDispose($0.fileRef) }
                 throw SplitError.readError(status)
             }
             if framesToRead == 0 { break }
             let frames = Int(framesToRead)
 
             for ti in 0 ..< tracks.count {
+                let byteCount: Int
+                let out: UnsafeMutablePointer<UInt8>
                 switch tracks[ti].spec.kind {
                 case .mono(let ch):
                     demuxMono(from: rawIn, to: monoOut, frames: frames,
                               numChannels: numChannels, ch: ch,
                               bytesPerSample: bytesPerSample, isFloat: isFloat,
                               hasSignal: &tracks[ti].hasSignal)
-                    var list = AudioBufferList(
-                        mNumberBuffers: 1,
-                        mBuffers: AudioBuffer(
-                            mNumberChannels: 1,
-                            mDataByteSize: UInt32(frames * bytesPerSample),
-                            mData: monoOut
-                        )
-                    )
-                    status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
-                    guard status == noErr else {
-                        ExtAudioFileDispose(tf)
-                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
-                        throw SplitError.writeError(status)
-                    }
+                    out = monoOut; byteCount = frames * bytesPerSample
 
                 case .stereo(let left, let right):
                     demuxStereo(from: rawIn, to: stereoOut, frames: frames,
                                 numChannels: numChannels, left: left, right: right,
                                 bytesPerSample: bytesPerSample, isFloat: isFloat,
                                 hasSignal: &tracks[ti].hasSignal)
-                    var list = AudioBufferList(
-                        mNumberBuffers: 1,
-                        mBuffers: AudioBuffer(
-                            mNumberChannels: 2,
-                            mDataByteSize: UInt32(frames * bytesPerSample * 2),
-                            mData: stereoOut
-                        )
-                    )
-                    status = ExtAudioFileWrite(tracks[ti].fileRef, UInt32(frames), &list)
-                    guard status == noErr else {
-                        ExtAudioFileDispose(tf)
-                        tracks.forEach { ExtAudioFileDispose($0.fileRef) }
-                        throw SplitError.writeError(status)
-                    }
+                    out = stereoOut; byteCount = frames * bytesPerSample * 2
+                }
+                do {
+                    try tracks[ti].writer.append(UnsafeRawBufferPointer(start: out, count: byteCount))
+                } catch {
+                    ExtAudioFileDispose(tf)
+                    throw SplitError.writeError(0)
                 }
             }
 
@@ -249,7 +201,7 @@ public func splitSession(
         print(" \(framesInTake) frames (\(formatTime(Double(framesInTake) / sampleRate)))")
     }
 
-    for track in tracks { ExtAudioFileDispose(track.fileRef) }
+    for track in tracks { try track.writer.finalize() }
 
     return collectSplitResult(
         specs: tracks.map(\.spec),

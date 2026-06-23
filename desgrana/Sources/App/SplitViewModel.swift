@@ -237,6 +237,7 @@ class SplitViewModel: ObservableObject {
                     channelNames: names,
                     useShortFilenames: shortNames,
                     takes: capturedTakes,
+                    markers: info?.markerSamples ?? [],
                     progress: { take, total, framesInTake in
                         let before = capturedFrames[take] ?? 0
                         let fraction = totalFrames > 0
@@ -248,12 +249,9 @@ class SplitViewModel: ObservableObject {
                     }
                 )
 
-                writeIXMLChunks(to: result.outputs)
-                writeBextChunks(to: result.outputs, source: capturedTakes.first,
-                                sampleRate: info?.sampleRate ?? Int(result.sampleRate))
-
+                // iXML track names, bext and cue (markers) are embedded before `data`
+                // at file creation by splitSession.
                 if let info, !info.markerSamples.isEmpty {
-                    writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)
                     exportMarkers(info, to: outputDir, prefix: pfx)
                     exportMIDIMarkers(info, to: outputDir, prefix: pfx)
                 }

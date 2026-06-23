@@ -59,6 +59,12 @@ let package = Package(
             name: "DesgranaCoreTests",
             dependencies: ["DesgranaCore"],
             path: "Tests/CoreTests"
+        ),
+        // Cross-checks WAVWriter output against the dr_wav reference writer/reader
+        .testTarget(
+            name: "DesgranaWriterTests",
+            dependencies: ["DesgranaCore", "CWav"],
+            path: "Tests/WriterTests"
         )
     ]
 )

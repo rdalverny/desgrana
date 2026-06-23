@@ -233,6 +233,8 @@ struct DesgranaCLI {
 
         // Split
         do {
+            // iXML track names + bext + cue (markers) are embedded before `data` at
+            // file creation by splitSession; markers also get sidecar .txt/.mid exports.
             let result = try splitSession(
                 sessionDir: sessionDir,
                 outputDir: outputDir,
@@ -240,17 +242,11 @@ struct DesgranaCLI {
                 stereoPairs: activePairs,
                 channelNames: channelNames,
                 useShortFilenames: cliArgs.shortNames,
-                takes: wavFiles
+                takes: wavFiles,
+                markers: sessionInfo?.markerSamples ?? []
             )
 
-            // Embed per-channel track names + broadcast metadata (independent of markers)
-            writeIXMLChunks(to: result.outputs)
-            writeBextChunks(to: result.outputs, source: wavFiles.first,
-                            sampleRate: sessionInfo?.sampleRate ?? Int(result.sampleRate))
-
-            // Export markers
             if let info = sessionInfo, !info.markerSamples.isEmpty {
-                writeCueChunks(to: result.outputs.map(\.url), markers: info.markerSamples)
                 exportMarkers(info, to: outputDir, prefix: pfx)
                 exportMIDIMarkers(info, to: outputDir, prefix: pfx)
             }

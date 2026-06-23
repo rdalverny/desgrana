@@ -146,11 +146,3 @@ func ixmlDocument(forTrackNames names: [String]) -> String? {
         + "<BWFXML><IXML_VERSION>1.61</IXML_VERSION>"
         + "<TRACK_LIST><TRACK_COUNT>\(labels.count)</TRACK_COUNT>\(tracks)</TRACK_LIST></BWFXML>"
 }
-
-/// Writes an `iXML` chunk into each output WAV that has at least one named channel.
-public func writeIXMLChunks(to outputs: [OutputFile]) {
-    for file in outputs {
-        guard let xml = ixmlDocument(forTrackNames: file.trackNames) else { continue }
-        appendRIFFChunk(to: file.url, id: "iXML", payload: Data(xml.utf8))
-    }
-}

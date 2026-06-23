@@ -44,9 +44,6 @@ func parseSourceBext(at url: URL?) -> SourceBext? {
         let slice = b[off ..< off + len].prefix { $0 != 0 }
         return String(bytes: slice, encoding: .ascii)?.trimmingCharacters(in: .whitespaces) ?? ""
     }
-    func u32(_ o: Int) -> UInt32 {
-        UInt32(b[o]) | UInt32(b[o + 1]) << 8 | UInt32(b[o + 2]) << 16 | UInt32(b[o + 3]) << 24
-    }
     let history: String
     if b.count > Bext.codingHistory {
         let slice = b[Bext.codingHistory...].prefix { $0 != 0 }
@@ -59,8 +56,8 @@ func parseSourceBext(at url: URL?) -> SourceBext? {
         originatorReference: ascii(Bext.originatorReference, 32),
         originationDate: ascii(Bext.originationDate, 10),
         originationTime: ascii(Bext.originationTime, 8),
-        timeReferenceLow: u32(Bext.timeReference),
-        timeReferenceHigh: u32(Bext.timeReference + 4),
+        timeReferenceLow: leU32(b, Bext.timeReference),
+        timeReferenceHigh: leU32(b, Bext.timeReference + 4),
         codingHistory: history
     )
 }
@@ -82,8 +79,7 @@ func bextPayload(source: SourceBext?, sampleRate: Int) -> Data {
     d.append(fixedField(source?.originationTime ?? "", 8))          // OriginationTime
     d.appendLE(source?.timeReferenceLow ?? 0)                       // TimeReference low
     d.appendLE(source?.timeReferenceHigh ?? 0)                      // TimeReference high
-    var version = UInt16(1).littleEndian                            // bext version 1
-    d.append(Data(bytes: &version, count: 2))
+    d.appendLE(UInt16(1))                                          // bext version 1
     d.append(Data(count: 64))                                       // UMID
     d.append(Data(count: 10))                                       // loudness (v2, unused)
     d.append(Data(count: 180))                                      // Reserved
@@ -102,14 +98,4 @@ private func codingHistory(sampleRate: Int, source: SourceBext?) -> String {
 
     let prior = (source?.codingHistory ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     return prior.isEmpty ? ours + "\r\n" : prior + "\r\n" + ours + "\r\n"
-}
-
-/// Writes a `bext` chunk into each output WAV, preserving the source take's
-/// broadcast metadata when present.
-public func writeBextChunks(to outputs: [OutputFile], source: URL?, sampleRate: Int) {
-    let src = parseSourceBext(at: source)
-    let payload = bextPayload(source: src, sampleRate: sampleRate)
-    for file in outputs {
-        appendRIFFChunk(to: file.url, id: "bext", payload: payload)
-    }
 }

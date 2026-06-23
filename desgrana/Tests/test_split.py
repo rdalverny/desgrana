@@ -811,7 +811,7 @@ def wav_data_chunk(path: str):
             chunk_size = int.from_bytes(hdr[4:8], "little")
             if chunk_id == b"data":
                 return f.read(chunk_size)
-            f.seek(chunk_size, 1)
+            f.seek(chunk_size + (chunk_size & 1), 1)   # RIFF chunks are word-aligned
 
 
 def compare_outputs(output_dir: str, expected_dir: str) -> int:

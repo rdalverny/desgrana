@@ -32,28 +32,20 @@ private extension Data {
 
 // MARK: - cue chunk
 
-/// Appends a RIFF `cue ` chunk to each WAV file in `urls`.
-public func writeCueChunks(to urls: [URL], markers: [UInt32]) {
-    guard !markers.isEmpty else { return }
-    for url in urls {
-        writeCueChunk(to: url, markers: markers)
-    }
-}
-
-private func writeCueChunk(to url: URL, markers: [UInt32]) {
-    // cue payload: count(4) + N × { id(4) position(4) "data"(4) chunkStart(4) blockStart(4) sampleOffset(4) }
-    let n = UInt32(markers.count)
+/// Builds a `cue ` chunk payload from marker sample positions (no file I/O).
+/// Structure: count(4) + N × { id(4) position(4) "data"(4) chunkStart(4) blockStart(4) sampleOffset(4) }
+func cuePayload(_ markers: [UInt32]) -> Data {
     var payload = Data()
-    payload.appendLE(n)
+    payload.appendLE(UInt32(markers.count))
     for (i, sample) in markers.enumerated() {
         payload.appendLE(UInt32(i + 1))     // id
         payload.appendLE(sample)            // position (= sampleOffset for non-playlist)
         payload.append(contentsOf: "data".utf8)
-        payload.appendLE(0)                 // chunkStart
-        payload.appendLE(0)                 // blockStart
+        payload.appendLE(UInt32(0))         // chunkStart
+        payload.appendLE(UInt32(0))         // blockStart
         payload.appendLE(sample)            // sampleOffset
     }
-    appendRIFFChunk(to: url, id: "cue ", payload: payload)
+    return payload
 }
 
 // MARK: - MIDI SMF export
