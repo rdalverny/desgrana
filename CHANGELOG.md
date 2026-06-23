@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.11.0] — 2026-06-23
+
+- Replace the WAV read/write internals with one cross-platform implementation
+- Read and write RF64 files (>4 GB), for both source takes and large outputs
+- Embed metadata in every output WAV, written before the audio data
+  so DAWs and broadcast tools pick it up:
+  - iXML track names,
+  - Broadcast Wave (bext) provenance
+    (source timecode / origination / CodingHistory preserved)
+  - cue markers
+- Stereo pairs whose two channels have different names keep both names
+  instead of dropping one
+- Build info (version, git commit, date) shown in the About panel
+- Avoid a crash when displaying markers from a corrupt SE_LOG that
+  reports a zero sample rate
+- Reject unsupported bit depths with a clear error instead of failing late
+- Fix Reaper `.rpp` export escapes special characters in track names and paths
+- Fix silence detection for integer PCM and 64-bit float (no longer
+  keeps a silent channel of full-scale-negative or -0.0 samples)
+- Fix a progress view that could stay stuck after a split finished
+- Fix output channel-count detection for large (RF64) stereo files in
+  DAW session export
+- Refactoring & Bug fixes
+
 ## [1.10.0] — 2026-06-18
 
 - Support plain multichannel WAV files,
