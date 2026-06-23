@@ -3,6 +3,9 @@
 import XCTest
 import CWav
 @testable import DesgranaCore
+#if canImport(AudioToolbox)
+import AudioToolbox
+#endif
 
 // Cross-check: a file written by our WAVWriter must be decoded by dr_wav exactly
 // like the equivalent file written by dr_wav itself — same format fields and the
@@ -23,7 +26,7 @@ final class WAVWriterCompareTests: XCTestCase {
         Format(channels: 2, sampleRate: 48_000, bits: 64, isFloat: true)
     ]
 
-    func testWAVWriterMatchesDrWav() throws {
+    func testWAVWriterMatchesReferenceDecoders() throws {
         for f in formats {
             let frames = 1000
             let raw = pattern(count: frames * f.channels * f.bits / 8)
@@ -44,8 +47,52 @@ final class WAVWriterCompareTests: XCTestCase {
             XCTAssertEqual(a.frames, b.frames, "\(f.name) frame count")
             XCTAssertEqual(a.data, b.data, "\(f.name) data bytes (lib vs ours)")
             XCTAssertEqual(b.data, raw, "\(f.name) WAVWriter data must equal source bytes")
+
+            // Second reference decoder: ExtAudioFile (macOS) must read our file too.
+            #if canImport(AudioToolbox)
+            let viaAT = try XCTUnwrap(readViaExtAudioFile(viaOurs),
+                                      "\(f.name): WAVWriter file unreadable by ExtAudioFile")
+            XCTAssertEqual(viaAT, raw, "\(f.name) ExtAudioFile data must equal source bytes")
+            #endif
         }
     }
+
+    #if canImport(AudioToolbox)
+    // Reads the raw `data` bytes back via ExtAudioFile (client format = file format).
+    private func readViaExtAudioFile(_ url: URL) -> [UInt8]? {
+        var file: ExtAudioFileRef?
+        guard ExtAudioFileOpenURL(url as CFURL, &file) == noErr, let ef = file else { return nil }
+        defer { ExtAudioFileDispose(ef) }
+        var fmt = AudioStreamBasicDescription()
+        var sz = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        guard ExtAudioFileGetProperty(ef, kExtAudioFileProperty_FileDataFormat, &sz, &fmt) == noErr,
+              ExtAudioFileSetProperty(ef, kExtAudioFileProperty_ClientDataFormat, sz, &fmt) == noErr,
+              fmt.mBytesPerFrame > 0 else { return nil }
+
+        let bytesPerFrame = Int(fmt.mBytesPerFrame)
+        let blockFrames = 4096
+        var out = [UInt8]()
+        var block = [UInt8](repeating: 0, count: blockFrames * bytesPerFrame)
+        while true {
+            var frames = UInt32(blockFrames)
+            var status = noErr
+            block.withUnsafeMutableBytes { raw in
+                var abl = AudioBufferList(
+                    mNumberBuffers: 1,
+                    mBuffers: AudioBuffer(mNumberChannels: fmt.mChannelsPerFrame,
+                                          mDataByteSize: UInt32(raw.count), mData: raw.baseAddress)
+                )
+                status = ExtAudioFileRead(ef, &frames, &abl)
+                if status == noErr && frames > 0 {
+                    out.append(contentsOf: raw.prefix(Int(frames) * bytesPerFrame))
+                }
+            }
+            guard status == noErr else { return nil }
+            if frames == 0 { break }
+        }
+        return out
+    }
+    #endif
 
     // MARK: - dr_wav write / read
 
