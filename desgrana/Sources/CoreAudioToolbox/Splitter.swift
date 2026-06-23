@@ -51,6 +51,9 @@ public func splitSession(
     let numChannels    = Int(srcFmt.mChannelsPerFrame)
     let sampleRate     = srcFmt.mSampleRate
     let bytesPerSample = Int(srcFmt.mBitsPerChannel) / 8
+    guard bytesPerSample > 0 else {
+        throw SplitError.cannotOpenInput("\(wavFiles[0].lastPathComponent) (unsupported bit depth: \(srcFmt.mBitsPerChannel))")
+    }
     let frameStride    = numChannels * bytesPerSample
 
     // Validate stereo pairs

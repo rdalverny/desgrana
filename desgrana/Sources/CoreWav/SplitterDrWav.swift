@@ -47,6 +47,9 @@ public func splitSession(
     firstWav.deallocate()
 
     let bytesPerSample = Int(sourceBits) / 8
+    guard bytesPerSample > 0 else {
+        throw SplitError.cannotOpenInput("\(wavFiles[0].lastPathComponent) (unsupported bit depth: \(sourceBits))")
+    }
     let frameStride    = numChannels * bytesPerSample
 
     // Validate stereo pairs
