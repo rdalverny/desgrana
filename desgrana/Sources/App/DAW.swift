@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Romain d'Alverny
 // SPDX-License-Identifier: MIT
 import AppKit
-import AVFoundation
 import DesgranaCore
 import Foundation
 import SwiftUI
@@ -24,7 +23,9 @@ func installedDAWs() -> [DAWInfo] {
 // MARK: - Output file collection
 
 func channelCount(of wav: URL) -> Int {
-    (try? AVAudioFile(forReading: wav)).map { Int($0.processingFormat.channelCount) } ?? 1
+    // Parse the RIFF header directly (RF64-aware) rather than AVAudioFile, which can
+    // refuse RF64 outputs (>4 GB) and would silently report a stereo file as mono.
+    probeWavHeader(at: wav)?.channels ?? 1
 }
 
 func collectOutputFiles(in dir: URL) -> (wavs: [URL], midiURL: URL?) {
