@@ -49,6 +49,14 @@ public final class WAVReader {
     /// Convenience lookup into `metadata` (e.g. `metadataChunk("bext")`).
     public func metadataChunk(_ id: String) -> Data? { metadata[id] }
 
+    /// `LIST/INFO` tags keyed by 4-char id (e.g. "INAM", "IART", "ISFT"). File-level
+    /// provenance, parsed from the source. Not used for per-channel naming.
+    public let infoTags: [String: String]
+
+    /// Cue-point labels from `LIST/adtl` `labl` subchunks, keyed by cue id. Pairs names
+    /// to the positions in the `cue ` chunk.
+    public let cueLabels: [UInt32: String]
+
     /// Small pre-`data` chunk ids worth keeping; others are skipped without reading payload.
     private static let metadataIDs: Set<String> = ["bext", "iXML", "cue ", "smpl", "fact"]
     /// Don't buffer a metadata chunk larger than this (guards against a pathological size).
@@ -84,6 +92,8 @@ public final class WAVReader {
         var dataStart: UInt64?
         var dataDeclared: UInt64 = 0    // 32-bit `data` size as written (sentinel-aware below)
         var collected: [String: Data] = [:]
+        var infoTags: [String: String] = [:]
+        var cueLabels: [UInt32: String] = [:]
 
         var offset: UInt64 = 12
         chunks: while true {
@@ -109,6 +119,11 @@ public final class WAVReader {
             case "ds64":
                 if let body = readBytes(Int(size)), body.count >= 16 {
                     rf64DataSize = leU64(body, 8)             // riffSize(8), dataSize(8), ...
+                }
+
+            case "LIST":
+                if size <= Self.metadataCap, let body = readBytes(Int(size)) {
+                    Self.parseList(body, info: &infoTags, cueLabels: &cueLabels)
                 }
 
             default:
@@ -142,6 +157,8 @@ public final class WAVReader {
         self.dataByteCount = resolved
         self.bytesRemaining = resolved
         self.metadata = collected
+        self.infoTags = infoTags
+        self.cueLabels = cueLabels
         try? handle.seek(toOffset: start)
     }
 
@@ -218,6 +235,38 @@ public final class WAVReader {
         return WAVFormat(channels: channels, sampleRate: rate, bitsPerSample: bits,
                          isFloat: effectiveTag == 3,
                          validBitsPerSample: validBits, channelMask: channelMask)
+    }
+
+    // MARK: - LIST parsing
+
+    /// Parses a `LIST` body. `INFO` subchunks become file-level tags; `adtl` `labl`
+    /// subchunks become cue-id -> label. Other list types and subchunks are ignored.
+    private static func parseList(_ body: [UInt8], info: inout [String: String],
+                                  cueLabels: inout [UInt32: String]) {
+        guard body.count >= 4 else { return }
+        let type = fourCC(body, 0)
+        guard type == "INFO" || type == "adtl" else { return }
+        var off = 4
+        while off + 8 <= body.count {
+            let sid = fourCC(body, off)
+            let size = Int(leU32(body, off + 4))
+            let start = off + 8
+            guard size >= 0, start + size <= body.count else { break }
+            let payload = Array(body[start ..< start + size])
+            if type == "INFO" {
+                let value = asciiTrim(payload)
+                if !value.isEmpty { info[sid] = value }
+            } else if sid == "labl", payload.count >= 4 {
+                cueLabels[leU32(payload, 0)] = asciiTrim(Array(payload[4...]))
+            }
+            off = start + size + (size & 1)              // next subchunk, past RIFF pad
+        }
+    }
+
+    /// Decodes a NUL-terminated ASCII/UTF-8 field, trimmed.
+    private static func asciiTrim(_ bytes: [UInt8]) -> String {
+        let slice = bytes.prefix { $0 != 0 }
+        return String(bytes: slice, encoding: .utf8)?.trimmingCharacters(in: .whitespaces) ?? ""
     }
 }
 

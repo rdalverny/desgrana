@@ -120,6 +120,44 @@ final class WAVReaderTests: XCTestCase {
         XCTAssertEqual(try readAll(url), pcm)
     }
 
+    // LIST/INFO tags and LIST/adtl cue labels are parsed from the source header.
+    func testParsesListInfoAndCueLabels() throws {
+        func chunk(_ id: String, _ body: Data) -> Data {
+            var d = Data(id.utf8); d.appendLE(UInt32(body.count)); d.append(body)
+            if body.count % 2 == 1 { d.append(0) }
+            return d
+        }
+        func infoSub(_ id: String, _ text: String) -> Data {
+            var t = Data(text.utf8); t.append(0); return chunk(id, t)
+        }
+
+        var fmt = Data()
+        fmt.appendLE(UInt16(1)); fmt.appendLE(UInt16(1)); fmt.appendLE(UInt32(48_000))
+        fmt.appendLE(UInt32(96_000)); fmt.appendLE(UInt16(2)); fmt.appendLE(UInt16(16))
+
+        var info = Data("INFO".utf8)
+        info.append(infoSub("INAM", "Take 1"))
+        info.append(infoSub("ISFT", "Desgrana"))
+
+        var labl = Data(); labl.appendLE(UInt32(1)); labl.append(Data("Kick hit".utf8)); labl.append(0)
+        var adtl = Data("adtl".utf8); adtl.append(chunk("labl", labl))
+
+        var body = Data("WAVE".utf8)
+        body.append(chunk("fmt ", fmt))
+        body.append(chunk("LIST", info))
+        body.append(chunk("LIST", adtl))
+        body.append(chunk("data", Data([1, 2, 3, 4])))
+        var file = Data("RIFF".utf8); file.appendLE(UInt32(body.count)); file.append(body)
+
+        let url = tmp(); defer { try? FileManager.default.removeItem(at: url) }
+        try file.write(to: url)
+
+        let r = try WAVReader(url: url)
+        XCTAssertEqual(r.infoTags["INAM"], "Take 1")
+        XCTAssertEqual(r.infoTags["ISFT"], "Desgrana")
+        XCTAssertEqual(r.cueLabels[1], "Kick hit")
+    }
+
     func testRejectsNonRIFF() throws {
         let url = tmp(); defer { try? FileManager.default.removeItem(at: url) }
         try Data(pattern(count: 64)).write(to: url)
