@@ -130,6 +130,9 @@ public func formatSamples(_ n: UInt32) -> String {
 }
 
 public func formatTime(_ seconds: Double) -> String {
+    // Guard against non-finite input (e.g. a sample position divided by a zero
+    // sample rate from a corrupt SE_LOG.bin): Int(inf)/Int(nan) is a hard trap.
+    guard seconds.isFinite else { return "--:--.---" }
     let h = Int(seconds) / 3600
     let m = (Int(seconds) % 3600) / 60
     let s = seconds.truncatingRemainder(dividingBy: 60)
