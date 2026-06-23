@@ -17,27 +17,6 @@ final class RF64Tests: XCTestCase {
         XCTAssertEqual(info.duration, Double(declared) / 2 / 48_000, accuracy: 0.001)
     }
 
-    // appendRIFFChunk grows the ds64 riffSize (not the 0xFFFFFFFF sentinel at offset 4),
-    // and the appended chunk stays reachable.
-    func testAppendUpdatesDs64RiffSize() throws {
-        let url = try makeRF64(dataDeclared: 8, dataBytes: 8, riffSize: 1000)
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        let payload = Data("hello".utf8)              // 5 bytes → chunk = 8 + 6 (padded) = 14
-        XCTAssertTrue(appendRIFFChunk(to: url, id: "iXML", payload: payload))
-
-        // ds64 riffSize (file offset 20) grew by the chunk's byte count.
-        let d = try Data(contentsOf: url)
-        let riffSize = (0..<8).reduce(UInt64(0)) { $0 | (UInt64(d[20 + $1]) << (8 * $1)) }
-        XCTAssertEqual(riffSize, 1000 + 14)
-
-        // offset 4 still holds the RF64 sentinel (untouched, not corrupted).
-        XCTAssertEqual([UInt8](d[4..<8]), [0xFF, 0xFF, 0xFF, 0xFF])
-
-        // The appended chunk is findable (data declared small, so reachable).
-        XCTAssertEqual(riffChunk(at: url, id: "iXML"), payload)
-    }
-
     // MARK: - Helper: minimal RF64 file
 
     private func makeRF64(dataDeclared: UInt64, dataBytes: Int, riffSize: UInt64 = 0,

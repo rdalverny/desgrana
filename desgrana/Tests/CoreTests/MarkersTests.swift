@@ -28,29 +28,6 @@ private func u16BE(_ data: Data, at offset: Int) -> UInt16 {
 
 // MARK: - Fixture builders
 
-/// Builds a minimal 44-byte WAV (no audio samples).
-/// Default RIFF size = 36 (correct for this layout); override for edge-case tests.
-private func makeMinimalWAV(riffSize: UInt32 = 36) -> Data {
-    var wav = Data()
-    func le32(_ v: UInt32) { var x = v.littleEndian; wav.append(Data(bytes: &x, count: 4)) }
-    func le16(_ v: UInt16) { var x = v.littleEndian; wav.append(Data(bytes: &x, count: 2)) }
-    wav.append(contentsOf: "RIFF".utf8); le32(riffSize)
-    wav.append(contentsOf: "WAVE".utf8)
-    wav.append(contentsOf: "fmt ".utf8); le32(16)
-    le16(1); le16(1)              // PCM, mono
-    le32(48_000); le32(96_000)   // sampleRate, byteRate
-    le16(2); le16(16)             // blockAlign, bitsPerSample
-    wav.append(contentsOf: "data".utf8); le32(0)
-    return wav  // 44 bytes
-}
-
-private func writeTempWAV(_ data: Data) throws -> URL {
-    let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString + ".wav")
-    try data.write(to: url)
-    return url
-}
-
 /// Builds a SessionInfo via parseSELog from the given marker list and sample rate.
 private func makeSessionInfo(markerSamples: [UInt32], sampleRate: UInt32 = 48_000) throws -> SessionInfo {
     var buf = [UInt8](repeating: 0, count: 2048)
@@ -78,84 +55,40 @@ private func smfBytes(markerSamples: [UInt32], sampleRate: UInt32 = 48_000) thro
     return try Data(contentsOf: dir.appendingPathComponent("markers.mid"))
 }
 
-// MARK: - cue chunk
+// MARK: - cue payload
 
-final class CueChunkTests: XCTestCase {
+final class CuePayloadTests: XCTestCase {
 
-    func testCueChunkWritten() throws {
-        // 1 marker → cue chunk = 8-byte header + 4 (count) + 1×24 = 36 bytes
-        let url = try writeTempWAV(makeMinimalWAV())
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        writeCueChunks(to: [url], markers: [48_000])
-
-        let bytes = try Data(contentsOf: url)
-        XCTAssertEqual(bytes.count, 44 + 36)
-        XCTAssertEqual(bytes[44..<48], Data("cue ".utf8))   // chunk id
-        XCTAssertEqual(u32LE(bytes, at: 48), 28)            // chunkDataSize = 4 + 1×24
-        XCTAssertEqual(u32LE(bytes, at: 52), 1)             // count = 1
-        XCTAssertEqual(u32LE(bytes, at: 56), 1)             // entry id = 1
-        XCTAssertEqual(u32LE(bytes, at: 60), 48_000)        // position
-        XCTAssertEqual(bytes[64..<68], Data("data".utf8))   // data fourCC
-        XCTAssertEqual(u32LE(bytes, at: 68), 0)             // chunkStart
-        XCTAssertEqual(u32LE(bytes, at: 72), 0)             // blockStart
-        XCTAssertEqual(u32LE(bytes, at: 76), 48_000)        // sampleOffset
-        XCTAssertEqual(u32LE(bytes, at: 4), 36 + 36)        // RIFF size updated
+    func testSingleMarker() {
+        // 1 marker → payload = count(4) + 1×24 = 28 bytes
+        let p = cuePayload([48_000])
+        XCTAssertEqual(p.count, 28)
+        XCTAssertEqual(u32LE(p, at: 0), 1)             // count
+        XCTAssertEqual(u32LE(p, at: 4), 1)             // entry id
+        XCTAssertEqual(u32LE(p, at: 8), 48_000)        // position
+        XCTAssertEqual(p[12..<16], Data("data".utf8))  // data fourCC
+        XCTAssertEqual(u32LE(p, at: 16), 0)            // chunkStart
+        XCTAssertEqual(u32LE(p, at: 20), 0)            // blockStart
+        XCTAssertEqual(u32LE(p, at: 24), 48_000)       // sampleOffset
     }
 
-    func testCueChunkTwoMarkers() throws {
-        // 2 markers → chunk = 8 + 4 + 2×24 = 60 bytes
-        let url = try writeTempWAV(makeMinimalWAV())
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        writeCueChunks(to: [url], markers: [1_000, 2_000])
-
-        let bytes = try Data(contentsOf: url)
-        XCTAssertEqual(bytes.count, 44 + 60)
-        XCTAssertEqual(u32LE(bytes, at: 52), 2)      // count
-        XCTAssertEqual(u32LE(bytes, at: 56), 1)      // id[0]
-        XCTAssertEqual(u32LE(bytes, at: 60), 1_000)  // position[0]
-        XCTAssertEqual(u32LE(bytes, at: 76), 1_000)  // sampleOffset[0]
-        XCTAssertEqual(u32LE(bytes, at: 80), 2)      // id[1]
-        XCTAssertEqual(u32LE(bytes, at: 84), 2_000)  // position[1]
-        XCTAssertEqual(u32LE(bytes, at: 100), 2_000) // sampleOffset[1]
-        XCTAssertEqual(u32LE(bytes, at: 4), 36 + 60) // RIFF size updated
+    func testTwoMarkers() {
+        // 2 markers → payload = count(4) + 2×24 = 52 bytes
+        let p = cuePayload([1_000, 2_000])
+        XCTAssertEqual(p.count, 52)
+        XCTAssertEqual(u32LE(p, at: 0), 2)       // count
+        XCTAssertEqual(u32LE(p, at: 4), 1)       // id[0]
+        XCTAssertEqual(u32LE(p, at: 8), 1_000)   // position[0]
+        XCTAssertEqual(u32LE(p, at: 24), 1_000)  // sampleOffset[0]
+        XCTAssertEqual(u32LE(p, at: 28), 2)      // id[1]
+        XCTAssertEqual(u32LE(p, at: 32), 2_000)  // position[1]
+        XCTAssertEqual(u32LE(p, at: 48), 2_000)  // sampleOffset[1]
     }
 
-    func testCueChunkEmptySkipped() throws {
-        let url = try writeTempWAV(makeMinimalWAV())
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        writeCueChunks(to: [url], markers: [])
-
-        let bytes = try Data(contentsOf: url)
-        XCTAssertEqual(bytes.count, 44)     // file unchanged
-        XCTAssertEqual(u32LE(bytes, at: 4), 36) // RIFF size unchanged
-    }
-
-    func testCueChunkRIFF64Untouched() throws {
-        // 0xFFFFFFFF marks a >4 GB RIFF64 file; size field must not be overwritten.
-        let url = try writeTempWAV(makeMinimalWAV(riffSize: 0xFFFF_FFFF))
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        writeCueChunks(to: [url], markers: [1_000])
-
-        let bytes = try Data(contentsOf: url)
-        XCTAssertEqual(bytes.count, 44 + 36)                // chunk was appended
-        XCTAssertEqual(u32LE(bytes, at: 4), 0xFFFF_FFFF)   // size field untouched
-    }
-
-    func testCueChunkOverflowGuard() throws {
-        // riffSize + chunk(36) > 0xFFFFFFFE → overflow guard must leave size field untouched.
-        // 0xFFFFFFDF + 36 = 0x100000003, overflows UInt32.
-        let url = try writeTempWAV(makeMinimalWAV(riffSize: 0xFFFF_FFDF))
-        defer { try? FileManager.default.removeItem(at: url) }
-
-        writeCueChunks(to: [url], markers: [1_000])
-
-        let bytes = try Data(contentsOf: url)
-        XCTAssertEqual(bytes.count, 44 + 36)                // chunk was appended
-        XCTAssertEqual(u32LE(bytes, at: 4), 0xFFFF_FFDF)   // size field untouched
+    func testEmpty() {
+        let p = cuePayload([])
+        XCTAssertEqual(p.count, 4)         // count(4) only
+        XCTAssertEqual(u32LE(p, at: 0), 0) // count = 0
     }
 }
 

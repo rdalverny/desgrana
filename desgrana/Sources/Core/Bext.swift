@@ -99,13 +99,3 @@ private func codingHistory(sampleRate: Int, source: SourceBext?) -> String {
     let prior = (source?.codingHistory ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     return prior.isEmpty ? ours + "\r\n" : prior + "\r\n" + ours + "\r\n"
 }
-
-/// Writes a `bext` chunk into each output WAV, preserving the source take's
-/// broadcast metadata when present.
-public func writeBextChunks(to outputs: [OutputFile], source: URL?, sampleRate: Int) {
-    let src = parseSourceBext(at: source)
-    let payload = bextPayload(source: src, sampleRate: sampleRate)
-    for file in outputs {
-        appendRIFFChunk(to: file.url, id: "bext", payload: payload)
-    }
-}

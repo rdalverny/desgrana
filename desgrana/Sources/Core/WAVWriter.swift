@@ -100,6 +100,8 @@ public final class WAVWriter {
         try fh.write(contentsOf: h)
     }
 
+    deinit { if !finalized { try? fh.close() } }
+
     /// Appends raw sample bytes to the `data` chunk.
     public func append(_ data: Data) throws {
         guard !data.isEmpty else { return }

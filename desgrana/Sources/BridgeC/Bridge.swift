@@ -175,6 +175,7 @@ public func desgrana_split(
             channelNames: names,
             useShortFilenames: pfx.isEmpty,
             takes: takes,
+            markers: seInfo?.markerSamples ?? [],
             progress: { take, total, framesInTake in
                 let fraction: Double
                 if totalFrames > 0 {
@@ -186,9 +187,8 @@ public func desgrana_split(
                 progressCb?(Int32(take), Int32(total), fraction, userData)
             }
         )
-        writeIXMLChunks(to: result.outputs)
-        writeBextChunks(to: result.outputs, source: takes.first,
-                        sampleRate: seInfo?.sampleRate ?? Int(result.sampleRate))
+        // iXML track names, bext and cue (markers) are embedded before `data` at
+        // file creation by splitSession.
         if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
         if let p = outKeptMono      { p.pointee = Int32(result.keptMono) }
         if let p = outKeptStereo    { p.pointee = Int32(result.keptStereo) }

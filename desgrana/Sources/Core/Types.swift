@@ -89,6 +89,9 @@ public typealias ProgressCallback = (_ take: Int, _ totalTakes: Int, _ framesInT
 public enum TrackKind {
     case mono(ch: Int)                  // 0-indexed
     case stereo(left: Int, right: Int)  // 0-indexed
+
+    public var isStereo: Bool { if case .stereo = self { return true }; return false }
+    public var channelCount: Int { isStereo ? 2 : 1 }
 }
 
 /// Platform-independent description of one output track (URL + kind).
