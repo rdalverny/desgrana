@@ -16,6 +16,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # full history + tags for `make buildinfo` (git describe)
+
+      - name: Generate BuildInfo.swift
+        run: make buildinfo
 
       - name: Build CLI + App
         run: |
@@ -48,6 +53,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # full history + tags for `make buildinfo` (git describe)
+
+      - name: Generate BuildInfo.swift
+        run: make buildinfo  # written into desgrana/, picked up by `COPY desgrana/` in the dockerfile
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
