@@ -79,92 +79,22 @@ public struct WavHeaderInfo {
     }
 }
 
-// MARK: - RIFF chunk walking (LE byte readers live in RIFFBytes.swift)
-
-/// Reads exactly `n` bytes from `fh`, or nil at EOF / short read.
-private func riffRead(_ fh: FileHandle, _ n: Int) -> [UInt8]? {
-    guard let d = try? fh.read(upToCount: n), d.count == n else { return nil }
-    return [UInt8](d)
-}
-/// True if `b` is a 12-byte RIFF/RF64 + WAVE header.
-private func isWaveHeader(_ b: [UInt8]) -> Bool {
-    b.count >= 12 && (fourCC(b, 0) == "RIFF" || fourCC(b, 0) == "RF64") && fourCC(b, 8) == "WAVE"
-}
-
-// swiftlint:disable cyclomatic_complexity
-/// Parse just the `fmt `/`data` chunks of a WAV to recover channel count, sample rate and
-/// duration — used to populate the UI track list when there is no SE_LOG.bin (other
-/// recorders). Cross-platform (pure RIFF parsing), mirrors `read_wav_fmt` in the tests.
+/// Recovers channel count, sample rate and duration from a WAV header (RF64-aware,
+/// resolves WAVE_FORMAT_EXTENSIBLE). Used to populate the UI track list when there is
+/// no SE_LOG.bin (other recorders). Returns nil if the file is not a readable WAV.
 public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
-    guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
-    defer { try? fh.close() }
-    guard let riff = riffRead(fh, 12), isWaveHeader(riff) else { return nil }
-
-    var channels = 0
-    var sampleRate = 0.0
-    var bits = 0
-    var dataSize: UInt64 = 0
-    var ds64DataSize: UInt64?    // real `data` size for RF64 (>4 GB) files
-
-    // Walk chunks until we hit `data` (whose payload we never read) or EOF.
-    while let hdr = riffRead(fh, 8) {
-        let id = fourCC(hdr, 0)
-        let size = leU32(hdr, 4)
-        if id == "ds64" {
-            // RF64 64-bit sizes: riffSize(8), dataSize(8), sampleCount(8), table...
-            guard let body = riffRead(fh, Int(size) + Int(size & 1)) else { break }
-            if body.count >= 16 { ds64DataSize = leU64(body, 8) }
-        } else if id == "fmt " {
-            guard let body = riffRead(fh, Int(size) + Int(size & 1)) else { break }
-            channels   = leU16(body, 2)
-            sampleRate = Double(leU32(body, 4))
-            bits       = leU16(body, 14)
-        } else if id == "data" {
-            // RF64 stores 0xFFFF_FFFF here and the real size in ds64.
-            dataSize = (size == 0xFFFF_FFFF) ? (ds64DataSize ?? 0) : UInt64(size)
-            break
-        } else {
-            // Skip this chunk's payload (small: fact/bext/iXML come before `data`).
-            guard riffRead(fh, Int(size) + Int(size & 1)) != nil else { break }
-        }
-    }
-
-    guard channels > 0, sampleRate > 0 else { return nil }
-    let frameBytes = channels * max(bits / 8, 1)
-    let duration = (dataSize > 0 && frameBytes > 0)
-        ? Double(dataSize) / Double(frameBytes) / sampleRate
-        : 0
-    return WavHeaderInfo(channels: channels, sampleRate: sampleRate, duration: duration)
+    guard let reader = try? WAVReader(url: url) else { return nil }
+    defer { reader.close() }
+    let sampleRate = Double(reader.format.sampleRate)
+    guard reader.format.channels > 0, sampleRate > 0 else { return nil }
+    let duration = reader.frameCount > 0 ? Double(reader.frameCount) / sampleRate : 0
+    return WavHeaderInfo(channels: reader.format.channels, sampleRate: sampleRate, duration: duration)
 }
-// swiftlint:enable cyclomatic_complexity
 
-/// Returns the raw payload of the first RIFF chunk with `id` (4 chars, e.g. "iXML"), or nil.
-/// Walks the chunk list, seeking past payloads (so it tolerates a large `data` chunk before
-/// the target — though metadata chunks normally precede `data`).
+/// Returns the raw payload of a pre-`data` metadata chunk (e.g. "bext", "iXML"), or nil.
+/// Backed by WAVReader's single header walk (see `WAVReader.metadata`).
 func riffChunk(at url: URL, id: String) -> Data? {
-    guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
-    defer { try? fh.close() }
-    guard let riff = riffRead(fh, 12), isWaveHeader(riff) else { return nil }
-
-    var offset: UInt64 = 12
-    var ds64DataSize: UInt64?
-    while let hdr = riffRead(fh, 8) {
-        let cid = fourCC(hdr, 0)
-        var size = UInt64(leU32(hdr, 4))
-        offset += 8                                   // now at payload start
-        if cid == id {
-            guard let d = try? fh.read(upToCount: Int(size)), d.count == Int(size) else { return nil }
-            return d
-        }
-        if cid == "ds64", let body = riffRead(fh, Int(size)), body.count >= 16 {
-            ds64DataSize = leU64(body, 8)
-        } else if cid == "data", size == 0xFFFF_FFFF, let real = ds64DataSize {
-            size = real                               // RF64: real `data` size lives in ds64
-        }
-        offset += size + (size & 1)                   // skip payload + RIFF pad byte
-        guard (try? fh.seek(toOffset: offset)) != nil else { return nil }
-    }
-    return nil
+    (try? WAVReader(url: url))?.metadataChunk(id)
 }
 
 /// Derives a filename suffix from channel name(s).

@@ -57,7 +57,8 @@ final class WAVWriterTests: XCTestCase {
                                                           bitsPerSample: 16, isFloat: false))
         try w.append(samples)
         try w.finalize()
-        XCTAssertEqual(riffChunk(at: url, id: "data"), samples)
+        let reader = try WAVReader(url: url); defer { reader.close() }
+        XCTAssertEqual(try reader.read(maxFrames: Int(reader.frameCount)), samples)
     }
 
     // Float output carries a fact chunk before data with the right sample count.

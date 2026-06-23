@@ -18,13 +18,23 @@ import Foundation
 public struct WAVFormat {
     public let channels: Int
     public let sampleRate: Int
+    /// Storage container size in bits (a multiple of 8): the on-disk bytes per sample.
     public let bitsPerSample: Int
     public let isFloat: Bool
-    public init(channels: Int, sampleRate: Int, bitsPerSample: Int, isFloat: Bool) {
+    /// Meaningful bits per sample. Equals `bitsPerSample` unless a `WAVE_FORMAT_EXTENSIBLE`
+    /// source declares fewer (e.g. 24 valid bits in a 32-bit container). Carried through for
+    /// fidelity; the writer does not act on it yet (output stays byte-identical).
+    public let validBitsPerSample: Int
+    /// `WAVE_FORMAT_EXTENSIBLE` speaker-position mask, 0 when unspecified.
+    public let channelMask: UInt32
+    public init(channels: Int, sampleRate: Int, bitsPerSample: Int, isFloat: Bool,
+                validBitsPerSample: Int? = nil, channelMask: UInt32 = 0) {
         self.channels = channels
         self.sampleRate = sampleRate
         self.bitsPerSample = bitsPerSample
         self.isFloat = isFloat
+        self.validBitsPerSample = validBitsPerSample ?? bitsPerSample
+        self.channelMask = channelMask
     }
     var blockAlign: Int { channels * bitsPerSample / 8 }
 }
