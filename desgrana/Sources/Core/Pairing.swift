@@ -2,24 +2,37 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
+/// Single source of truth for stereo-pair acceptance: keeps pairs whose channels are
+/// in `1...channelCount` and not already claimed, reporting each rejected pair (with a
+/// reason) via `onReject`. Returns the accepted pairs and the set of claimed channels.
+func acceptStereoPairs(
+    _ pairs: [StereoPair],
+    channelCount: Int,
+    onReject: (StereoPair, String) -> Void = { _, _ in }
+) -> (active: [StereoPair], paired: Set<Int>) {
+    var seen = Set<Int>()
+    var active: [StereoPair] = []
+    for pair in pairs {
+        guard pair.left  >= 1 && pair.left  <= channelCount,
+              pair.right >= 1 && pair.right <= channelCount else {
+            onReject(pair, "channel numbers must be in 1...\(channelCount)")
+            continue
+        }
+        var overlap = false
+        for ch in [pair.left, pair.right] where !seen.insert(ch).inserted {
+            onReject(pair, "channel \(ch) appears in multiple pairs")
+            overlap = true
+            break
+        }
+        if !overlap { active.append(pair) }
+    }
+    return (active, seen)
+}
+
 /// Returns only the pairs that are valid for `channelCount`, skipping out-of-range or
 /// overlapping entries. Used by the App to filter snap pairs against session channel count.
 public func filterStereoPairs(_ pairs: [StereoPair], channelCount: Int) -> [StereoPair] {
-    var seen = Set<Int>()
-    var result: [StereoPair] = []
-    for pair in pairs {
-        guard pair.left  >= 1 && pair.left  <= channelCount,
-              pair.right >= 1 && pair.right <= channelCount else { continue }
-        var ok = true
-        for ch in [pair.left, pair.right] {
-            if !seen.insert(ch).inserted {
-                ok = false
-                break
-            }
-        }
-        if ok { result.append(pair) }
-    }
-    return result
+    acceptStereoPairs(pairs, channelCount: channelCount).active
 }
 
 /// Separators recognised between a stereo base name and its `L`/`R` side.
@@ -87,23 +100,7 @@ public func validateStereoPairs(
     _ pairs: [StereoPair],
     channelCount: Int
 ) -> (active: [StereoPair], paired: Set<Int>) {
-    var seen = Set<Int>()
-    var active: [StereoPair] = []
-    for pair in pairs {
-        guard pair.left >= 1 && pair.left <= channelCount &&
-              pair.right >= 1 && pair.right <= channelCount else {
-            fputs("Warning: stereo pair \(pair.left):\(pair.right) skipped — channel numbers must be in 1...\(channelCount)\n", stderr)
-            continue
-        }
-        var overlap = false
-        for ch in [pair.left, pair.right] {
-            if !seen.insert(ch).inserted {
-                fputs("Warning: stereo pair \(pair.left):\(pair.right) skipped -- channel \(ch) appears in multiple pairs\n", stderr)
-                overlap = true
-                break
-            }
-        }
-        if !overlap { active.append(pair) }
+    acceptStereoPairs(pairs, channelCount: channelCount) { pair, reason in
+        fputs("Warning: stereo pair \(pair.left):\(pair.right) skipped — \(reason)\n", stderr)
     }
-    return (active, seen)
 }
