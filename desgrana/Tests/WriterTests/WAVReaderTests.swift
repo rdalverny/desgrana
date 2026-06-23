@@ -67,7 +67,8 @@ final class WAVReaderTests: XCTestCase {
         XCTAssertEqual(try readAll(url), raw, "RF64 data bytes")
     }
 
-    // A take cut at the 4 GB limit: chop bytes off the end; the reader clamps to what's there.
+    // A take cut at the 4 GB limit: chop bytes off the end; reads stop at EOF and yield
+    // only the bytes present (the declared size is unchanged).
     func testToleratesTruncatedData() throws {
         let raw = pattern(count: 1000 * 2)               // 1ch 16-bit, blockAlign 2
         let url = tmp(); defer { try? FileManager.default.removeItem(at: url) }

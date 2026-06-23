@@ -107,7 +107,9 @@ public final class WAVReader {
         guard let fmt = parsedFormat else { handle.closeQuietly(); throw WAVReaderError.missingFmtChunk }
         guard let start = dataStart else { handle.closeQuietly(); throw WAVReaderError.missingDataChunk }
 
-        // Resolve the data size, then clamp to bytes physically present (truncation tolerance).
+        // Resolve the declared data size (RF64-aware). Truncation is tolerated at read
+        // time (reads stop at EOF), so this stays the declared size, not a clamp: a take
+        // cut at the 4 GB limit still reports its intended length for duration/probe.
         let available = fileSize > start ? fileSize - start : 0
         let resolved: UInt64
         if container == "RF64" || dataDeclared == 0xFFFF_FFFF {
@@ -120,8 +122,8 @@ public final class WAVReader {
 
         self.fh = handle
         self.format = fmt
-        self.dataByteCount = min(resolved, available)
-        self.bytesRemaining = self.dataByteCount
+        self.dataByteCount = resolved
+        self.bytesRemaining = resolved
         try? handle.seek(toOffset: start)
     }
 
