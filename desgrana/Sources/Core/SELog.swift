@@ -40,13 +40,6 @@ public struct SessionInfo {
 // MARK: - Data helpers
 
 extension Data {
-    func u32(at offset: Int) -> UInt32 {
-        guard offset + 4 <= count else { return 0 }
-        return withUnsafeBytes { buf in
-            buf.load(fromByteOffset: offset, as: UInt32.self).littleEndian
-        }
-    }
-
     func asciiString(at offset: Int, maxLength: Int) -> String {
         guard offset + maxLength <= count else { return "" }
         let slice = self[offset ..< offset + maxLength]

@@ -49,8 +49,8 @@ private func writeCueChunk(to url: URL, markers: [UInt32]) {
         payload.appendLE(UInt32(i + 1))     // id
         payload.appendLE(sample)            // position (= sampleOffset for non-playlist)
         payload.append(contentsOf: "data".utf8)
-        payload.appendLE(0)                 // chunkStart
-        payload.appendLE(0)                 // blockStart
+        payload.appendLE(UInt32(0))         // chunkStart
+        payload.appendLE(UInt32(0))         // blockStart
         payload.appendLE(sample)            // sampleOffset
     }
     appendRIFFChunk(to: url, id: "cue ", payload: payload)

@@ -68,20 +68,12 @@ public struct WavHeaderInfo {
     }
 }
 
-// MARK: - RIFF byte readers (shared by the WAV header/chunk parsers)
+// MARK: - RIFF chunk walking (LE byte readers live in RIFFBytes.swift)
 
 /// Reads exactly `n` bytes from `fh`, or nil at EOF / short read.
 private func riffRead(_ fh: FileHandle, _ n: Int) -> [UInt8]? {
     guard let d = try? fh.read(upToCount: n), d.count == n else { return nil }
     return [UInt8](d)
-}
-private func fourCC(_ b: [UInt8], _ o: Int) -> String { String(bytes: b[o ..< o + 4], encoding: .ascii) ?? "" }
-private func leU16(_ b: [UInt8], _ o: Int) -> Int { Int(b[o]) | (Int(b[o + 1]) << 8) }
-private func leU32(_ b: [UInt8], _ o: Int) -> UInt32 {
-    UInt32(b[o]) | (UInt32(b[o + 1]) << 8) | (UInt32(b[o + 2]) << 16) | (UInt32(b[o + 3]) << 24)
-}
-private func leU64(_ b: [UInt8], _ o: Int) -> UInt64 {
-    (0..<8).reduce(UInt64(0)) { $0 | (UInt64(b[o + $1]) << (8 * $1)) }
 }
 /// True if `b` is a 12-byte RIFF/RF64 + WAVE header.
 private func isWaveHeader(_ b: [UInt8]) -> Bool {
