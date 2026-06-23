@@ -15,6 +15,17 @@ func wavFilesInDir(_ dir: URL) -> [URL] {
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 }
 
+/// The first file in `dir` with the given (case-insensitive) extension, by sorted name, or nil.
+public func firstFile(in dir: URL, withExtension ext: String) -> URL? {
+    guard let contents = try? FileManager.default.contentsOfDirectory(
+        at: dir, includingPropertiesForKeys: nil
+    ) else { return nil }
+    return contents
+        .filter { $0.pathExtension.lowercased() == ext.lowercased() }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        .first
+}
+
 /// Find WAV takes in session directory (hex-named: 00000001.wav …), sorted by name.
 /// This is the Behringer Wing/X-Live convention: ordered parts of one continuous
 /// recording, split at the 4 GB FAT32 limit.

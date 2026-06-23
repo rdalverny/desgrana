@@ -66,13 +66,7 @@ public func parseX32Scene(at url: URL) throws -> SnapInfo {
 
 /// Returns the first .scn file found in `dir`, or nil.
 public func findX32Scene(in dir: URL) -> URL? {
-    guard let contents = try? FileManager.default.contentsOfDirectory(
-        at: dir, includingPropertiesForKeys: nil
-    ) else { return nil }
-    return contents
-        .filter { $0.pathExtension.lowercased() == "scn" }
-        .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        .first
+    firstFile(in: dir, withExtension: "scn")
 }
 
 // MARK: - Private helpers

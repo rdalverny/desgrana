@@ -179,13 +179,7 @@ private func sceneAndShow(from activeScene: String?) -> (scene: String?, show: S
 
 /// Returns the first .snap file found in `dir`, or nil.
 public func findSnap(in dir: URL) -> URL? {
-    guard let contents = try? FileManager.default.contentsOfDirectory(
-        at: dir, includingPropertiesForKeys: nil
-    ) else { return nil }
-    return contents
-        .filter { $0.pathExtension.lowercased() == "snap" }
-        .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        .first
+    firstFile(in: dir, withExtension: "snap")
 }
 
 // MARK: - Auto-detect helpers
