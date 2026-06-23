@@ -294,7 +294,7 @@ CASES: list = [
     # Not committed; skipped automatically when the source file is absent.
     TestCase(
         name="case04_real",
-        source_wav_rel="SD Card/00000001.WAV",
+        source_wav_rel="Private/SD Card/00000001.WAV",
         truncate_frames=SAMPLE_RATE * 7,  # 7 s
         fadeout_frames=SAMPLE_RATE,        # 1-s linear fade-out
         desgrana_extra_args=[],

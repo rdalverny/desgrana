@@ -7,7 +7,7 @@ dist/
 icon-source.png
 icon-source~dark.png
 icon-source~tinted.png
-localdocs/
+docs/
 Makefile.local
 qt/build/
 var/
@@ -17,3 +17,7 @@ web/dist/
 
 # Generated at build time by `make buildinfo`
 desgrana/Sources/Core/BuildInfo.swift
+mailmap
+
+# Local private test files
+desgrana/Tests/Private
