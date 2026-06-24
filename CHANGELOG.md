@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.11.1] — 2026-06-24
+
+- Fix release process for macOS app
+
 ## [1.11.0] — 2026-06-23
 
 - Replace the WAV read/write internals with one cross-platform implementation

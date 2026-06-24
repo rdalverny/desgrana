@@ -33,7 +33,7 @@ SWIFT_VERSION   := $(shell swift --version 2>/dev/null | head -1 | tr -d '"\\')
 TOOLCHAIN       := $(shell swift --version 2>/dev/null | grep -i target | head -1 | sed 's/^ *//' | tr -d '"\\')
 
 .PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \
-        test test-generate package shipit release sign notarize icon buildinfo \
+        test test-generate package shipit release sign notarize verify-dmg icon buildinfo \
         patch minor clean lint lint-fix format format-check package-debian test-image test-debian web tag
 
 # ── Build ─────────────────────────────────────────────────────────
@@ -137,11 +137,35 @@ package: sign
 		"$(DMG)"
 
 notarize: package
-	xcrun notarytool submit "$(DMG)" \
-		--keychain-profile "$(NOTARY_PROFILE)" \
-		--wait
-	xcrun stapler staple "$(DMG)"
-	@echo "Notarized → $(DIST)/$(NAME)-$(VERSION).dmg"
+	@set -eu; \
+	trap 'st=$$?; if [ $$st -ne 0 ]; then \
+		printf "\n\033[1;31m✗ NOTARIZATION FAILED\033[0m — removing %s so a broken build can never be shipped.\n" "$(DMG)"; \
+		rm -f "$(DMG)"; \
+	fi; exit $$st' EXIT; \
+	echo "→ Submitting $(DMG) to Apple notary service..."; \
+	out=$$(xcrun notarytool submit "$(DMG)" --keychain-profile "$(NOTARY_PROFILE)" --wait 2>&1); \
+	echo "$$out"; \
+	echo "$$out" | grep -q "status: Accepted" \
+		|| { echo "Notary service did not return status: Accepted."; exit 1; }; \
+	xcrun stapler staple "$(DMG)"; \
+	$(MAKE) --no-print-directory verify-dmg
+	@printf "\033[1;32m✓ Notarized + verified\033[0m → $(DMG)\n"
+
+# Counter-check: a built DMG is only valid if Gatekeeper accepts the app inside
+# as notarized AND the ticket is stapled. Fails loudly otherwise.
+verify-dmg:
+	@set -eu; \
+	[ -f "$(DMG)" ] || { echo "✗ $(DMG) does not exist."; exit 1; }; \
+	echo "→ Verifying $(DMG)..."; \
+	xcrun stapler validate "$(DMG)"; \
+	mnt=$$(hdiutil attach "$(DMG)" -nobrowse -noautoopen -readonly \
+		| sed -n 's|.*\(/Volumes/.*\)|\1|p' | head -1); \
+	trap 'hdiutil detach "$$mnt" -quiet 2>/dev/null || true' EXIT; \
+	assess=$$(spctl -a -t exec -vv "$$mnt/$(APP)" 2>&1); echo "$$assess"; \
+	echo "$$assess" | grep -q "source=Notarized Developer ID" \
+		|| { echo "✗ App is signed but NOT notarized."; exit 1; }; \
+	codesign --verify --deep --strict --verbose=2 "$$mnt/$(APP)"; \
+	printf "\033[1;32m✓ DMG verified\033[0m: stapled, notarized, Gatekeeper-approved.\n"
 
 
 # ── Tag & push ───────────────────────────────────────────────────────
