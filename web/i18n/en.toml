@@ -15,11 +15,12 @@ title_main = "Desgrana"
 tagline    = "Extract a Behringer Wing or X32 live recording into named, DAW-ready tracks."
 
 [download]
-macos_label = "Download Desgrana {v} for macOS"
-macos_meta  = '''macOS 13 or later &nbsp;·&nbsp; <a href="#changelog">See what's new</a> &nbsp;·&nbsp; {date}'''
-linux_label = "Download Desgrana {v} for Linux"
+macos_label = "Download Desgrana for macOS"
+macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 or later &nbsp;·&nbsp; <a href="#changelog">See what's new</a>'''
+linux_label = "Download Desgrana for Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
-platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
+#platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
+platforms_note = '''&nbsp;'''
 
 [situation]
 heading = "The situation"
@@ -35,10 +36,10 @@ items = [
   "Drag and drop your session folder, click, DAW.",
   "Your audio comes out exactly as recorded: no conversion, no resampling.",
   "Channel names and stereo pairs from your console snapshot (KICK, SNARE, VOX…) are picked up automatically.",
-  "Only the channels you actually recorded show up. No empty tracks to clean up manually.",
+  "Only the channels with actual sound show up. No empty tracks.",
   "Long sessions split across several files at the 4 GB limit are stitched back into one continuous track.",
   "If you used markers in your recording session, they land in your DAW, as cue chunks in the WAV or MIDI file.",
-  "Not only Behringer sessions: drop any multichannel WAV file and it splits that too.",
+  "Drop any multichannel WAV file and it splits that too.",
 ]
 
 [faq]
@@ -106,6 +107,15 @@ a_html = '''Feel free to reach out
 
 [changelog]
 heading = "What's new"
+
+[[changelog.items]]
+version = "1.11.0/1.11.1"
+date = "Jun 23 2026"
+notes_html = '''Embed metadata in every output WAV: iXML track names, broadcast bext provenance, cue markers.<br>
+          Read and write RF64 files larger than 4 GB.<br>
+          Build info (version, commit, date) shown in the About panel.<br>
+          Stereo pairs with differing names keep both; various fixes.<br>
+          Fix macOS app notarization.'''
 
 [[changelog.items]]
 version = "1.10.0"

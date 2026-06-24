@@ -1,5 +1,5 @@
 {
-  "version": "1.10.0",
-  "notes": "Support plain multichannel WAV files, DAW export for Linux, low disk warning",
-  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.10.0"
+  "version": "1.11.1",
+  "notes": "Embedded iXML/bext/cue metadata in outputs, RF64 (>4 GB) read & write, fixes",
+  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.11.1"
 }

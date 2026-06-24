@@ -15,11 +15,12 @@ title_main = "Desgrana"
 tagline    = "Extraire un enregistrement live Behringer Wing ou X32 en pistes nommées, prêtes pour votre DAW."
 
 [download]
-macos_label = "Télécharger Desgrana {v} pour macOS"
-macos_meta  = '''macOS 13 ou suivant &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a> &nbsp;·&nbsp; {date}'''
-linux_label = "Télécharger Desgrana {v} pour Linux"
+macos_label = "Télécharger Desgrana pour macOS"
+macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 ou suivant &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a>'''
+linux_label = "Télécharger Desgrana pour Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
-platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
+#platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
+platforms_note = "&nbsp;"
 
 [situation]
 heading = "La situation"
@@ -109,6 +110,14 @@ a_html = '''N'hésitez pas à me contacter
 
 [changelog]
 heading = "Nouveautés"
+
+[[changelog.items]]
+version = "1.11.0/1.11.1"
+date = "23/24 juin 2026"
+notes_html = '''Métadonnées supplémentaires intégrées à chaque WAV de sortie :
+                provenance broadcast (bext), marqueurs cue.<br>
+          Remaniements internes et corrections diverses.<br>
+          Corrige build macOS.'''
 
 [[changelog.items]]
 version = "1.10.0"

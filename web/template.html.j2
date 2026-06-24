@@ -109,7 +109,7 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
 
     <video
       src="{{ asset_prefix }}demo.mp4"
-      poster="{{ asset_prefix }}demo-poster.jpg"
+      poster="{{ asset_prefix }}demo.jpg"
       muted loop playsinline
       preload="none"
       controls></video>
@@ -127,7 +127,7 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
       {{ download.macos_label.format(v=version_display) }}
     </a>
     <p class="download-meta">
-      {{ download.macos_meta.format(date=download_date) }}
+      {{ download.macos_meta.format(date=download_date, v=version_display) }}
     </p>
 
     <a class="btn-download" href="{{ linux_url }}">
@@ -140,62 +140,74 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
       </svg>
       {{ download.linux_label.format(v=version_display) }}
     </a>
-    <p class="download-meta">
-      {{ download.linux_meta.format(date=download_date) }}
-    </p>
 
     <p class="download-meta" style="margin-top: 1rem;">{{ download.platforms_note }}</p>
   </div>
 
   <div class="section">
     <h2>{{ situation.heading }}</h2>
-{% for p in situation.paragraphs %}    <p>{{ p }}</p>
-{% endfor %}  </div>
+    {% for p in situation.paragraphs %}
+      <p>{{ p }}</p>
+    {% endfor %}
+  </div>
 
   <div class="section">
     <h2>{{ features.heading }}</h2>
     <ul class="features">
-{% for f in features['items'] %}      <li>{{ f }}</li>
-{% endfor %}    </ul>
-{% if features.note %}    <p class="features-note">{{ features.note }}</p>
-{% endif %}  </div>
+    {% for f in features['items'] %}
+      <li>{{ f }}</li>
+    {% endfor %}    </ul>
+    {% if features.note %}
+      <p class="features-note">{{ features.note }}</p>
+    {% endif %}
+  </div>
 
   <div class="section faq">
     <h2>{{ faq.heading }}</h2>
     <dl>
-{% for item in faq['items'] %}      <dt{% if item.id %} id="{{ item.id }}"{% endif %}>{{ item.q }}</dt>
+    {% for item in faq['items'] %}
+      <dt{% if item.id %} id="{{ item.id }}"{% endif %}>{{ item.q }}</dt>
       <dd>{{ item.a_html }}</dd>
-{% endfor %}    </dl>
+    {% endfor %}
+    </dl>
   </div>
 
   <div class="section changelog" id="changelog">
-    <h2>{{ changelog.heading }}</h2>
-{% set visible = changelog.visible_count | default(3) %}
+    <h2>{{ changelog.heading }} (<a href="https://github.com/rdalverny/desgrana/blob/main/CHANGELOG.md">CHANGELOG</a>)</h2>
+    {% set visible = changelog.visible_count | default(3) %}
     <ul>
-{% for rel in changelog['items'][:visible] %}      <li>
+    {% for rel in changelog['items'][:visible] %}
+      <li>
         <span class="v-label">{{ rel.version }}<span class="v-date">{{ rel.date }}</span></span>
         <span class="v-notes">
           {{ rel.notes_html }}
         </span>
       </li>
-{% endfor %}    </ul>
-{% if changelog['items'] | length > visible %}    <details>
+    {% endfor %}
+    </ul>
+    {% if changelog['items'] | length > visible %}
+    <details>
       <summary>Earlier versions</summary>
       <ul>
-{% for rel in changelog['items'][visible:] %}        <li>
+      {% for rel in changelog['items'][visible:] %}
+        <li>
           <span class="v-label">{{ rel.version }}<span class="v-date">{{ rel.date }}</span></span>
           <span class="v-notes">
             {{ rel.notes_html }}
           </span>
         </li>
-{% endfor %}      </ul>
+      {% endfor %}
+      </ul>
     </details>
-{% endif %}  </div>
+    {% endif %}
+  </div>
 
   <div class="section changelog" id="roadmap">
     <h2>{{ roadmap.heading }}</h2>
-{% for p in roadmap.paragraphs %}    <p>{{ p }}</p>
-{% endfor %}  </div>
+    {% for p in roadmap.paragraphs %}
+      <p>{{ p }}</p>
+    {% endfor %}
+  </div>
 
   <footer>
     <p>{{ footer.text }}</p>

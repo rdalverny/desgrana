@@ -5,11 +5,11 @@ canonical_base = "https://romaindalverny.com/atelier/desgrana/"
 site_name      = "Romain d'Alverny"
 author_url     = "https://romaindalverny.com/"
 
-version       = "1.10.0"
-download_date = "2026-06-18"   # ISO; rendered per-locale by build_web.py
+version       = "1.11.1"
+download_date = "2026-06-24"
 
-dmg_url      = "https://github.com/rdalverny/desgrana/releases/download/v1.10.0/Desgrana-1.10.0.dmg"
-linux_url    = "https://github.com/rdalverny/desgrana/releases/tag/v1.10.0"
+dmg_url      = "https://github.com/rdalverny/desgrana/releases/download/v1.11.1/Desgrana-1.11.1.dmg"
+linux_url    = "https://github.com/rdalverny/desgrana/releases/latest"
 releases_url = "https://github.com/rdalverny/desgrana/releases"
 github_url   = "https://github.com/rdalverny/desgrana"
 
