@@ -377,7 +377,8 @@ struct ContentView: View {
     func readyView(sessionDir: URL) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
-                TextField("Session name", text: $vm.sessionName)
+                TextField("Session name", text: Binding(
+                    get: { vm.sessionName }, set: { vm.sessionName = $0 }))
                     .font(.headline)
                     .textFieldStyle(.plain)
                     .lineLimit(1)
