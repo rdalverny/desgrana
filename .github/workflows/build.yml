@@ -179,7 +179,9 @@ jobs:
           copy /Y qt\build\desgrana-gui.exe   dist\desgrana\
           copy /Y qt\build\DesgranaBridge.dll dist\desgrana\
           rem Qt DLLs + platform plugin, gathered by scanning the linked exe.
-          windeployqt --release --no-translations dist\desgrana\desgrana-gui.exe
+          rem --no-opengl-sw drops opengl32sw.dll (~20 MB software GL), --no-system-d3d-compiler
+          rem drops d3dcompiler — neither is used by a plain Widgets app.
+          windeployqt --release --no-translations --no-opengl-sw --no-system-d3d-compiler dist\desgrana\desgrana-gui.exe
           rem Swift runtime DLLs. The path/glob is a best guess — the first run
           rem will tell us if it is wrong (smoke test fails on a missing DLL).
           for /d %%d in ("%LOCALAPPDATA%\Programs\Swift\Runtimes\*") do copy /Y "%%d\usr\bin\*.dll" dist\desgrana\
