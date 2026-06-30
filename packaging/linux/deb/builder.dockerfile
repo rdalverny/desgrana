@@ -32,10 +32,13 @@ WORKDIR /src
 COPY VERSION                              ./VERSION
 COPY desgrana/                            ./desgrana/
 
-# CLI (static stdlib + GNU build-id) then bridge library
+# CLI (static stdlib + GNU build-id) then the shared bridge library consumed by the GUI.
+# $ORIGIN rpath: the bridge .so resolves its sibling Swift runtime dylibs from its
+# own install dir (/usr/lib/desgrana), since the GUI's RUNPATH won't cover them transitively.
 RUN cd desgrana \
     && swift build -c release --product desgrana -Xswiftc -static-stdlib -Xlinker --build-id \
-    && swift build -c release --target DesgranaBridgeC -Xlinker --build-id
+    && swift build -c release --product DesgranaBridge \
+        -Xlinker --build-id -Xlinker -rpath -Xlinker '$ORIGIN'
 
 COPY qt/                                   ./qt/
 COPY packaging/linux/collect-swift-libs.sh ./collect-swift-libs.sh
@@ -52,10 +55,14 @@ RUN cmake \
         -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     && cmake --build qt/build
 
-# Collect only the Swift dylibs actually needed by the GUI binary, recursively.
-# System libs (libcurl, libQt6, …) are excluded — they become package dependencies.
-RUN bash /src/collect-swift-libs.sh \
-        /src/qt/build/desgrana-linux \
+# Bundle the bridge library and the Swift dylibs it pulls, recursively. The GUI
+# now reaches the Swift runtime through libDesgranaBridge.so, so we seed the
+# collection from the bridge itself. System libs (libcurl, libQt6, …) are
+# excluded — they become package dependencies.
+RUN mkdir -p /src/swift-libs \
+    && cp /src/desgrana/.build/release/libDesgranaBridge.so /src/swift-libs/ \
+    && bash /src/collect-swift-libs.sh \
+        /src/swift-libs/libDesgranaBridge.so \
         /usr/lib/swift/linux \
         /src/swift-libs
 
@@ -72,7 +79,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Binaries and bundled Swift dylibs
 COPY --from=builder /src/desgrana/.build/release/desgrana ./src/desgrana
-COPY --from=builder /src/qt/build/desgrana-linux        ./src/desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-gui          ./src/desgrana-gui
 COPY --from=builder /src/swift-libs                        ./src/swift-libs
 COPY packaging/linux/deb/debian                            ./src/debian
 COPY packaging/linux/desgrana-gui.desktop                  ./src/desgrana-gui.desktop
@@ -90,7 +97,7 @@ RUN pkg=$(dpkg-parsechangelog -S Source) && \
 
 FROM scratch AS binaries
 COPY --from=builder /src/desgrana/.build/release/desgrana /desgrana
-COPY --from=builder /src/qt/build/desgrana-linux          /desgrana-gui
+COPY --from=builder /src/qt/build/desgrana-gui            /desgrana-gui
 COPY --from=builder /src/swift-libs/                       /swift-libs/
 
 # ── 4. Export .deb only (default stage) ──────────────────────────────────────

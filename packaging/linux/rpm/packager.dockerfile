@@ -28,9 +28,13 @@ COPY packaging/linux/desgrana-gui.desktop ./desgrana-gui.desktop
 COPY packaging/linux/icons/               ./icons/
 COPY packaging/linux/rpm/desgrana.spec    ./desgrana.spec
 
+# QA_RPATHS bit 0x0008: tolerate $ORIGIN appearing after the build-time toolchain
+# rpath in libDesgranaBridge.so. check-rpaths rejects that ordering, but it is
+# harmless — the toolchain path does not exist on the target and $ORIGIN
+# (/usr/lib/desgrana) resolves the bundled Swift runtime.
 RUN VERSION=$(cat VERSION) && \
     mkdir -p /build/rpmbuild/{BUILD,RPMS,SRPMS,SPECS,SOURCES} && \
-    rpmbuild -bb \
+    QA_RPATHS=$(( 0x0008 )) rpmbuild -bb \
         --target ${TARGET_ARCH} \
         --define "_topdir /build/rpmbuild" \
         --define "_sourcedir /build/src" \

@@ -10,65 +10,68 @@ file(READ "${CMAKE_SOURCE_DIR}/../VERSION" DESGRANA_VERSION)
 string(STRIP "${DESGRANA_VERSION}" DESGRANA_VERSION)
 add_compile_definitions(DESGRANA_VERSION="${DESGRANA_VERSION}")
 
-# SPM puts object files in <target>.build/ subdirectories, not .a archives.
-# Collect .o files from the four relevant targets only (excludes CLI main and macOS targets).
+# The Swift side is consumed as a single shared library (SwiftPM .dynamic
+# product, built from Sources/BridgeC). It exposes the C ABI (@_cdecl) and pulls
+# the Swift core/runtime transitively, so the GUI link no longer globs object
+# files nor enumerates Swift runtime libraries by hand.
+# find_library resolves libDesgranaBridge.so on Linux and DesgranaBridge.lib
+# (the DLL import library) on Windows.
 set(SWIFT_BUILD_DIR "${CMAKE_SOURCE_DIR}/../desgrana/.build/release"
     CACHE PATH "SPM release build output directory")
 
-set(_SWIFT_TARGETS CWav DesgranaCore DesgranaCoreWav DesgranaBridgeC)
-set(SWIFT_OBJECTS "")
-foreach(_tgt ${_SWIFT_TARGETS})
-    file(GLOB_RECURSE _objs "${SWIFT_BUILD_DIR}/${_tgt}.build/*.o")
-    list(APPEND SWIFT_OBJECTS ${_objs})
-endforeach()
-
-if(NOT SWIFT_OBJECTS)
+find_library(DESGRANA_BRIDGE
+    NAMES DesgranaBridge
+    PATHS "${SWIFT_BUILD_DIR}"
+    NO_DEFAULT_PATH)
+if(NOT DESGRANA_BRIDGE)
     message(FATAL_ERROR
-        "No Swift object files found under ${SWIFT_BUILD_DIR}.\n"
-        "Run: cd desgrana && swift build -c release --product desgrana\n"
-        "     cd desgrana && swift build -c release --target DesgranaBridgeC")
+        "DesgranaBridge import library not found under ${SWIFT_BUILD_DIR}.\n"
+        "Run: cd desgrana && swift build -c release --product DesgranaBridge")
 endif()
 
-# Swift runtime location at build time (inside the Docker builder)
+# Linux only: where the Swift runtime lives at build time, and the rpath baked
+# into the installed binary (the .deb drops the Swift dylibs there).
 set(SWIFT_RUNTIME_DIR "/usr/lib/swift/linux"
     CACHE PATH "Swift runtime library directory (build-time)")
-# RPATH embedded in the installed binary (where the .deb puts the Swift dylibs)
 set(DESGRANA_INSTALL_RPATH "/usr/lib/desgrana"
     CACHE PATH "RPATH embedded in the installed desgrana-gui binary")
 
-qt_add_executable(desgrana-linux
+# Same target name on every OS — it already matches the installed binary
+# (desgrana-gui / desgrana-gui.exe), so packaging no longer renames it.
+set(GUI_TARGET desgrana-gui)
+
+# WIN32: build as a GUI-subsystem app (no console window). Ignored on other OSes.
+qt_add_executable(${GUI_TARGET} WIN32
     main.cpp
     DesgranaWindow.cpp
     SplitWorker.cpp
 )
 
-target_include_directories(desgrana-linux PRIVATE include)
+target_include_directories(${GUI_TARGET} PRIVATE include)
 
-target_link_libraries(desgrana-linux PRIVATE
+target_link_libraries(${GUI_TARGET} PRIVATE
     Qt6::Widgets
     Qt6::Network
-    ${SWIFT_OBJECTS}
-    "-L${SWIFT_RUNTIME_DIR}"
-    swiftCore
-    swift_Concurrency
-    swiftDispatch
-    Foundation
-    FoundationEssentials
-    FoundationInternationalization
-    FoundationNetworking
-    dispatch
-    BlocksRuntime
-    pthread
-    dl
-    m
+    ${DESGRANA_BRIDGE}
 )
 
-target_link_options(desgrana-linux PRIVATE
-    -Wl,--as-needed
-    -Wl,--build-id
-)
-
-set_target_properties(desgrana-linux PROPERTIES
-    INSTALL_RPATH "${DESGRANA_INSTALL_RPATH}"
-    BUILD_RPATH   "${SWIFT_RUNTIME_DIR}"
-)
+if(WIN32)
+    # The Swift runtime is carried inside DesgranaBridge.dll (built with
+    # -static-stdlib). Copy it next to the GUI exe so it runs and can be packaged.
+    add_custom_command(TARGET ${GUI_TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SWIFT_BUILD_DIR}/DesgranaBridge.dll"
+            "$<TARGET_FILE_DIR:${GUI_TARGET}>")
+else()
+    # The bridge .so pulls the Swift runtime; -L lets the linker resolve its
+    # NEEDED entries at link time. Runtime rpath lives on the .so itself ($ORIGIN).
+    target_link_libraries(${GUI_TARGET} PRIVATE "-L${SWIFT_RUNTIME_DIR}")
+    target_link_options(${GUI_TARGET} PRIVATE
+        -Wl,--as-needed
+        -Wl,--build-id
+    )
+    set_target_properties(${GUI_TARGET} PROPERTIES
+        INSTALL_RPATH "${DESGRANA_INSTALL_RPATH}"
+        BUILD_RPATH   "${SWIFT_RUNTIME_DIR}"
+    )
+endif()

@@ -25,7 +25,7 @@ make build-linux
 ```
 
 ```sh
-./linux/build/desgrana-linux
+./linux/build/desgrana-gui
 ```
 
 ## Packaged build (Docker)

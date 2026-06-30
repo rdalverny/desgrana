@@ -4,6 +4,14 @@ import PackageDescription
 let package = Package(
     name: "Desgrana",
     platforms: [.macOS(.v13)],
+    products: [
+        // Declared explicitly so the executables build identically (notably the
+        // macOS app, which must not be affected). The dynamic bridge library is
+        // consumed by the Qt GUI on Linux/Windows only; macOS never builds it.
+        .executable(name: "desgrana", targets: ["desgrana"]),
+        .executable(name: "DesgranaApp", targets: ["DesgranaApp"]),
+        .library(name: "DesgranaBridge", type: .dynamic, targets: ["DesgranaBridgeC"]),
+    ],
     targets: [
         // C shim: dr_wav.h (single-header WAV library, public domain). Test-only reference decoder.
         .target(
