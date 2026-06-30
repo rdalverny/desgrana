@@ -4,6 +4,12 @@ on:
   push:
     tags: ['*']
   workflow_dispatch:
+    inputs:
+      only:
+        description: Which platform jobs to run
+        type: choice
+        options: [all, macos, linux, windows]
+        default: all
 
 jobs:
 
@@ -12,6 +18,7 @@ jobs:
 
   macos:
     name: macOS App & CLI
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'macos'
     runs-on: macos-15
 
     steps:
@@ -40,6 +47,7 @@ jobs:
 
   linux-package:
     name: Linux package (${{ matrix.deb_arch }})
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'linux'
     runs-on: ${{ matrix.runs_on }}
     strategy:
       matrix:
@@ -47,17 +55,17 @@ jobs:
           - runs_on: ubuntu-24.04
             deb_arch: amd64
             rpm_arch: x86_64
-          - runs_on: ubuntu-24.04-arm64
+          - runs_on: ubuntu-24.04-arm
             deb_arch: arm64
             rpm_arch: aarch64
 
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # full history + tags for `make buildinfo` (git describe)
+          fetch-depth: 0
 
       - name: Generate BuildInfo.swift
-        run: make buildinfo  # written into desgrana/, picked up by `COPY desgrana/` in the dockerfile
+        run: make buildinfo
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -99,15 +107,98 @@ jobs:
           name: desgrana-${{ github.run_id }}-linux-${{ matrix.rpm_arch }}.rpm
           path: dist/*.rpm
 
-  # ── Windows CLI (x64) ───────────────────────────────────────────────────────
-  # Disabled: setup-swift@v2 does not support Swift 6.x on Windows;
-  # setup-swift@v3 (beta) does not support Windows yet either.
-  # Re-enable once a reliable Swift install method for Windows CI is confirmed.
-  #
-  # windows-cli:
-  #   name: Windows CLI (x64)
-  #   runs-on: windows-latest
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #     - name: Install Swift + Build CLI
-  #       run: cd desgrana && swift build -c release --product desgrana
+  # ── Windows GUI (Qt, x64) ───────────────────────────────────────────────────
+  # DRAFT — needs CI iteration. The Swift side is built as a DLL; the Qt C++ links
+  # its import library. (-static-stdlib was dropped: it can't load the stdlib for
+  # the Windows toolchain, so the Swift runtime DLLs will need bundling alongside.)
+  # Next unknowns to validate: that SwiftPM exports the @_cdecl symbols in the
+  # import library, and the exact install-qt-action version/arch below.
+  windows-gui:
+    name: Windows GUI (Qt, x64)
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'windows'
+    runs-on: windows-latest
+    steps:
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          swift-version: swift-6.4.x-branch
+          swift-build: 6.4.x-DEVELOPMENT-SNAPSHOT-2026-06-01-a
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'              # to confirm: a Qt 6.x published for win64_msvc
+          arch: win64_msvc2022_64       # to confirm against the chosen version
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate BuildInfo.swift
+        shell: bash
+        run: |
+          mkdir -p desgrana/Sources/Core
+          cat > desgrana/Sources/Core/BuildInfo.swift <<EOF
+          // Generated in CI — do not edit.
+          public enum BuildInfo {
+              public static let version = "$(cat VERSION)"
+              public static let gitSHA = "$(git rev-parse HEAD)"
+              public static let gitDescribe = "$(git describe --tags --always --dirty)"
+              public static let gitDirty = false
+              public static let buildDate = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              public static let swiftVersion = "$(swift --version | head -1 | tr -d '"\\')"
+              public static let toolchain = "x86_64-unknown-windows-msvc"
+          }
+          EOF
+
+      - name: Build Swift bridge (DLL)
+        shell: bash
+        run: cd desgrana && swift build -c release --product DesgranaBridge
+
+      # windows-latest has MinGW on PATH; without this CMake picks g++ and the
+      # GCC-ABI link fails against the MSVC Qt + Swift libs. Force the MSVC env.
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build Qt GUI
+        shell: cmd
+        run: |
+          cmake -S qt -B qt/build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_C_COMPILER=cl ^
+            -DCMAKE_CXX_COMPILER=cl ^
+            -DCMAKE_PREFIX_PATH="%QT_ROOT_DIR%" ^
+            -DSWIFT_BUILD_DIR=%CD%/desgrana/.build/release
+          cmake --build qt/build
+
+      - name: Bundle app (Qt + Swift runtime)
+        shell: cmd
+        run: |
+          mkdir dist\desgrana
+          copy /Y qt\build\desgrana-gui.exe   dist\desgrana\
+          copy /Y qt\build\DesgranaBridge.dll dist\desgrana\
+          rem Qt DLLs + platform plugin, gathered by scanning the linked exe.
+          windeployqt --release --no-translations dist\desgrana\desgrana-gui.exe
+          rem Swift runtime DLLs. The path/glob is a best guess — the first run
+          rem will tell us if it is wrong (smoke test fails on a missing DLL).
+          for /d %%d in ("%LOCALAPPDATA%\Programs\Swift\Runtimes\*") do copy /Y "%%d\usr\bin\*.dll" dist\desgrana\
+
+      - name: Smoke test (headless launch)
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $p = Start-Process -FilePath dist\desgrana\desgrana-gui.exe -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 5
+          if ($p.HasExited) {
+            if ($p.ExitCode -ne 0) { throw "desgrana-gui exited early with code $($p.ExitCode) — a runtime DLL is likely missing" }
+          } else {
+            Stop-Process -Id $p.Id -Force
+            Write-Host "desgrana-gui launched and stayed alive — all runtime DLLs resolve."
+          }
+
+      - name: Upload GUI
+        uses: actions/upload-artifact@v7
+        with:
+          name: desgrana-${{ github.run_id }}-windows-gui
+          path: dist/desgrana
