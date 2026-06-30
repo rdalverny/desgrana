@@ -28,44 +28,34 @@ public func desgrana_probe(
 ) -> Int32 {
     let input = URL(fileURLWithPath: String(cString: sessionPath))
 
-    // Resolve a folder (hex takes) or a single WAV file (other recorders).
-    // SE_LOG/snap live next to the takes, so look them up in the containing directory.
-    let resolved = resolveSessionTakes(at: input)
-    if case .ambiguous = resolved {
+    // Shared loading + pair derivation (identical to the macOS app, via Core's Session).
+    let session: Session
+    switch Session.load(input: input) {
+    case .ambiguous:
         cStringCopy("Several WAV files here. Drop a single file, or a session folder.",
                     into: errBuf, maxLen: Int(errLen))
         return -1
-    }
-    let takes: [URL] = { if case .ok(let t) = resolved { return t } else { return [] } }()
-    if takes.isEmpty {
+    case .empty:
         cStringCopy("No WAV takes found", into: errBuf, maxLen: Int(errLen))
         return -1
+    case .ok(let s, _):
+        session = s
     }
 
-    let dir = sessionDirectory(from: input)
-
-    let selogURL = seLogCandidates
-        .map { dir.appendingPathComponent($0) }
-        .first { FileManager.default.fileExists(atPath: $0.path) }
-
-    let session = selogURL.flatMap { try? parseSELog(at: $0) }
-    // No SE_LOG: recover channel count and duration from the first WAV header.
-    let header = session == nil ? takes.first.flatMap { probeWavHeader(at: $0) } : nil
-    outChannels.pointee = Int32(session?.numChannels ?? header?.channels ?? 0)
-    outDuration.pointee = session?.totalDuration ?? header?.duration ?? 0
-
-    let snap = findConsoleSnapshot(in: dir).flatMap { try? parseSnapOrScene(at: $0) }
-    outSnapFound?.pointee = snap != nil ? 1 : 0
+    outChannels.pointee = Int32(session.channelCount)
+    outDuration.pointee = session.sessionInfo?.totalDuration ?? session.inferredDuration ?? 0
+    outSnapFound?.pointee = session.snapInfo != nil ? 1 : 0
 
     if let buf = sceneNameBuf, sceneNameLen > 1 {
         // Only fill when the snap provides a non-empty scene name.
         // Callers are responsible for generating a fallback (e.g. NONAME_) when empty.
-        let name = snap.flatMap { $0.sceneName.flatMap { $0.isEmpty ? nil : $0 } } ?? ""
+        let name = session.snapInfo?.sceneName.flatMap { $0.isEmpty ? nil : $0 } ?? ""
         cStringCopy(name, into: buf, maxLen: Int(sceneNameLen))
     }
 
     if let pL = outPairLefts, let pR = outPairRights, let pC = outPairCount, pairCapacity > 0 {
-        let pairs = detectStereoPairsFromNames(snap?.channelNames ?? [:], channelCount: Int(outChannels.pointee))
+        // Snap-derived pairs: USB hardware pairs merged with name-detected pairs.
+        let pairs = session.snapDerivedPairs
         let n = min(pairs.count, Int(pairCapacity))
         for i in 0..<n {
             pL[i] = Int32(pairs[i].left)
@@ -76,9 +66,8 @@ public func desgrana_probe(
 
     let chNameMax = 64
     if let keys = outChKeys, let buf = outChNames, let cnt = outChCount, chCapacity > 0 {
-        // No snap: fall back to track names embedded in the WAV (iXML), like macOS does.
-        let chNames = snap?.channelNames
-            ?? (takes.first.map { parseIXMLTrackNames(at: $0) } ?? [:])
+        // Snap names, or WAV-embedded (iXML) names when there is no snap.
+        let chNames = session.snapInfo?.channelNames ?? session.fallbackChannelNames
         let sorted = chNames.sorted { $0.key < $1.key }
         let n = min(sorted.count, Int(chCapacity))
         for i in 0..<n {
@@ -122,17 +111,23 @@ public func desgrana_split(
     let outputDir  = URL(fileURLWithPath: String(cString: outputPath))
     let pfx        = prefix.map { String(cString: $0) } ?? ""
 
-    // Resolve a folder (hex takes) or a single WAV file (other recorders).
-    // SE_LOG lives next to the takes, so use the containing directory for its lookup.
-    let resolved = resolveSessionTakes(at: input)
-    guard case .ok(let takes) = resolved else {
-        let msg = { if case .ambiguous = resolved {
-            return "Several WAV files here. Drop a single file, or a session folder."
-        } else { return "No WAV takes found" } }()
-        cStringCopy(msg, into: errBuf, maxLen: Int(errLen))
+    // The pairs and names to write come from the caller (the user's current edits);
+    // Session only provides the takes and the SE_LOG-derived progress offsets.
+    let session: Session
+    let sessionDir: URL
+    switch Session.load(input: input) {
+    case .ambiguous:
+        cStringCopy("Several WAV files here. Drop a single file, or a session folder.",
+                    into: errBuf, maxLen: Int(errLen))
         return -1
+    case .empty:
+        cStringCopy("No WAV takes found", into: errBuf, maxLen: Int(errLen))
+        return -1
+    case .ok(let s, let dir):
+        session = s
+        sessionDir = dir
     }
-    let sessionDir = sessionDirectory(from: input)
+    let takes = session.takes
 
     var pairs: [StereoPair] = []
     if let lefts = pairLefts, let rights = pairRights, pairCount > 0 {
@@ -148,21 +143,10 @@ public func desgrana_split(
         }
     }
 
-    // Build per-take frame offsets from SE_LOG for deterministic progress.
-    let selogURL = seLogCandidates
-        .lazy.map { sessionDir.appendingPathComponent($0) }
-        .first { FileManager.default.fileExists(atPath: $0.path) }
-    let seInfo = selogURL.flatMap { try? parseSELog(at: $0) }
+    // Per-take frame offsets from SE_LOG for deterministic progress.
+    let seInfo = session.sessionInfo
     let totalFrames = Double(seInfo?.totalLength ?? 0)
-    let numCh = max(seInfo?.numChannels ?? 1, 1)
-    var framesBeforeTake: [Int: Double] = [:]
-    if let info = seInfo {
-        var acc: Double = 0
-        for i in 0 ..< info.takeSizes.count {
-            framesBeforeTake[i + 1] = acc
-            acc += Double(info.takeSizes[i]) / Double(numCh)
-        }
-    }
+    let framesBeforeTake = session.frameOffsetsBeforeTakes()
 
     do {
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)

@@ -99,15 +99,21 @@ struct DesgranaCLI {
         guard FileManager.default.fileExists(atPath: inputURL.path, isDirectory: &isInputDir) else {
             fatal("Not found: \(inputURL.path)")
         }
+        // For a single file, the base name is the file's name (so outputs are <name>_ch01.wav).
+        let isFileInput = !isInputDir.boolValue
+        let baseName = isFileInput ? inputURL.deletingPathExtension().lastPathComponent
+                                   : inputURL.lastPathComponent
 
-        // Resolve takes: a session folder (hex takes), a single WAV file, or a folder with
-        // a single WAV (other recorders). A folder with several non-hex WAVs is refused.
-        let takes: [URL]
-        switch resolveSessionTakes(at: inputURL) {
-        case .ok(let t):
-            takes = t
+        // Load via Core's Session — same orchestration (takes, SE_LOG, snap, pair derivation)
+        // as the macOS app and the Qt bridge.
+        var session: Session
+        let sessionDir: URL
+        switch Session.load(input: inputURL) {
+        case .ok(let s, let dir):
+            session = s
+            sessionDir = dir
         case .empty:
-            takes = []
+            fatal("No WAV take files found in: \(inputURL.path)", exitCode: 2)
         case .ambiguous(let files):
             fatal("""
                 Multiple WAV files in this folder — can't tell which to extract. \
@@ -115,61 +121,34 @@ struct DesgranaCLI {
                 Found: \(files.map { $0.lastPathComponent }.joined(separator: ", "))
                 """, exitCode: 2)
         }
-
-        // Directory used for SE_LOG/snap lookup and for naming. For a single file, it's its
-        // parent; the base name is the file's name (so outputs are <name>_ch01.wav).
-        let isFileInput = !isInputDir.boolValue
-        let sessionDir = isFileInput ? inputURL.deletingLastPathComponent() : inputURL
-        let baseName = isFileInput ? inputURL.deletingPathExtension().lastPathComponent
-                                   : inputURL.lastPathComponent
-
-        // Find SE_LOG.bin
-        let selog = findSELog(in: sessionDir)
-        var sessionInfo: SessionInfo?
-        if let selogURL = selog {
-            do {
-                sessionInfo = try parseSELog(at: selogURL)
-            } catch {
-                warn("Could not parse SE_LOG.bin: \(error)")
-            }
+        if session.sessionInfo == nil, let selog = findSELog(in: sessionDir) {
+            warn("SE_LOG.bin present but could not be parsed (\(selog.lastPathComponent))")
         }
 
-        // Load snap (explicit --snap, or auto-detect in session dir)
-        let resolvedSnapURL = cliArgs.snapURL ?? findConsoleSnapshot(in: sessionDir)
-        var snapInfo: SnapInfo?
-        if let url = resolvedSnapURL {
-            do {
-                snapInfo = try parseSnapOrScene(at: url)
-                let src = cliArgs.snapURL != nil ? url.lastPathComponent : "\(url.lastPathComponent) (auto)"
-                print("Snap: \(src) — \(snapInfo!.channelNames.count) named channels, \(snapInfo!.usbStereoPairs.count) USB stereo pairs")
-            } catch {
-                warn("Could not parse snap file: \(error)")
+        // Explicit --snap overrides the auto-detected snapshot (and suppresses it if invalid).
+        if let snapURL = cliArgs.snapURL {
+            if (try? parseSnapOrScene(at: snapURL)) != nil {
+                session.loadSnap(url: snapURL)
+            } else {
+                warn("Could not parse snap file: \(snapURL.lastPathComponent)")
+                session.snapInfo = nil
+                session.snapName = nil
             }
         }
+        if let snap = session.snapInfo {
+            let src = cliArgs.snapURL != nil ? (session.snapName ?? "") : "\(session.snapName ?? "") (auto)"
+            print("Snap: \(src) — \(snap.channelNames.count) named channels, \(snap.usbStereoPairs.count) USB stereo pairs")
+        }
 
-        // Stereo pairs: --stereo (manual override) > snap-derived (USB + L/R names) > all mono
-        let activePairs: [StereoPair]
+        // Stereo pairs: --stereo (manual override) > snap-derived (USB + L/R names) > all mono.
         if !cliArgs.stereoPairs.isEmpty {
-            activePairs = cliArgs.stereoPairs
-        } else if let snap = snapInfo, let info = sessionInfo {
-            let numCh = info.numChannels
-            let usbPairs = filterStereoPairs(snap.usbStereoPairs, channelCount: numCh)
-            let usbTracks = Set(usbPairs.flatMap { [$0.left, $0.right] })
-            let lclPairs = detectStereoPairsFromNames(snap.channelNames, channelCount: numCh)
-                .filter { !usbTracks.contains($0.left) }
-            activePairs = (usbPairs + lclPairs).sorted { $0.left < $1.left }
-        } else {
-            activePairs = []
+            session.userOverridePairs = cliArgs.stereoPairs
         }
-        var channelNames = snapInfo?.channelNames ?? [:]
-        // No snap names: try track names embedded in the WAV (field recorders).
-        // Placeholder today — parseIXMLTrackNames returns [:] until iXML parsing lands.
-        if channelNames.isEmpty, let first = takes.first {
-            channelNames = parseIXMLTrackNames(at: first)
-        }
+        let activePairs = session.effectivePairs
+        let channelNames = session.effectiveChannelNames
 
-        // Takes status (used in both --info and split modes)
-        let wavFiles = takes
+        let sessionInfo = session.sessionInfo
+        let wavFiles = session.takes
 
         // Info-only mode
         if cliArgs.infoOnly {

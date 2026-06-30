@@ -163,10 +163,10 @@ func installedDAWs() -> [DAWInfo] {
 }
 ```
 
-**Linux / Qt (planned):** The Core session generators (`generateRPP`,
-`generateArdour`) are platform-independent. The Qt side already uses
-`QDesktopServices::openUrl` for folder reveal.
-Wiring up a DAW button follows the same pattern. See `qt/DesgranaWindow.cpp`.
+**Linux / Qt:** Implemented. The Core session generators (`generateRPP`,
+`generateArdour`) are platform-independent; the Qt side detects DAWs
+installed on `PATH` and launches them via `desgrana_export_daw_session`.
+See `detectDaws` / `launchDaw` in `qt/DesgranaWindow.cpp`.
 
 ## Roadmap
 
@@ -179,7 +179,6 @@ Current focus:
 
 Under consideration (no timeline):
 
-- DAW export: "Open in DAW" button on Linux
 - AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
 - Localization
 
