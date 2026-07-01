@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.12.0-beta] — 2026-07-01
+
+Essentially refactoring and build fixes.
+
+- Extract a shared Session struct used by the app, bridge and CLI
+- Split the app UI into per-view files (Views/, DAW/)
+- Fix Linux arm64 packages (.deb/.rpm) targeting the wrong CI runner
+- Make Windows CI build work, produce an unsigned installer (experimental)
+
 ## [1.11.1] — 2026-06-24
 
 - Fix release process for macOS app

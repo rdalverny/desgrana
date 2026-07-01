@@ -12,13 +12,14 @@ mono/stereo named tracks.
 </p>
 
 <p align="center">
-  Free &amp; open source ·  macOS & Linux
+  Free &amp; open source · macOS · Linux · Windows (experimental)
 </p>
 
 <p align="center">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-1a1a1a" />
-  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-1a1a1a" />
-  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-linux-1a1a1a" />
+  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-2ea44f" />
+  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-linux-2ea44f" />
+  <img alt="Platform: Windows (experimental)" src="https://img.shields.io/badge/platform-windows-1a1a1a" />
   <a href="https://github.com/rdalverny/desgrana/actions"><img alt="CI" src="https://github.com/rdalverny/desgrana/actions/workflows/build.yml/badge.svg" /></a>
 </p>
 
@@ -80,18 +81,6 @@ Output filenames follow the pattern `ChannelName.wav` (mono) or
 `Name1-Name2.wav` (stereo). If no name is set, `ch01-ch02.wav` is used.
 Channel names come from the console snapshot (`.snap` for Wing, `.scn` for
 X32).
-
-## Build
-
-```bash
-make cli        # → var/shipit/desgrana (CLI binary, macOS)
-make cli-linux  # → desgrana/.build/release/desgrana (build and run on Linux)
-make bundle     # → var/build/Desgrana.app
-
-make test       # build CLI + run byte-exact integration test
-make lint       # SwiftLint (brew install swiftlint)
-make format     # swift-format (brew install swift-format)
-```
 
 ## Contributing & roadmap
 

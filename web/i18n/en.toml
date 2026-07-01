@@ -55,8 +55,7 @@ a_html = '''<p>The card writes one interleaved multichannel WAV.
 id = "platforms"
 q = "Which platforms are supported?"
 a_html = '''<p>Desgrana is available for macOS 13+ and Linux (Debian/Ubuntu 12+, Fedora 41+).</p>
-        <p>No Windows version is planned as of now.
-          See <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.</p>'''
+        <p>An experimental Windows build now exists, available as a pre-release on GitHub.</p>'''
 
 [[faq.items]]
 q = "Which consoles are supported?"

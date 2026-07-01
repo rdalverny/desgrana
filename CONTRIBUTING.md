@@ -2,6 +2,9 @@
 
 ## Build prerequisites
 
+CI (`.github/workflows/build.yml`) produces the release artifacts for all three
+platforms; the per-OS steps below are for local development.
+
 ### macOS
 
 - Xcode 15 or later (Swift 5.9+)
@@ -32,14 +35,24 @@ sudo apt install cmake ninja-build qt6-base-dev libgl1-mesa-dev libxkbcommon-dev
 sudo dnf install cmake ninja-build qt6-qtbase-devel mesa-libGL-devel libxkbcommon-devel git
 
 make build-linux          # CLI + Qt GUI binary
-make package-debian       # .deb amd64 → dist/
-make package-debian-arm64 # .deb arm64 → dist/
+make package-debian-all   # .deb amd64 + arm64 → dist/
 make test-image           # build the Docker tester image (once)
 make test-debian          # install the .deb and run the CLI test suite
 ```
 
 You may need to adjust `SWIFT_*` variables in the Makefile to match your Swift
 installation path.
+
+### Windows (experimental)
+
+Windows builds are produced in CI (`.github/workflows/build.yml`, job
+`windows-gui`): a portable zip plus an Inno Setup installer. The GUI is Qt (same
+as Linux); the Swift core is consumed as a DLL (`DesgranaBridge`).
+
+Building locally needs the Swift toolchain for Windows (via
+[compnerd/gha-setup-swift](https://github.com/compnerd/gha-setup-swift) or a
+manual install) and Qt 6 for MSVC — the `windows-gui` job is the canonical
+recipe. Not yet tested on a real machine; feedback welcome.
 
 ## Before you start
 
@@ -177,15 +190,13 @@ Current focus:
 - X-Live / W-Live validation with real session samples
 - X32/M32 support testing (parser implemented, needs real-world `.scn` files)
 
-Under consideration (no timeline):
+Under consideration (no timeline, contributions welcome):
 
-- AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
 - Localization
+- Windows version: CI (done), installer (done); what's left:
+  testing, signing, DAW integration
+- AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
 
-Not planned (contributions welcome):
-
-- Windows port (Qt is cross-platform; Swift on Windows, code signing
-  and CI are the main points to fix)
 
 ## AI disclosure
 
