@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-# Generates Desgrana.iconset/ and Desgrana.xcassets/ from icon.icon.
-# No third-party dependencies. Called by `make icon`.
+# Generates every app icon from icon.icon (the single source):
+#   - macOS:   Desgrana.iconset/ + Desgrana.xcassets/        (ictool + sips)
+#   - Linux:   packaging/linux/icons/hicolor/<size>/apps/desgrana.png
+#   - Windows: packaging/win/desgrana.ico
+# The Linux/Windows icons derive from the Default rendition, exported flat at
+# 1024px, so all platforms share one artwork. Called by `make icon` (macOS only).
 #
-# Requires Icon Composer (bundled with Xcode 16.3+) for ictool.
+# Requires Icon Composer (Xcode 16.3+) for ictool, and ImageMagick (magick) for
+# the Linux/Windows icons.
 
 import json, os, shutil, subprocess, sys
 
@@ -126,6 +131,50 @@ def build_xcassets(written_by_appearance: dict) -> None:
     print(f"  Contents.json ({len(images)} entries)")
 
 
+# ── Linux + Windows icons (from the Default rendition) ────────────────────────
+
+FLAT_MASTER     = "/tmp/desgrana-icon-1024.png"
+LINUX_ICONS_DIR = "packaging/linux/icons/hicolor"
+LINUX_SIZES     = [16, 32, 48, 64, 128, 256, 512]
+WIN_ICO         = "packaging/win/desgrana.ico"
+WIN_ICO_SIZES   = [16, 32, 48, 64, 128, 256]
+
+
+def export_flat_master(icon_path: str) -> None:
+    if shutil.which("magick") is None:
+        sys.exit("Error: ImageMagick ('magick') not found; needed for Linux/Windows icons.")
+    r = subprocess.run(
+        [ICTOOL, icon_path,
+         "--export-image", "--output-file", FLAT_MASTER,
+         "--platform", "macOS", "--rendition", "Default",
+         "--width", "1024", "--height", "1024", "--scale", "1"],
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        sys.exit(f"ictool failed exporting the Default rendition:\n{r.stderr.decode()}")
+    print(f"Flat master: {FLAT_MASTER}")
+
+
+def build_linux_icons() -> None:
+    for size in LINUX_SIZES:
+        out_dir = os.path.join(LINUX_ICONS_DIR, f"{size}x{size}", "apps")
+        os.makedirs(out_dir, exist_ok=True)
+        out = os.path.join(out_dir, "desgrana.png")
+        subprocess.run(["magick", FLAT_MASTER, "-resize", f"{size}x{size}", out],
+                       check=True)
+        print(f"  {out}")
+    print(f"Linux icons ready: {LINUX_ICONS_DIR}/")
+
+
+def build_windows_ico() -> None:
+    os.makedirs(os.path.dirname(WIN_ICO), exist_ok=True)
+    sizes = ",".join(str(s) for s in WIN_ICO_SIZES)
+    subprocess.run(["magick", FLAT_MASTER, "-background", "none",
+                    "-define", f"icon:auto-resize={sizes}", WIN_ICO],
+                   check=True)
+    print(f"Windows icon ready: {WIN_ICO}")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 icon_path = "icon.icon"
@@ -143,3 +192,7 @@ for rendition, appearance in RENDITIONS.items():
 print(f"Iconset ready: {ICONSET}/")
 build_xcassets(written_by_appearance)
 print(f"xcassets ready: {XCASSETS}/")
+
+export_flat_master(icon_path)
+build_linux_icons()
+build_windows_ico()
