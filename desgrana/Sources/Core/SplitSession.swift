@@ -149,7 +149,9 @@ public func splitSession(
 
     return collectSplitResult(
         specs: tracks.map(\.spec), hasSignal: tracks.map(\.hasSignal),
-        totalFramesWritten: totalFramesWritten, sampleRate: sampleRate
+        totalFramesWritten: totalFramesWritten, sampleRate: sampleRate,
+        sourceFormat: SourceFormat(channels: numChannels, sampleRate: Int(sampleRate),
+                                   bitsPerSample: sourceBits, isFloat: isFloat)
     )
 }
 // swiftlint:enable function_body_length cyclomatic_complexity

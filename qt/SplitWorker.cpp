@@ -29,7 +29,9 @@ void SplitWorker::run() {
         &silentSkipped,
         &keptMono,
         &keptStereo,
-        err, sizeof(err)
+        err, sizeof(err),
+        m_params.writeReport ? 1 : 0,
+        nullptr, 0
     );
     if (rc == 0)
         emit done(static_cast<int>(silentSkipped),
