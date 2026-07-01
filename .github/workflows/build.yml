@@ -36,7 +36,7 @@ jobs:
           swift build -c release --product DesgranaApp
 
       - name: Test
-        run: make test   # unit tests + byte-exact split tests
+        run: make test
 
       - name: Upload CLI
         uses: actions/upload-artifact@v7
@@ -158,6 +158,12 @@ jobs:
           }
           EOF
 
+      - name: Build CLI and run core tests
+        shell: bash
+        run: |
+          swift build --package-path desgrana -c release --product desgrana
+          python desgrana/Tests/test_split.py desgrana/.build/release/desgrana.exe
+
       - name: Build Swift bridge (DLL)
         shell: bash
         run: cd desgrana && swift build -c release --product DesgranaBridge
@@ -225,46 +231,3 @@ jobs:
         with:
           name: desgrana-${{ github.run_id }}-windows-setup
           path: dist/desgrana-*-setup.exe
-
-  # ── Windows core tests (CLI, x64) ───────────────────────────────────────────
-  # Builds the CLI only to run the byte-exact split tests on Windows — a fast
-  # functional check of the shared Core (WAV, SE_LOG, snap, markers, bext, iXML),
-  # the same paths the GUI reaches through the bridge. Not shipped: no artifact.
-  windows-test:
-    name: Windows core tests (CLI, x64)
-    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'windows'
-    runs-on: windows-latest
-    steps:
-      - uses: compnerd/gha-setup-swift@main
-        with:
-          swift-version: swift-6.4.x-branch
-          swift-build: 6.4.x-DEVELOPMENT-SNAPSHOT-2026-06-01-a
-
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Generate BuildInfo.swift
-        shell: bash
-        run: |
-          mkdir -p desgrana/Sources/Core
-          cat > desgrana/Sources/Core/BuildInfo.swift <<EOF
-          // Generated in CI — do not edit.
-          public enum BuildInfo {
-              public static let version = "$(cat VERSION)"
-              public static let gitSHA = "$(git rev-parse HEAD)"
-              public static let gitDescribe = "$(git describe --tags --always --dirty)"
-              public static let gitDirty = false
-              public static let buildDate = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              public static let swiftVersion = "$(swift --version | head -1 | tr -d '"\\')"
-              public static let toolchain = "x86_64-unknown-windows-msvc"
-          }
-          EOF
-
-      - name: Build CLI
-        shell: bash
-        run: cd desgrana && swift build -c release --product desgrana
-
-      - name: Run split tests
-        shell: bash
-        run: python desgrana/Tests/test_split.py desgrana/.build/release/desgrana.exe
