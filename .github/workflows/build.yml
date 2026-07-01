@@ -35,6 +35,9 @@ jobs:
           swift build -c release --product desgrana
           swift build -c release --product DesgranaApp
 
+      - name: Test
+        run: make test   # unit tests + byte-exact split tests
+
       - name: Upload CLI
         uses: actions/upload-artifact@v7
         with:
@@ -107,12 +110,17 @@ jobs:
           name: desgrana-${{ github.run_id }}-linux-${{ matrix.rpm_arch }}.rpm
           path: dist/*.rpm
 
-  # ── Windows GUI (Qt, x64) ───────────────────────────────────────────────────
-  # DRAFT — needs CI iteration. The Swift side is built as a DLL; the Qt C++ links
-  # its import library. (-static-stdlib was dropped: it can't load the stdlib for
-  # the Windows toolchain, so the Swift runtime DLLs will need bundling alongside.)
-  # Next unknowns to validate: that SwiftPM exports the @_cdecl symbols in the
-  # import library, and the exact install-qt-action version/arch below.
+      # Install the freshly built .deb in a clean container and run the byte-exact
+      # split tests against it — same flow as `make test-debian` locally.
+      - name: Test .deb
+        run: |
+          make test-image  ARCH=${{ matrix.deb_arch }}
+          make test-debian ARCH=${{ matrix.deb_arch }}
+
+  # ── Windows GUI (Qt, x64) + core tests ──────────────────────────────────────
+  # Builds the CLI to run the byte-exact split tests (Core check on Windows), then
+  # the Qt GUI: Swift bridge as a DLL, C++ linked against its import lib, bundled
+  # (windeployqt + Swift runtime dependency walk), smoke-tested, packaged (Inno).
   windows-gui:
     name: Windows GUI (Qt, x64)
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'windows'

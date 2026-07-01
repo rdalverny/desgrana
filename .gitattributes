@@ -1,0 +1,5 @@
+# Test fixtures are compared byte-for-byte
+# autocrlf on Windows runners would turn the committed LF into CRLF and break
+# the .csv/.txt marker comparisons).
+# Treat the whole fixtures tree as binary.
+desgrana/Tests/fixtures/** -text

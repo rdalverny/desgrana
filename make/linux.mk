@@ -60,6 +60,7 @@ package-debian-all:
 
 test-image:
 	$(DOCKER) build \
+		--load \
 		--platform linux/$(ARCH) \
 		-t desgrana-tester \
 		-f packaging/linux/deb/tester.dockerfile .
