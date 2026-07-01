@@ -163,6 +163,44 @@ public struct Session {
 
     public var isCustomized: Bool { userOverridePairs != nil }
 
+    // MARK: Provenance (for the extraction report)
+
+    /// Where an effective stereo pair came from.
+    public enum PairOrigin: String {
+        case usb    // explicit USB hardware routing in the snap
+        case name   // detected from L/R channel names in the snap
+        case user   // manual override (CLI --stereo or GUI edit)
+    }
+
+    /// Classifies each given pair against the snap: `.usb` if it matches an explicit USB
+    /// hardware pair, `.name` if it matches a pair detected from L/R channel names, else
+    /// `.user` (a manual link the snap does not account for). Works for pairs supplied by
+    /// any frontend (the CLI's effective pairs, or the GUI's live user edits).
+    public func classifyPairs(_ pairs: [StereoPair]) -> [(pair: StereoPair, origin: PairOrigin)] {
+        let numCh = channelCount
+        let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
+        let namedPairs = detectStereoPairsFromNames(
+            snapInfo?.channelNames ?? fallbackChannelNames, channelCount: numCh)
+        return pairs.map { p in
+            if usbPairs.contains(p) { return (p, .usb) }
+            if namedPairs.contains(p) { return (p, .name) }
+            return (p, .user)
+        }
+    }
+
+    /// Where a channel's name came from.
+    public enum NameSource: String {
+        case snap   // console snapshot (.snap / .scn)
+        case wav    // embedded iXML track name (no snap)
+        case none   // unnamed channel
+    }
+
+    public func nameSource(forChannel ch: Int) -> NameSource {
+        if snapInfo?.channelNames[ch] != nil { return .snap }
+        if fallbackChannelNames[ch] != nil { return .wav }
+        return .none
+    }
+
     public mutating func unlinkPair(left: Int) {
         var p = effectivePairs
         p.removeAll { $0.left == left }

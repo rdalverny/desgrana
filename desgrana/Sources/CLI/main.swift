@@ -3,6 +3,11 @@
 import Foundation
 import DesgranaCore
 // Platform backend (DesgranaCoreAudioToolbox / DesgranaCoreWav) is re-exported via Platform.swift
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Darwin)
+import Darwin
+#endif
 
 // MARK: - Minimal argument parsing (no dependencies)
 
@@ -15,6 +20,7 @@ struct CLIArgs {
     var snapURL: URL?
     var shortNames: Bool
     var dryRun: Bool
+    var json: Bool
 
     // swiftlint:disable:next cyclomatic_complexity
     static func parse(_ args: [String]) -> CLIArgs {
@@ -26,6 +32,7 @@ struct CLIArgs {
         var snapURL: URL?
         var shortNames = false
         var dryRun = false
+        var json = false
         var i = 0
         while i < args.count {
             switch args[i] {
@@ -53,6 +60,8 @@ struct CLIArgs {
                 shortNames = true
             case "--dry-run":
                 dryRun = true
+            case "--json":
+                json = true
             case "--snap":
                 i += 1
                 guard i < args.count else { DesgranaCLI.fatal("--snap requires a path") }
@@ -76,7 +85,8 @@ struct CLIArgs {
             stereoPairs: stereoPairs,
             snapURL: snapURL,
             shortNames: shortNames,
-            dryRun: dryRun
+            dryRun: dryRun,
+            json: json
         )
     }
 }
@@ -135,7 +145,7 @@ struct DesgranaCLI {
                 session.snapName = nil
             }
         }
-        if let snap = session.snapInfo {
+        if let snap = session.snapInfo, !cliArgs.json {
             let src = cliArgs.snapURL != nil ? (session.snapName ?? "") : "\(session.snapName ?? "") (auto)"
             print("Snap: \(src) — \(snap.channelNames.count) named channels, \(snap.usbStereoPairs.count) USB stereo pairs")
         }
@@ -150,8 +160,38 @@ struct DesgranaCLI {
         let sessionInfo = session.sessionInfo
         let wavFiles = session.takes
 
+        // Output directory: sibling <base>_extract, or the explicit --output path.
+        func resolvedOutputDir() -> URL {
+            if let op = cliArgs.outputPath { return URL(fileURLWithPath: op, isDirectory: true) }
+            let container = isFileInput ? sessionDir : sessionDir.deletingLastPathComponent()
+            return container.appendingPathComponent(baseName + "_extract")
+        }
+        // Prefix: --prefix, else the SE_LOG session name, else the base name.
+        func resolvedPrefix() -> String {
+            if let p = cliArgs.prefix { return p }
+            if let info = sessionInfo, !info.sessionName.isEmpty {
+                return info.sessionName.replacingOccurrences(of: " ", with: "_") + "_"
+            }
+            return baseName + "_"
+        }
+
+        // Emits a report as pure JSON on stdout (human/progress noise silenced by callers).
+        func emitReport(result: SplitResult?, plannedSpecs: [OutputSpec]?, format: SourceFormat?) {
+            let report = buildExtractionReport(
+                session: session, sessionDir: sessionDir,
+                outputDir: resolvedOutputDir(), prefix: resolvedPrefix(),
+                shortNames: cliArgs.shortNames, isSingleFile: isFileInput,
+                pairs: activePairs, channelNames: channelNames, result: result,
+                plannedSpecs: plannedSpecs, format: format)
+            print(report.jsonString())
+        }
+
         // Info-only mode
         if cliArgs.infoOnly {
+            if cliArgs.json {
+                emitReport(result: nil, plannedSpecs: nil, format: wavFiles.first.flatMap(probeSourceFormat))
+                return
+            }
             if let info = sessionInfo {
                 printSessionInfo(info)
                 printTakesStatus(info: info, found: wavFiles)
@@ -167,46 +207,33 @@ struct DesgranaCLI {
         }
 
         // Print session info
-        if let info = sessionInfo {
+        if let info = sessionInfo, !cliArgs.json {
             print("Session info (from SE_LOG.bin):")
             printSessionInfo(info)
             printTakesStatus(info: info, found: wavFiles)
             print()
-        } else {
+        } else if sessionInfo == nil, !cliArgs.json {
             warn("No SE_LOG.bin found. Will infer from WAV headers.")
             print()
         }
 
-        // Determine output directory
-        let outputDir: URL
-        if let op = cliArgs.outputPath {
-            outputDir = URL(fileURLWithPath: op, isDirectory: true)
-        } else {
-            // Sibling of the input, named <base>_extract (folder for a folder, in the
-            // file's own directory for a single file).
-            let container = isFileInput ? sessionDir : sessionDir.deletingLastPathComponent()
-            outputDir = container.appendingPathComponent(baseName + "_extract")
-        }
+        let outputDir = resolvedOutputDir()
+        let pfx = resolvedPrefix()
 
-        // Determine prefix
-        let pfx: String
-        if let p = cliArgs.prefix {
-            pfx = p
-        } else if let info = sessionInfo, !info.sessionName.isEmpty {
-            pfx = info.sessionName.replacingOccurrences(of: " ", with: "_") + "_"
-        } else {
-            pfx = baseName + "_"
-        }
-
-        // Dry-run: show what would be created without writing anything
+        // Dry-run: report what would be created without writing anything.
         if cliArgs.dryRun {
-            printDryRun(
-                sessionInfo: sessionInfo,
-                outputDir: outputDir,
-                prefix: pfx,
-                pairs: activePairs,
-                channelNames: channelNames
-            )
+            let (activeVal, pairedVal) = validateStereoPairs(activePairs, channelCount: session.channelCount)
+            let specs = buildOutputSpecs(
+                activePairs: activeVal, pairedChannels: pairedVal, numChannels: session.channelCount,
+                channelNames: channelNames, outputDir: outputDir, prefix: pfx,
+                useShortFilenames: cliArgs.shortNames)
+            if cliArgs.json {
+                emitReport(result: nil, plannedSpecs: specs,
+                           format: wavFiles.first.flatMap(probeSourceFormat))
+            } else {
+                printDryRun(sessionInfo: sessionInfo, outputDir: outputDir, prefix: pfx,
+                            pairs: activePairs, channelNames: channelNames)
+            }
             return
         }
 
@@ -214,33 +241,56 @@ struct DesgranaCLI {
         do {
             // iXML track names + bext + cue (markers) are embedded before `data` at
             // file creation by splitSession; markers also get sidecar .txt/.mid exports.
-            let result = try splitSession(
-                sessionDir: sessionDir,
-                outputDir: outputDir,
-                prefix: pfx,
-                stereoPairs: activePairs,
-                channelNames: channelNames,
-                useShortFilenames: cliArgs.shortNames,
-                takes: wavFiles,
-                markers: sessionInfo?.markerSamples ?? []
-            )
-
-            if let info = sessionInfo, !info.markerSamples.isEmpty {
-                exportMarkers(info, to: outputDir, prefix: pfx)
-                exportMIDIMarkers(info, to: outputDir, prefix: pfx)
+            // In --json mode, splitSession's progress prints are silenced so stdout is pure JSON.
+            let result = try withStdout(silenced: cliArgs.json) {
+                let r = try splitSession(
+                    sessionDir: sessionDir,
+                    outputDir: outputDir,
+                    prefix: pfx,
+                    stereoPairs: activePairs,
+                    channelNames: channelNames,
+                    useShortFilenames: cliArgs.shortNames,
+                    takes: wavFiles,
+                    markers: sessionInfo?.markerSamples ?? []
+                )
+                if let info = sessionInfo, !info.markerSamples.isEmpty {
+                    exportMarkers(info, to: outputDir, prefix: pfx)
+                    exportMIDIMarkers(info, to: outputDir, prefix: pfx)
+                }
+                return r
             }
 
-            printSplitSummary(
-                keptMono: result.keptMono, keptStereo: result.keptStereo,
-                silentCount: result.silentSkipped,
-                totalFrames: result.totalFrames, sampleRate: result.sampleRate,
-                outputDir: outputDir
-            )
+            if cliArgs.json {
+                emitReport(result: result, plannedSpecs: nil, format: result.sourceFormat)
+            } else {
+                printSplitSummary(
+                    keptMono: result.keptMono, keptStereo: result.keptStereo,
+                    silentCount: result.silentSkipped,
+                    totalFrames: result.totalFrames, sampleRate: result.sampleRate,
+                    outputDir: outputDir
+                )
+            }
         } catch let err as SplitError {
             fatal(err.description, exitCode: err.exitCode)
         } catch {
             fatal("\(error)")
         }
+    }
+
+    /// Runs `body` with stdout redirected to /dev/null when `silenced` is true, restoring it
+    /// afterwards. Used by --json so the split's progress prints never reach the JSON stream.
+    static func withStdout<T>(silenced: Bool, _ body: () throws -> T) rethrows -> T {
+        guard silenced else { return try body() }
+        fflush(stdout)
+        let saved = dup(1)
+        let devnull = open("/dev/null", O_WRONLY)
+        if devnull >= 0 { dup2(devnull, 1) }
+        defer {
+            fflush(stdout)
+            if devnull >= 0 { dup2(saved, 1); close(devnull) }
+            close(saved)
+        }
+        return try body()
     }
 
     // MARK: - Output helpers
@@ -344,6 +394,7 @@ struct DesgranaCLI {
             --snap   <file>         Console snapshot (.snap Wing / .scn X32) for channel names and USB stereo pairs
             --short-names           Use channel name only for filenames (e.g. KICK.wav, not prefix_ch01_KICK.wav)
             --dry-run               Show what would be extracted without writing any files
+            --json                  Print a machine-readable JSON report on stdout (pairs with --dry-run / --info)
             --info,   -i            Show session info only, without extracting
             --help,   -h            Show this help
 

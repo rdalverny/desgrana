@@ -19,6 +19,13 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                Toggle("Write JSON report", isOn: $vm.writeReport)
+                Text("Saves report.json in the output folder: formats, takes, chosen "
+                    + "extractions, markers and skipped tracks (for tools and AI agents).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 if let dir = vm.customOutputDir {
                     LabeledContent("Output folder") {
                         Text(dir.path)
@@ -59,6 +66,7 @@ struct SettingsView: View {
                     Spacer()
                     Button("Reset to defaults") {
                         vm.shortFilenames = true
+                        vm.writeReport = false
                         vm.customOutputDir = nil
                         updateEnabled = true
                         updateIntervalDays = 30
