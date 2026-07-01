@@ -292,6 +292,39 @@ CASES: list = [
             "test_ch07-08_OH.wav":   ["OH L", "OH R"],
         },
     ),
+    # case09: non-ASCII channel names (accents + œ ligature). Exercises the
+    # Unicode string paths — snap JSON parsing, output filenames, iXML track
+    # names — that ASCII fixtures never reach (Foundation has ASCII fast paths).
+    TestCase(
+        name="case09_nonascii",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], SAMPLE_RATE // 4),
+            SignalSpec(FREQS[2], SAMPLE_RATE // 2),
+            SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
+        ],
+        snap_data={
+            "active_scene": "I:/RÉPÉTITION/Générale.snap",
+            "ae_data": {
+                "ch": {
+                    "1": {"name": "Café"},
+                    "2": {"name": "Naïve"},
+                    "3": {"name": "Chœur_L"},
+                    "4": {"name": "Chœur_R"},
+                },
+            },
+        },
+        desgrana_extra_args=["--short-names"],
+        markers=MARKER_FRAMES,
+        expected_ixml={
+            "Café.wav":  ["Café"],
+            "Naïve.wav": ["Naïve"],
+            "Chœur.wav": ["Chœur L", "Chœur R"],
+        },
+    ),
     # case04: truncated from the real SD Card session WAV.
     # Not committed; skipped automatically when the source file is absent.
     TestCase(
