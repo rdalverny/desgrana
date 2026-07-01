@@ -5,24 +5,11 @@ VERSION        := $(shell cat VERSION)
 DATE           := $(shell date +"%B %-d %Y")
 GITHUB_REPO    := rdalverny/desgrana
 GITHUB_BASE    := https://github.com/$(GITHUB_REPO)/releases/download
-TEAM_ID        ?=
-SIGN_IDENTITY  ?= Developer ID Application: $(TEAM_ID)
-NOTARY_PROFILE ?=
-ENTITLEMENTS   := desgrana/Sources/App/$(NAME).entitlements
-APP            := $(NAME).app
 BUILD          := var/build
 DIST           := dist
-APP_BUILD      := $(BUILD)/$(APP)
-PLIST          := $(APP_BUILD)/Contents/Info.plist
-
-DOCKER         ?= docker
-BUILDX_BUILDER = multi
 
 SPM_NATIVE_DIR  := desgrana/.build/release
-SPM_UNIV_DIR    := desgrana/.build/apple/Products/Release
-SPM_APP_PRODUCT := DesgranaApp
 CLI_BUILD       := $(BUILD)/desgrana
-DMG             := $(DIST)/$(NAME)-$(VERSION).dmg
 
 BUILDINFO       := desgrana/Sources/Core/BuildInfo.swift
 GIT_SHA         := $(shell git rev-parse HEAD 2>/dev/null || echo 0000000000000000000000000000000000000000)
@@ -32,9 +19,16 @@ BUILD_DATE      := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 SWIFT_VERSION   := $(shell swift --version 2>/dev/null | head -1 | tr -d '"\\')
 TOOLCHAIN       := $(shell swift --version 2>/dev/null | grep -i target | head -1 | sed 's/^ *//' | tr -d '"\\')
 
-.PHONY: cli cli-universal app app-universal bundle bundle-universal build build-universal \
-        test test-generate package shipit release sign notarize verify-dmg icon buildinfo \
-        patch minor clean lint lint-fix format format-check package-debian test-image test-debian web tag
+
+include make/macos.mk
+include make/linux.mk
+include make/release.mk
+
+# Lock the default goal so it can't shift when fragments are reordered.
+.DEFAULT_GOAL := buildinfo
+
+.PHONY: buildinfo cli test test-unit test-generate tag patch minor \
+        lint lint-fix format format-check clean fmtdoc web
 
 # ── Build ─────────────────────────────────────────────────────────
 
@@ -63,41 +57,6 @@ cli: buildinfo
 	strip -S $(CLI_BUILD)
 	@echo "CLI → $(CLI_BUILD)"
 
-cli-universal: buildinfo
-	cd desgrana && swift build -c release --product desgrana --arch arm64 --arch x86_64
-	mkdir -p $(BUILD)
-	cp $(SPM_UNIV_DIR)/desgrana $(CLI_BUILD)
-	strip -S $(CLI_BUILD)
-	@echo "CLI (universal) → $(CLI_BUILD)"
-
-app: buildinfo
-	cd desgrana && swift build -c release --product $(SPM_APP_PRODUCT)
-
-app-universal: buildinfo
-	cd desgrana && swift build -c release --product $(SPM_APP_PRODUCT) --arch arm64 --arch x86_64
-
-bundle: app
-	rm -rf $(APP_BUILD)
-	mkdir -p $(BUILD)
-	cp -r app-template/ $(APP_BUILD)
-	mkdir -p $(APP_BUILD)/Contents/MacOS
-	cp $(SPM_NATIVE_DIR)/$(SPM_APP_PRODUCT) $(APP_BUILD)/Contents/MacOS/
-	strip -S $(APP_BUILD)/Contents/MacOS/$(SPM_APP_PRODUCT)
-	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
-	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
-	@echo "Built: $(APP_BUILD) ($(VERSION))"
-
-bundle-universal: app-universal
-	rm -rf $(APP_BUILD)
-	mkdir -p $(BUILD)
-	cp -r app-template/ $(APP_BUILD)
-	mkdir -p $(APP_BUILD)/Contents/MacOS
-	cp $(SPM_UNIV_DIR)/$(SPM_APP_PRODUCT) $(APP_BUILD)/Contents/MacOS/
-	strip -S $(APP_BUILD)/Contents/MacOS/$(SPM_APP_PRODUCT)
-	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
-	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)"            $(PLIST)
-	@echo "Built (universal): $(APP_BUILD) ($(VERSION))"
-
 test-unit: buildinfo
 	cd desgrana && swift test
 
@@ -106,106 +65,6 @@ test: cli test-unit
 
 test-generate: cli
 	python3 desgrana/Tests/test_split.py --generate $(CLI_BUILD)
-
-build: cli bundle
-build-universal: cli-universal bundle-universal
-
-run: build
-	rm -rf /Applications/$(APP) && cp -r var/build/$(APP) /Applications/
-	open -a $(NAME)
-
-# ── signature, notarization
-sign: build-universal
-	codesign --deep --force --options runtime \
-		--entitlements $(ENTITLEMENTS) \
-		--sign "$(SIGN_IDENTITY)" \
-		$(APP_BUILD)
-	codesign --verify --verbose $(APP_BUILD)
-
-	codesign --force --options runtime \
-		--sign "$(SIGN_IDENTITY)" \
-		$(CLI_BUILD)
-	codesign --verify --verbose $(CLI_BUILD)
-	@echo "Signed → $(APP_BUILD), $(CLI_BUILD)"
-
-package: sign
-	mkdir -p $(DIST)
-	bash packaging/macos/make-dmg.sh \
-		"$(APP_BUILD)" \
-		"$(CLI_BUILD)" \
-		"$(VERSION)" \
-		"$(DMG)"
-
-notarize: package
-	@set -eu; \
-	trap 'st=$$?; if [ $$st -ne 0 ]; then \
-		printf "\n\033[1;31m✗ NOTARIZATION FAILED\033[0m — removing %s so a broken build can never be shipped.\n" "$(DMG)"; \
-		rm -f "$(DMG)"; \
-	fi; exit $$st' EXIT; \
-	echo "→ Submitting $(DMG) to Apple notary service..."; \
-	out=$$(xcrun notarytool submit "$(DMG)" --keychain-profile "$(NOTARY_PROFILE)" --wait 2>&1); \
-	echo "$$out"; \
-	echo "$$out" | grep -q "status: Accepted" \
-		|| { echo "Notary service did not return status: Accepted."; exit 1; }; \
-	xcrun stapler staple "$(DMG)"; \
-	$(MAKE) --no-print-directory verify-dmg
-	@printf "\033[1;32m✓ Notarized + verified\033[0m → $(DMG)\n"
-
-# Counter-check: a built DMG is only valid if Gatekeeper accepts the app inside
-# as notarized AND the ticket is stapled. Fails loudly otherwise.
-verify-dmg:
-	@set -eu; \
-	[ -f "$(DMG)" ] || { echo "✗ $(DMG) does not exist."; exit 1; }; \
-	echo "→ Verifying $(DMG)..."; \
-	xcrun stapler validate "$(DMG)"; \
-	mnt=$$(hdiutil attach "$(DMG)" -nobrowse -noautoopen -readonly \
-		| sed -n 's|.*\(/Volumes/.*\)|\1|p' | head -1); \
-	trap 'hdiutil detach "$$mnt" -quiet 2>/dev/null || true' EXIT; \
-	assess=$$(spctl -a -t exec -vv "$$mnt/$(APP)" 2>&1); echo "$$assess"; \
-	echo "$$assess" | grep -q "source=Notarized Developer ID" \
-		|| { echo "✗ App is signed but NOT notarized."; exit 1; }; \
-	codesign --verify --deep --strict --verbose=2 "$$mnt/$(APP)"; \
-	printf "\033[1;32m✓ DMG verified\033[0m: stapled, notarized, Gatekeeper-approved.\n"
-
-
-# ── Tag & push ───────────────────────────────────────────────────────
-tag:
-	@TAG=v$(VERSION); \
-	 git diff --quiet && git diff --cached --quiet \
-	   || { echo "Uncommitted changes — aborting."; exit 1; }; \
-	 git fetch --quiet origin; \
-	 git diff --quiet HEAD origin/main \
-	   || { echo "main is not in sync with origin/main — push or pull first."; exit 1; }; \
-	 git rev-parse "$$TAG" >/dev/null 2>&1 \
-	   && { echo "Tag $$TAG already exists."; exit 1; } || true; \
-	 git tag "$$TAG"; \
-	 git push origin main "$$TAG"; \
-	 open "https://github.com/$(GITHUB_REPO)/actions"; \
-	 echo "Tagged and pushed $$TAG — opening Actions."
-
-# ── version ─────────────────────────────────────────────────────────
-define bump-version
-	@NEW=$$(cat VERSION); \
-	 DATE=$$(date +"%Y-%m-%d"); \
-	 RFC_DATE=$$(date -R); \
-	 MAINT="Romain d'Alverny <rwx@romaindalverny.com>"; \
-	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] — $$DATE\n/" CHANGELOG.md; \
-	 { printf 'desgrana (%s-1) unstable; urgency=medium\n\n  * Release %s.\n\n -- %s  %s\n\n' \
-	     "$$NEW" "$$NEW" "$$MAINT" "$$RFC_DATE"; \
-	   cat packaging/linux/deb/debian/changelog; } > /tmp/_deb_changelog \
-	 && mv /tmp/_deb_changelog packaging/linux/deb/debian/changelog; \
-	 echo "Version → $$NEW  (CHANGELOG.md + debian/changelog updated)"
-endef
-
-patch:
-	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[2]=str(int(v[2])+1);open('VERSION','w').write('.'.join(v))"
-	$(bump-version)
-
-minor:
-	@python3 -c "v=open('VERSION').read().strip().split('.');v=v+['0'] if len(v)<3 else v;v[1]=str(int(v[1])+1);v[2]='0';open('VERSION','w').write('.'.join(v))"
-	$(bump-version)
-
-# ── Lint ─────────────────────────────────────────────────────────
 
 lint:
 	cd desgrana && swiftlint lint --strict
@@ -222,94 +81,3 @@ clean:
 fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
 
-# ── Web ──────────────────────────────────────────────────────────
-# Build the deployable site into web/dist/ (gitignored) from web/template.html.j2
-# + web/i18n/*.toml: en -> web/dist/index.html, fr -> web/dist/fr/index.html, plus
-# a copy of every asset (demo.mp4, poster, version.json, icon…). Deploy = upload
-# web/dist/. Update version/dates in web/i18n/common.toml on each release.
-web:
-	uv run scripts/build_web.py
-
-# ── Linux ────────────────────────────────────────────────────────
-#SWIFT_RUNTIME_DIR ?= /usr/lib/swift/linux
-SWIFT_RUNTIME_DIR ?= $(shell d=$$(dirname "$$(realpath "$$(command -v swiftc)")")/../lib/swift/linux; \
-	[ -e "$$d/libswiftCore.so" ] && cd "$$d" && pwd || echo /usr/lib/swift/linux)
-
-ARCH ?= amd64
-
-build-linux: buildinfo
-	cd desgrana && swift build -c release --product desgrana
-	cd desgrana && swift build -c release --target DesgranaBridgeC
-	cmake -S qt -B var/build/qt -G Ninja \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
-		-DSWIFT_BUILD_DIR=$(PWD)/desgrana/.build/release \
-		-DSWIFT_RUNTIME_DIR=$(SWIFT_RUNTIME_DIR) \
-		-DDESGRANA_INSTALL_RPATH=/usr/lib/desgrana
-	cmake --build var/build/qt
-
-
-# brew install colima docker docker-buildx
-#
-# # 1. Recréer la VM
-# colima start --vm-type=vz --vz-rosetta --cpu 4 --memory 6
-#
-# # 2. Recréer le builder buildx
-# docker buildx create --name multi --driver docker-container --use
-# docker buildx inspect --bootstrap
-#
-# # après, colima delete, colima stop
-#
-# colima list 2>&1
-# du -sh ~/.colima/_lima/*/  2>/dev/null
-# docker system df 2>&1
-#
-
-package-debian:
-	# --progress=plain
-	$(DOCKER) buildx build \
-		--platform linux/$(ARCH) \
-		-f packaging/linux/deb/builder.dockerfile \
-		--output type=local,dest=dist \
-		.
-
-package-debian-all:
-	$(MAKE) package-debian ARCH=amd64
-	$(MAKE) package-debian ARCH=arm64
-	cd dist && shasum -a 256 *.deb > SHA256SUMS
-	@echo "Package in dist/"
-	@ls -lh dist/*.deb
-	@cat dist/SHA256SUMS
-
-test-image:
-	$(DOCKER) build \
-		--platform linux/amd64 \
-		-t desgrana-tester \
-		-f packaging/linux/deb/tester.dockerfile .
-
-test-debian:
-	$(DOCKER) run --rm \
-		--platform linux/amd64 \
-		-v "$(PWD)/dist":/pkgs:ro \
-		-v "$(PWD)/desgrana/Tests":/tests:ro \
-		desgrana-tester \
-		bash -c "dpkg -i /pkgs/desgrana_*.deb && python3 /tests/test_split.py /usr/bin/desgrana"
-
-
-
-icon:
-	python3 scripts/make_icon.py
-	iconutil -c icns $(NAME).iconset \
-	    -o app-template/Contents/Resources/AppIcon.icns
-	mkdir -p var/build/icon-assets
-	xcrun actool \
-	    --compile var/build/icon-assets \
-	    --platform macosx \
-	    --minimum-deployment-target 15.3 \
-	    --app-icon AppIcon \
-	    --output-partial-info-plist var/build/icon-assets/partial-info.plist \
-	    --skip-app-store-deployment \
-	    $(NAME).xcassets 2>/dev/null
-	cp var/build/icon-assets/Assets.car \
-	    app-template/Contents/Resources/Assets.car
-	@echo "Icon generated: AppIcon.icns + Assets.car"

@@ -87,8 +87,10 @@ FREQS         = [440.0, 550.0, 660.0, 880.0]
 
 PREFIX = "test_"
 
-# Project version (repo-root VERSION), for the prov chunk check.
-EXPECTED_VERSION = open(
+# Project version, for the prov chunk check. Read from $DESGRANA_VERSION when set
+# (e.g. in the .deb test container, where repo-root VERSION isn't mounted),
+# otherwise from the repo-root VERSION file.
+EXPECTED_VERSION = os.environ.get("DESGRANA_VERSION") or open(
     os.path.join(os.path.dirname(__file__), "..", "..", "VERSION"), encoding="utf-8"
 ).read().strip()
 
