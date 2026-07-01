@@ -1,4 +1,4 @@
-name: Builds macOS & Linux
+name: Builds
 
 on:
   push:
@@ -199,8 +199,22 @@ jobs:
             Write-Host "desgrana-gui launched and stayed alive — all runtime DLLs resolve."
           }
 
-      - name: Upload GUI
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $ver = (Get-Content VERSION -Raw).Trim()
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc /DAppVersion=$ver /DBundleDir="$PWD\dist\desgrana" /DOutDir="$PWD\dist" packaging\win\desgrana.iss
+
+      - name: Upload portable bundle
         uses: actions/upload-artifact@v7
         with:
           name: desgrana-${{ github.run_id }}-windows-gui
           path: dist/desgrana
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: desgrana-${{ github.run_id }}-windows-setup
+          path: dist/desgrana-*-setup.exe

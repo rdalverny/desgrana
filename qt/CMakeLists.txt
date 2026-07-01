@@ -56,8 +56,14 @@ target_link_libraries(${GUI_TARGET} PRIVATE
 )
 
 if(WIN32)
-    # The Swift runtime is carried inside DesgranaBridge.dll (built with
-    # -static-stdlib). Copy it next to the GUI exe so it runs and can be packaged.
+    # Embed the app icon into the exe (also used by the shortcut and uninstaller).
+    # configure_file bakes an absolute path so the resource compiler always finds it.
+    set(DESGRANA_ICO "${CMAKE_SOURCE_DIR}/../packaging/win/desgrana.ico")
+    configure_file(desgrana.rc.in "${CMAKE_CURRENT_BINARY_DIR}/desgrana.rc" @ONLY)
+    target_sources(${GUI_TARGET} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/desgrana.rc")
+
+    # Ship the bridge DLL next to the exe. The Swift runtime DLLs it needs are
+    # bundled separately at packaging time (-static-stdlib is unavailable here).
     add_custom_command(TARGET ${GUI_TARGET} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${SWIFT_BUILD_DIR}/DesgranaBridge.dll"

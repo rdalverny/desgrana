@@ -1,0 +1,4 @@
+// Windows resource: embeds the app icon into desgrana-gui.exe.
+// @DESGRANA_ICO@ is filled in by CMake (configure_file) with an absolute path,
+// using forward slashes so the resource compiler does not treat them as escapes.
+1 ICON "@DESGRANA_ICO@"
