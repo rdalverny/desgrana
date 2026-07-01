@@ -1137,6 +1137,100 @@ def run_cli_output_tests(binary: str, fixtures_dir: str) -> int:
     return failures
 
 
+# ── JSON report tests (--json) ────────────────────────────────────────────────
+
+def run_cli_json_tests(binary: str, fixtures_dir: str, var_dir: str) -> int:
+    """Validate the --json report: pure-JSON stdout, schema, provenance, outputs."""
+    print(f"\n{'=' * 60}")
+    print("  CLI output: --json report")
+    print(f"{'=' * 60}\n")
+
+    snap_session = os.path.join(fixtures_dir, "case05_snap", "session")
+    usb_session  = os.path.join(fixtures_dir, "case08_usb_stereo", "session")
+    silent_session = os.path.join(fixtures_dir, "case06_silent", "session")
+    if not os.path.isdir(snap_session):
+        print("  SKIP  fixtures not found -- run --generate first")
+        return 0
+
+    failures = 0
+
+    def parse_json(label: str, args: list) -> "dict | None":
+        nonlocal failures
+        result = subprocess.run([binary] + args, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"  FAIL  {label}  exit {result.returncode}: {result.stderr.strip()!r}")
+            failures += 1
+            return None
+        try:
+            return json.loads(result.stdout)   # stdout must be pure JSON
+        except json.JSONDecodeError as e:
+            print(f"  FAIL  {label}  stdout is not valid JSON: {e}")
+            print(f"         stdout: {result.stdout[:200]!r}")
+            failures += 1
+            return None
+
+    def expect(label: str, cond: bool, detail: str = "") -> None:
+        nonlocal failures
+        if cond:
+            print(f"  OK    {label}")
+        else:
+            print(f"  FAIL  {label}  {detail}")
+            failures += 1
+
+    # 1. Dry-run report: planned outputs, snap provenance, no outputs section.
+    d = parse_json("--dry-run --json (snap)",
+                   [snap_session, "--dry-run", "--json", "--short-names", "--prefix", "test_"])
+    if d is not None:
+        expect("schema == 1 and dryRun", d.get("schema") == 1 and d.get("dryRun") is True)
+        expect("has plannedOutputs, no outputs",
+               "plannedOutputs" in d and d.get("outputs") is None)
+        pairs = d["decisions"]["stereoPairs"]
+        expect("pair 3:4 from name",
+               any(p["left"] == 3 and p["right"] == 4 and p["origin"] == "name" for p in pairs),
+               str(pairs))
+        names = {n["channel"]: n["source"] for n in d["decisions"]["channelNames"]}
+        expect("channel names sourced from snap", names.get(1) == "snap" and names.get(3) == "snap")
+        expect("format read in dry-run", d["input"]["format"]["channels"] == 4)
+        expect("markers listed", d["markers"]["count"] == 3)
+
+    # 2. Real extraction report: outputs, kept counts, sidecars.
+    out = os.path.join(var_dir, "json_snap_out")
+    if os.path.isdir(out):
+        shutil.rmtree(out)
+    d = parse_json("--json (snap, real)",
+                   [snap_session, "-o", out, "--json", "--short-names", "--prefix", "test_"])
+    if d is not None:
+        expect("dryRun false, outputs present", d.get("dryRun") is False and "outputs" in d)
+        expect("kept 2 mono + 1 stereo",
+               d["outputs"]["keptMono"] == 2 and d["outputs"]["keptStereo"] == 1)
+        expect("marker sidecars recorded",
+               all(d["markers"]["sidecars"].get(k) for k in ("csv", "txt", "mid")))
+
+    # 3. USB stereo provenance.
+    if os.path.isdir(usb_session):
+        d = parse_json("--dry-run --json (usb)", [usb_session, "--dry-run", "--json"])
+        if d is not None:
+            origins = {p["origin"] for p in d["decisions"]["stereoPairs"]}
+            expect("USB pairs tagged 'usb'", origins == {"usb"}, str(origins))
+
+    # 4. Silent channel appears in ignored.silentTracks.
+    if os.path.isdir(silent_session):
+        out2 = os.path.join(var_dir, "json_silent_out")
+        if os.path.isdir(out2):
+            shutil.rmtree(out2)
+        d = parse_json("--json (silent)", [silent_session, "-o", out2, "--json"])
+        if d is not None:
+            silent = d["ignored"]["silentTracks"]
+            expect("channel 3 reported as silent",
+                   any(t["channels"] == [3] for t in silent), str(silent))
+
+    if failures == 0:
+        print("\n  OK  all checks passed")
+    else:
+        print(f"\n  {failures} check(s) failed")
+    return failures
+
+
 # ── Fallback input tests (non-hex WAV, single file, ambiguous folder) ─────────
 
 def run_fallback_tests(binary: str, var_dir: str) -> int:
@@ -1293,6 +1387,7 @@ def main() -> None:
 
     total_failures += run_cli_error_tests(binary)
     total_failures += run_cli_output_tests(binary, fixtures_dir)
+    total_failures += run_cli_json_tests(binary, fixtures_dir, var_dir)
     total_failures += run_fallback_tests(binary, var_dir)
     total_failures += run_ixml_test(binary, var_dir)
 

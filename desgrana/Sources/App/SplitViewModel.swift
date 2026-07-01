@@ -41,17 +41,24 @@ class SplitViewModel: ObservableObject {
     @Published var state: SplitState = .idle
     @Published var customOutputDir: URL?
     @Published var shortFilenames: Bool = true
+    /// When on, a machine-readable `<prefix>report.json` is written into the output
+    /// folder after each extraction. Off by default (nothing is emitted).
+    @Published var writeReport: Bool = false
     @Published private(set) var lastMarkers: [(time: Double, name: String)] = []
     private var cancellables = Set<AnyCancellable>()
 
     init() {
         shortFilenames = UserDefaults.standard.object(forKey: "shortFilenames") as? Bool ?? true
+        writeReport = UserDefaults.standard.object(forKey: "writeReport") as? Bool ?? false
         if let path = UserDefaults.standard.string(forKey: "outputDirPath") {
             let url = URL(fileURLWithPath: path)
             if FileManager.default.fileExists(atPath: url.path) { customOutputDir = url }
         }
         $shortFilenames
             .sink { UserDefaults.standard.set($0, forKey: "shortFilenames") }
+            .store(in: &cancellables)
+        $writeReport
+            .sink { UserDefaults.standard.set($0, forKey: "writeReport") }
             .store(in: &cancellables)
         $customOutputDir
             .sink { UserDefaults.standard.set($0?.path, forKey: "outputDirPath") }
@@ -144,6 +151,8 @@ class SplitViewModel: ObservableObject {
 
         let capturedTakes = session.takes
         let fallbackCh = session.inferredChannels
+        let capturedSession = session
+        let shouldWriteReport = writeReport
         Task.detached { [weak self] in
             do {
                 let result = try splitSession(
@@ -171,6 +180,18 @@ class SplitViewModel: ObservableObject {
                 if let info, !info.markerSamples.isEmpty {
                     exportMarkers(info, to: outputDir, prefix: pfx)
                     exportMIDIMarkers(info, to: outputDir, prefix: pfx)
+                }
+
+                // Optional machine-readable report (off by default), written alongside the WAVs.
+                if shouldWriteReport {
+                    let report = buildExtractionReport(
+                        session: capturedSession, sessionDir: sessionDir,
+                        outputDir: outputDir, prefix: pfx, shortNames: shortNames,
+                        isSingleFile: false, pairs: pairs, channelNames: names,
+                        result: result, format: result.sourceFormat)
+                    try? report.jsonString().write(
+                        to: outputDir.appendingPathComponent("\(pfx)report.json"),
+                        atomically: true, encoding: .utf8)
                 }
 
                 let totalCh = info?.numChannels ?? fallbackCh ?? 0
