@@ -1,7 +1,7 @@
 # Language-neutral data. Single source of truth for release-synced fields.
 # Edit `version`, the download URLs and `download_date` on each release, then `make web`.
 
-canonical_base = "https://romaindalverny.com/atelier/desgrana/"
+canonical_base = "https://romaindalverny.com"
 site_name      = "Romain d'Alverny"
 author_url     = "https://romaindalverny.com/"
 
@@ -10,9 +10,30 @@ download_date = "2026-06-24"
 
 dmg_url      = "https://github.com/rdalverny/desgrana/releases/download/v1.11.1/Desgrana-1.11.1.dmg"
 linux_url    = "https://github.com/rdalverny/desgrana/releases/latest"
+windows_url  = "https://github.com/rdalverny/desgrana/releases/download/v1.12.0-beta/desgrana-1.12.0-beta-setup.exe"
 releases_url = "https://github.com/rdalverny/desgrana/releases"
 github_url   = "https://github.com/rdalverny/desgrana"
 
 og_image   = "https://romaindalverny.com/atelier/desgrana/demo-poster.jpg"
 og_image_w = "530"
 og_image_h = "522"
+
+# Support / donate block under the download buttons: inline links, no amount picker.
+# Ko-fi lets the donor choose the amount on their page; GitHub Sponsors is pre-filled at 10.
+[donate]
+
+[[donate.platforms]]
+id    = "kofi"
+label = "Ko-fi"
+url   = "https://ko-fi.com/romaindalverny"
+
+[[donate.platforms]]
+id    = "github"
+label = "GitHub Sponsors"
+url   = "https://github.com/sponsors/rdalverny?frequency=one-time&amount=10"
+
+# PayPal hidden for now (needs a seller account). Uncomment to re-enable.
+# [[donate.platforms]]
+# id    = "paypal"
+# label = "PayPal"
+# url   = "https://www.paypal.com/paypalme/rdalverny/10"

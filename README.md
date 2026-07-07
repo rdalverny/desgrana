@@ -5,14 +5,16 @@
 <h1 align="center">Desgrana</h1>
 
 <p align="center">
-From session to mix.
-<br>
-Extract channels from interleaved multitrack WAV files into individual
-mono/stereo named tracks.
+From session to mix.<br>
+Extract channels from interleaved multitrack WAV files<br>
+into individual mono/stereo named tracks.<br>
+Works with Behringer Wing, X32 consoles.
 </p>
 
 <p align="center">
-  Free &amp; open source · macOS · Linux · Windows (experimental)
+Free &amp; open source ·
+native macOS app ·
+Linux &amp; Windows (experimental) versions
 </p>
 
 <p align="center">
@@ -38,19 +40,19 @@ and a session ready to open.
 ## Features
 
 - Keeps your audio the same, obviously. No conversion, only demux.
-- Exports only the noisy channels. No empty track to manually dismiss.
-- Exports session markers in exported WAV, MIDI and CSV, to reuse in DAWs.
 - Picks up channel names and stereo pairs from your console snapshot.
+- Automatically dismiss empty tracks.
+- Keeps source metadata into exported tracks.
+- Exports session markers in exported WAV, MIDI and CSV, to reuse in DAWs.
 - Works entirely offline. Nothing uploaded, nothing tracked.
-- Opens all extracted tracks in Logic Pro, Reaper, or Ardour on macOS.
-  See [CONTRIBUTING](CONTRIBUTING.md) for adding another one.
+- Opens extracted tracks ready to work in your DAW.
 
 ## Privacy
 
 Desgrana works entirely offline. It reads your local session files and writes
 output to your local disk — nothing is uploaded or transmitted.
 
-The only outbound request is an optional update check (at most once a month).
+There is an optional outbound request, once a month, checking for updates.
 It sends OS name, version, CPU architecture, app version, and system language.
 Nothing else. See [PRIVACY.md](PRIVACY.md) for full details and how to disable
 it.

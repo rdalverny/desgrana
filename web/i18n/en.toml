@@ -21,6 +21,14 @@ linux_label = "Download Desgrana for Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
 #platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
 platforms_note = '''&nbsp;'''
+windows_label = "Download Desgrana beta for Windows"
+windows_meta ="version 1.12.0-beta, July 1st 2026 &middot; experimental, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
+
+[support]
+free = "Desgrana stays free and open source."
+lead = "If it saves you time, you can support its development and maintenance"
+via = "via"
+or = "or"
 
 [situation]
 heading = "The situation"
@@ -55,7 +63,7 @@ a_html = '''<p>The card writes one interleaved multichannel WAV.
 id = "platforms"
 q = "Which platforms are supported?"
 a_html = '''<p>Desgrana is available for macOS 13+ and Linux (Debian/Ubuntu 12+, Fedora 41+).</p>
-        <p>An experimental Windows build now exists, available as a pre-release on GitHub.</p>'''
+        <p>An experimental Windows build now exists, available <a href="https://github.com/rdalverny/desgrana/releases">as a pre-release on GitHub</a>.</p>'''
 
 [[faq.items]]
 q = "Which consoles are supported?"

@@ -72,37 +72,54 @@
 .download-meta { margin: 8px 0 20px; font-size: .82rem; color: var(--muted); }
 .download-meta a { color: var(--muted); }
 
+/* Support block: tinted panel, one line "Support with [amount] via [platforms]". */
+.support {
+  --warm: #f2a900;
+  max-width: var(--max);
+  margin: 4px auto 32px;
+  padding: 20px 24px;
+  border: 1px solid color-mix(in srgb, var(--warm) 32%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warm) 14%, var(--bg));
+}
+.support-lead { margin: 0; line-height: 1.7; }
+.pay-opt {
+  --brand: var(--text);
+  color: var(--brand); font-weight: 700; text-decoration: none; white-space: nowrap;
+}
+.pay-opt svg { width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-right: .25em; }
+.pay-opt:hover { text-decoration: underline; }
+.pay-opt--kofi { --brand: #ff5e5b; }
+.pay-opt--github { --brand: #db61a2; }
+.pay-opt--paypal { --brand: #0070ba; }
+
 .features { list-style: none; display: grid; gap: 8px; }
-.features li { padding-left: 18px; position: relative; font-size: .93rem; }
+.features li { padding-left: 18px; position: relative; }
 .features li::before { content: "—"; position: absolute; left: 0; color: var(--muted); }
 .features-note { font-size: .82rem; color: var(--muted); margin-top: 16px; }
 
 video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; border-radius: 6px; }
 
-.faq dd table { border-collapse: collapse; margin-top: .35rem; font-size: .93rem; }
+.faq dd { font-size: 1rem; }
+.faq dd table { border-collapse: collapse; margin-top: .35rem; }
 .faq dd table td { padding: .25rem .6rem; border-bottom: 1px solid var(--border); }
 .faq dd table td:first-child { border-right: 1px solid var(--border); padding-right: 1rem; }
 .faq dd table tr:last-child td { border-bottom: none; }
 
-.changelog details > summary { cursor: pointer; font-size: .93rem; color: var(--muted); }
+.changelog .v-notes { font-size: 1rem; }
+.changelog details > summary { cursor: pointer; color: var(--muted); }
 .changelog details[open] > summary { margin-bottom: 8px; }
 
 @media (max-width: 520px) {
   .faq dd { padding-left: 0; }
 }
 </style>
+<link rel="stylesheet" href="/assets/css/nav.css">
 </head>
-<body>
+<body class="works desgrana">
+  {% raw %}{% include "nav.html" %}{% endraw %}
 
-  <nav class="breadcrumb" aria-label="breadcrumb">
-    <a href="/">Rod&rsquo;A</a>
-    <span aria-hidden="true">›</span>
-    <a href="/atelier/">atelier</a>
-    <span aria-hidden="true">›</span>
-    <span aria-current="page">desgrana</span>
-    <a class="lang-switch" href="{{ switch_href }}" hreflang="{{ switch_label | lower }}">{{ switch_label }}</a>
-  </nav>
-
+  <article class="wrap">
   <header>
     <h1>{{ hero.title_main }}</h1>
     <p class="hero">{{ hero.tagline }}</p>
@@ -141,7 +158,32 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
       {{ download.linux_label.format(v=version_display) }}
     </a>
 
+    <br>&nbsp;<br>
+
+    <a class="btn-download" href="{{ windows_url }}">
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+        <path d="M8.5 2v9m0 0L5 7.5M8.5 11l3.5-3.5M2 14h13"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+      </svg>
+      {{ download.windows_label }}
+    </a>
+    <p class="download-meta">
+      {{ download.windows_meta }}
+    </p>
+
     <p class="download-meta" style="margin-top: 1rem;">{{ download.platforms_note }}</p>
+  </div>
+
+  <div class="support">
+    <p class="support-lead">{{ support.free }} {{ support.lead }} {{ support.via }}
+      {%- for p in donate.platforms %}
+      {% if not loop.first %}{{ support.or }} {% endif -%}
+      <a class="pay-opt pay-opt--{{ p.id }}" href="{{ p.url }}" target="_blank" rel="noopener">{% if p.id == "kofi" %}<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.424 2.586 2.672 2.586 2.672s8.267-.023 11.966-.049c2.438-.426 2.683-2.566 2.658-3.734 4.352.24 7.422-2.831 6.649-6.898zm-11.062 3.511c-1.246 1.453-4.011 3.976-4.011 3.976s-.121.119-.31.023c-.076-.057-.108-.09-.108-.09-.443-.441-3.368-3.049-4.034-3.954-.709-.965-1.041-2.7-.091-3.71.951-1.01 3.005-1.086 4.363.407 0 0 1.565-1.782 3.468-.963 1.904.82 1.216 3.011-.011 4.311.001 0-.002.007-.01.007zm6.788-.849c-.586-.049-.911-.181-.911-.181V9.239h1.041s1.63.446 1.63 2.061c0 1.541-1.148 1.831-1.789 1.29l.028-.28z"/></svg>{% elif p.id == "github" %}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>{% elif p.id == "paypal" %}<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z"/></svg>{% endif %}{{ p.label }}</a>{% if loop.last %}.{% endif %}
+      {%- endfor %}
+    </p>
   </div>
 
   <div class="section">
@@ -212,6 +254,6 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
   <footer>
     <p>{{ footer.text }}</p>
   </footer>
-
+  </article>
 </body>
 </html>

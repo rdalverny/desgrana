@@ -52,20 +52,20 @@ LOCALES = {
     "en": {
         "lang": "en",
         "out": DIST / "index.html",
-        "css_href": "../atelier.css",   # page at /atelier/desgrana/
+        "css_href": "/atelier/atelier.css",   # page at /atelier/desgrana/
         "asset_prefix": "",
-        "url_suffix": "",               # canonical = base
+        "canonical": "/atelier/desgrana/",
         "switch_label": "FR",
-        "switch_href": "fr/",
+        "switch_href": "/fr/atelier/desgrana/",
     },
     "fr": {
         "lang": "fr",
-        "out": DIST / "fr" / "index.html",
-        "css_href": "../../atelier.css",  # page at /atelier/desgrana/fr/
-        "asset_prefix": "../",
-        "url_suffix": "fr/",
+        "out": DIST / "index.fr.html",
+        "css_href": "/atelier/atelier.css",  # page at /fr/atelier/desgrana/
+        "asset_prefix": "/atelier/desgrana/",
+        "canonical": "/fr/atelier/desgrana/",
         "switch_label": "EN",
-        "switch_href": "../",
+        "switch_href": "/atelier/desgrana/",
     },
 }
 
@@ -110,11 +110,10 @@ def main() -> int:
     template = env.get_template("template.html.j2")
 
     build_dist_assets()
-    base = common["canonical_base"].rstrip("/") + "/"
+    base = common["canonical_base"].rstrip("/")
 
     for name, loc in LOCALES.items():
         strings = load_toml(I18N / f"{name}.toml")
-        canonical = base + loc["url_suffix"]
         v = common["version"]
         parts = v.split(".")
         v_display = v[: -(len(parts[-1]) + 1)] if parts[-1] == "0" else v
@@ -125,16 +124,16 @@ def main() -> int:
             "lang": loc["lang"],
             "css_href": loc["css_href"],
             "asset_prefix": loc["asset_prefix"],
-            "canonical": canonical,
-            "og_url": canonical,
+            "canonical": base + loc["canonical"],
+            "og_url": base + loc["canonical"],
             "switch_label": loc["switch_label"],
             "switch_href": loc["switch_href"],
             "download_date": format_date(common["download_date"], name),
             "version_display": v_display,
             # hreflang alternates, identical on every page
-            "alt_en": base,
-            "alt_fr": base + "fr/",
-            "alt_default": base,
+            "alt_en": base + LOCALES["en"]["canonical"],
+            "alt_fr": base + LOCALES["fr"]["canonical"],
+            "alt_default": base + LOCALES["en"]["canonical"],
         }
         html = template.render(**ctx)
         out: Path = loc["out"]

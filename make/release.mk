@@ -37,7 +37,7 @@ minor:
 	$(bump-version)
 
 
-fetch-linux:
+fetch-artifacts:
 	mkdir -p dist
 	RUN_ID=$$(gh run list --repo $(GITHUB_REPO) \
 		--workflow build.yml --status success \
@@ -45,11 +45,12 @@ fetch-linux:
 	echo "Fetching from run $$RUN_ID…"; \
 	gh run download $$RUN_ID --repo $(GITHUB_REPO) \
 		--pattern "desgrana-*-linux-*" \
+		--pattern "desgrana-*-windows-setup" \
 		--dir dist/.tmp
-	find dist/.tmp -type f \( \( -name "*.deb" ! -name "*dbgsym*" \) -o -name "*.rpm" \) \
+	find dist/.tmp -type f \( \( -name "*.deb" ! -name "*dbgsym*" \) -o -name "*.rpm" -o -name "*-setup.exe" \) \
 		-exec mv {} dist/ \;
 	rm -rf dist/.tmp
-	@echo "Linux artifacts → $(DIST)"
+	@echo "CI artifacts → $(DIST)"
 	@ls -lh $(DIST)
 
 update-cask:
@@ -58,8 +59,8 @@ update-cask:
 		"$(DIST)/Desgrana-$(VERSION).dmg"
 
 # update-cask
-shasums: #fetch-linux
-	cd $(DIST) && shasum -a 256 *.dmg *.deb *.rpm 2>/dev/null > SHA256SUMS
+shasums: #fetch-artifacts
+	cd $(DIST) && shasum -a 256 *.dmg *.deb *.rpm *.exe 2>/dev/null > SHA256SUMS
 	@echo "SHA256SUMS → $(DIST)/SHA256SUMS"
 
 release: shasums verify-dmg
@@ -68,9 +69,29 @@ release: shasums verify-dmg
 		$(DIST)/Desgrana-$(VERSION).dmg \
 		$(DIST)/*.deb \
 		$(DIST)/*.rpm \
+		$(DIST)/*-setup.exe \
 		$(DIST)/SHA256SUMS \
 		--title "Desgrana $(VERSION)" \
 		--notes-file CHANGELOG.md
+
+# ── Windows testing pre-release ──────────────────────────────────────────────
+# Publish the experimental Windows installer for testers. Flow:
+#   git tag v$(VERSION)-$(PRERELEASE) && git push origin v$(VERSION)-$(PRERELEASE)
+#   # wait for the CI build to finish, then:
+#   make prerelease
+# Creates a DRAFT pre-release (review the notes / fix the issue link, then
+# publish from the GitHub UI). VERSION stays clean; the tag carries the suffix.
+# Override the suffix with e.g. PRERELEASE=beta2 or PRERELEASE=rc1.
+PRERELEASE       ?= beta
+PRERELEASE_NOTES ?= packaging/win/prerelease-notes.md
+
+prerelease: fetch-artifacts
+	gh release create "v$(VERSION)-$(PRERELEASE)" \
+		--draft \
+		--prerelease \
+		--title "Desgrana $(VERSION)-$(PRERELEASE)" \
+		--notes-file $(PRERELEASE_NOTES) \
+		$(DIST)/*-setup.exe
 
 shipit: release
 	# sed -i '' \
