@@ -37,6 +37,10 @@ minor:
 	$(bump-version)
 
 
+#
+check-builds:
+	gh workflow run codeql.yml
+
 fetch-artifacts:
 	mkdir -p dist
 	RUN_ID=$$(gh run list --repo $(GITHUB_REPO) \

@@ -3,13 +3,12 @@ name: CodeQL
 permissions:
   contents: read
 
+# Periodic audit, not a per-push gate: monthly, plus on demand
+# (`gh workflow run codeql.yml`), typically before a release.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
-    - cron: '35 6 * * 1'  # weekly, Monday morning
+    - cron: '35 6 1 * *'  # monthly, 1st at 06:35 UTC
+  workflow_dispatch:
 
 jobs:
   analyze:
@@ -41,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # tags for `make buildinfo` (git describe)
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -49,6 +48,7 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      # Swift only: CodeQL needs to trace an actual build.
       - name: Build Swift package
         if: matrix.build-mode == 'manual'
         run: |
