@@ -105,7 +105,10 @@ public func desgrana_split(
     _ outKeptMono: UnsafeMutablePointer<Int32>?,
     _ outKeptStereo: UnsafeMutablePointer<Int32>?,
     _ errBuf: UnsafeMutablePointer<CChar>?,
-    _ errLen: Int32
+    _ errLen: Int32,
+    _ writeReport: Int32,
+    _ outReportPath: UnsafeMutablePointer<CChar>?,
+    _ outReportLen: Int32
 ) -> Int32 {
     let input      = URL(fileURLWithPath: String(cString: sessionPath))
     let outputDir  = URL(fileURLWithPath: String(cString: outputPath))
@@ -175,6 +178,19 @@ public func desgrana_split(
         if let p = outSilentSkipped { p.pointee = Int32(result.silentSkipped) }
         if let p = outKeptMono      { p.pointee = Int32(result.keptMono) }
         if let p = outKeptStereo    { p.pointee = Int32(result.keptStereo) }
+
+        // Optional machine-readable report (off by default): written alongside the WAVs.
+        if writeReport != 0 {
+            var isDir: ObjCBool = false
+            FileManager.default.fileExists(atPath: input.path, isDirectory: &isDir)
+            let report = buildExtractionReport(
+                session: session, sessionDir: sessionDir, outputDir: outputDir,
+                prefix: pfx, shortNames: pfx.isEmpty, isSingleFile: !isDir.boolValue,
+                pairs: pairs, channelNames: names, result: result, format: result.sourceFormat)
+            let reportURL = outputDir.appendingPathComponent("\(pfx)report.json")
+            try? report.jsonString().write(to: reportURL, atomically: true, encoding: .utf8)
+            cStringCopy(reportURL.path, into: outReportPath, maxLen: Int(outReportLen))
+        }
         return 0
     } catch {
         cStringCopy("\(error)", into: errBuf, maxLen: Int(errLen))

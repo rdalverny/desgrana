@@ -17,6 +17,7 @@ public:
         std::vector<int32_t>     pairRights;
         std::vector<int32_t>     chKeys;
         std::vector<std::string> chNames;
+        bool                     writeReport = false;
     };
 
     explicit SplitWorker(Params p, QObject *parent = nullptr);
