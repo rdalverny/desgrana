@@ -87,6 +87,13 @@ FREQS         = [440.0, 550.0, 660.0, 880.0]
 
 PREFIX = "test_"
 
+# WAV `fmt ` format tags.
+FORMAT_PCM        = 1
+FORMAT_IEEE_FLOAT = 3
+
+# Full-scale peak per integer depth. 2^(bits-1) - 1 so an amplitude of 1.0 never wraps.
+INT_PEAK = {16: 2**15 - 1, 24: 2**23 - 1, 32: 2**31 - 1}
+
 # Project version, for the prov chunk check. Read from $DESGRANA_VERSION when set
 # (e.g. in the .deb test container, where repo-root VERSION isn't mounted),
 # otherwise from the repo-root VERSION file.
@@ -136,7 +143,7 @@ class TestCase:
     sample_rate:     int = SAMPLE_RATE
     total_frames:    int = 0
     bits_per_sample: int = 32
-    format_tag:      int = 3             # 3 = IEEE_FLOAT, 1 = PCM
+    format_tag:      int = FORMAT_IEEE_FLOAT
 
     # Optional snap file: dict is serialised as JSON in the session directory.
     # The snap is auto-detected by desgrana (no --snap flag needed).
@@ -325,6 +332,42 @@ CASES: list = [
             "Chœur.wav": ["Chœur L", "Chœur R"],
         },
     ),
+    # case10: 24-bit int PCM. The int24 demux branch copies byte by byte and shares
+    # no code with the 2/4/8-byte typed-pointer branches, so no other fixture reaches
+    # it. Channel 3 is silent to exercise silence culling at that depth as well.
+    TestCase(
+        name="case10_int24",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        bits_per_sample=24,
+        format_tag=FORMAT_PCM,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], SAMPLE_RATE // 4),
+            SignalSpec(FREQS[2], 0, amplitude=0.0),     # silent: must be culled
+            SignalSpec(FREQS[3], SAMPLE_RATE // 2),
+        ],
+        desgrana_extra_args=["--stereo", "1:2"],        # also covers demuxStereo at 24 bits
+        markers=MARKER_FRAMES,
+    ),
+    # case11: 16-bit int PCM, the last bit depth without a fixture.
+    TestCase(
+        name="case11_int16",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        bits_per_sample=16,
+        format_tag=FORMAT_PCM,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], SAMPLE_RATE // 4),
+            SignalSpec(FREQS[2], SAMPLE_RATE // 2),
+            SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
+        ],
+        desgrana_extra_args=["--stereo", "3:4"],
+        markers=MARKER_FRAMES,
+    ),
     # case04: truncated from the real SD Card session WAV.
     # Not committed; skipped automatically when the source file is absent.
     TestCase(
@@ -398,23 +441,54 @@ def make_channel_samples(spec: SignalSpec, total_frames: int, sample_rate: int) 
     return buf
 
 
+def quantise_pcm(samples, bits: int) -> bytes:
+    """Pack float samples in [-1, 1] as little-endian signed integer PCM."""
+    peak = INT_PEAK[bits]
+    out  = bytearray()
+    for s in samples:
+        value = int(max(-1.0, min(1.0, s)) * peak)
+
+        # 24-bit has no struct code: pack as int32 and drop the high byte.
+        # Two's complement stays valid because value fits the 24-bit signed range.
+        if bits == 24:
+            out += struct.pack("<i", value)[:3]
+        elif bits == 16:
+            out += struct.pack("<h", value)
+        else:
+            out += struct.pack("<i", value)
+    return bytes(out)
+
+
 def write_wav_synthetic(path: str, case: TestCase) -> None:
-    """Write a multichannel 32-bit float WAV from SignalSpecs."""
+    """Write a multichannel WAV from SignalSpecs, at the case's depth and format tag."""
     nc, sr, nf = case.num_channels, case.sample_rate, case.total_frames
+    bits = case.bits_per_sample
+    bps  = bits // 8
+    assert case.format_tag != FORMAT_IEEE_FLOAT or bits == 32, \
+        f"{case.name}: IEEE float fixtures are 32-bit only, got {bits}"
+
     channels = [make_channel_samples(sig, nf, sr) for sig in case.channel_signals]
+    interleaved = (channels[c][f] for f in range(nf) for c in range(nc))
 
-    pcm = ar.array("f", (channels[c][f] for f in range(nf) for c in range(nc)))
-    pcm_bytes = pcm.tobytes()
+    # Integer cases are quantised from the same float reference, so a 16/24/32-bit
+    # fixture carries the same waveform as its float counterpart.
+    if case.format_tag == FORMAT_PCM:
+        pcm_bytes = quantise_pcm(interleaved, bits)
+        depth_label = f"{bits}-bit int"
+    else:
+        pcm_bytes = ar.array("f", interleaved).tobytes()
+        depth_label = "32-bit float"
 
-    block_align = nc * 4
+    block_align = nc * bps
     byte_rate   = sr * block_align
-    fmt = struct.pack("<HHIIHH", 3, nc, sr, byte_rate, block_align, 32) + struct.pack("<H", 0)
+    fmt = (struct.pack("<HHIIHH", case.format_tag, nc, sr, byte_rate, block_align, bits)
+           + struct.pack("<H", 0))
     riff_data = b"WAVE" + _pack_chunk(b"fmt ", fmt) + _pack_chunk(b"data", pcm_bytes)
     with open(path, "wb") as f:
         f.write(_pack_chunk(b"RIFF", riff_data))
     size_mb = len(pcm_bytes) / (1024 * 1024)
     print(f"  Generated: {os.path.basename(path)}"
-          f"  ({nc} ch, {sr} Hz, 32-bit float, {nf} frames = {nf/sr:.1f} s, {size_mb:.1f} MB)")
+          f"  ({nc} ch, {sr} Hz, {depth_label}, {nf} frames = {nf/sr:.1f} s, {size_mb:.1f} MB)")
 
 
 def write_wav_from_source(path: str, source_path: str, case: TestCase) -> int:
@@ -430,7 +504,7 @@ def write_wav_from_source(path: str, source_path: str, case: TestCase) -> int:
 
     actual_frames = len(audio) // (nc * bps)
 
-    if case.fadeout_frames > 0 and case.format_tag == 3 and bps == 4:
+    if case.fadeout_frames > 0 and case.format_tag == FORMAT_IEEE_FLOAT and bps == 4:
         _apply_fadeout_float32(audio, actual_frames, case.fadeout_frames, nc)
 
     case.total_frames = actual_frames
@@ -1303,14 +1377,32 @@ def main() -> None:
     generate_mode = "--generate" in args
     args = [a for a in args if a != "--generate"]
 
+    # --only <name>[,<name>...] restricts the run to those cases. Mainly for
+    # --generate, so adding one fixture does not rewrite the committed ones.
+    only: "set[str] | None" = None
+    if "--only" in args:
+        idx = args.index("--only")
+        if idx + 1 >= len(args):
+            sys.exit("--only requires a comma-separated list of case names")
+        only = set(args[idx + 1].split(","))
+        del args[idx:idx + 2]
+
+        unknown = only - {c.name for c in CASES}
+        if unknown:
+            sys.exit(f"unknown case name(s): {', '.join(sorted(unknown))}")
+
+    cases = [c for c in CASES if only is None or c.name in only]
+
     binary = find_binary(args[0] if args else None, desgrana_dir)
     print(f"Binary : {binary}")
     if generate_mode:
         print(f"Mode   : generate  (writing to {fixtures_dir})")
+    if only is not None:
+        print(f"Cases  : {', '.join(sorted(only))}")
     print()
 
     if generate_mode:
-        for case in CASES:
+        for case in cases:
             if case.source_wav_rel is not None:
                 print(f"\n[SKIP] {case.name}  (real-data cases have no committed fixtures)")
                 continue
@@ -1329,7 +1421,7 @@ def main() -> None:
     total_failures += run_fallback_tests(binary, var_dir)
     total_failures += run_ixml_test(binary, var_dir)
 
-    for case in CASES:
+    for case in cases:
         if case.source_wav_rel is not None:
             source_path = os.path.join(tests_dir, case.source_wav_rel)
             if not os.path.isfile(source_path):
