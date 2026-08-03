@@ -87,7 +87,8 @@ public func splitSession(
         tracks.append(Track(spec: spec, writer: writer))
     }
 
-    let blockFrames = 4096
+    // Block sized by byte budget, not by a fixed frame count: see Constants.Block.
+    let blockFrames = max(Constants.Block.minFrames, Constants.Block.targetBytes / frameStride)
     let readBytes   = blockFrames * frameStride
     let rawIn       = UnsafeMutablePointer<UInt8>.allocate(capacity: readBytes)
     let monoOut     = UnsafeMutablePointer<UInt8>.allocate(capacity: blockFrames * bytesPerSample)
