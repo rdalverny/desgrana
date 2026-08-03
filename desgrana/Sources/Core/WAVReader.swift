@@ -232,6 +232,11 @@ public final class WAVReader {
         }
         guard channels > 0 else { throw WAVReaderError.malformed("zero channels") }
 
+        // Reject an absurd channel count before the splitter allocates a writer per channel.
+        guard channels <= Constants.Format.maxChannels else {
+            throw WAVReaderError.unsupportedFormat("\(channels) channels (max \(Constants.Format.maxChannels))")
+        }
+
         return WAVFormat(channels: channels, sampleRate: rate, bitsPerSample: bits,
                          isFloat: effectiveTag == 3,
                          validBitsPerSample: validBits, channelMask: channelMask)

@@ -22,6 +22,15 @@ public enum Constants {
         public static let minFrames = 1024
     }
 
+    /// Bounds on the WAV format `WAVReader` is willing to accept.
+    public enum Format {
+        /// Upper bound on the channel count a `fmt ` chunk may declare. The real capture
+        /// cards top out at 32 (64 with two linked cards), so 256 leaves generous headroom
+        /// while rejecting a malformed or hostile `fmt `: without this cap the splitter
+        /// would allocate one output writer per declared channel, up to 65535.
+        public static let maxChannels = 256
+    }
+
     public enum URLs {
         public static let versionFeed = "https://romaindalverny.com/atelier/desgrana/version.json"
         public static let github      = "https://github.com/rdalverny/desgrana"
