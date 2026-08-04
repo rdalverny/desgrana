@@ -174,7 +174,7 @@ public final class WAVReader {
     /// Fills `buffer` with raw interleaved sample bytes, truncated to a whole number of
     /// frames and to the remaining `data` payload. Returns bytes written (0 at end).
     public func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
-        guard !closed, let base = buffer.baseAddress else { return 0 }
+        guard !closed, buffer.baseAddress != nil else { return 0 }
         let blockAlign = UInt64(format.blockAlign)
         guard blockAlign > 0 else { return 0 }
 
