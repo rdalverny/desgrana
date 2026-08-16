@@ -112,9 +112,9 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "ST"]]]]
         )
-        XCTAssertEqual(info.usbStereoPairs.count, 1)
-        XCTAssertEqual(info.usbStereoPairs[0].left,  1)
-        XCTAssertEqual(info.usbStereoPairs[0].right, 2)
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  1)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 2)
         // Name keyed by WAV track 1 (= USB in 1), not Wing ch 1 (same here, but explicit)
         XCTAssertEqual(info.channelNames[1], "BD")
         XCTAssertNil(info.channelNames[2])
@@ -126,7 +126,7 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "M"]]]]
         )
-        XCTAssertTrue(info.usbStereoPairs.isEmpty)
+        XCTAssertTrue(info.hwStereoPairs.isEmpty)
     }
 
     func testUsbMidSideChannelProducesPair() throws {
@@ -135,9 +135,9 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 3]]]],
             io: ["in": ["USB": ["3": ["mode": "M/S"]]]]
         )
-        XCTAssertEqual(info.usbStereoPairs.count, 1)
-        XCTAssertEqual(info.usbStereoPairs[0].left,  3)
-        XCTAssertEqual(info.usbStereoPairs[0].right, 4)
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  3)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 4)
         XCTAssertEqual(info.channelNames[3], "OH")
     }
 
@@ -157,10 +157,10 @@ final class SnapTests: XCTestCase {
         ]]]
         let info = try snap(channels: channels, io: io)
 
-        XCTAssertEqual(info.usbStereoPairs.count, 4)
-        let lefts = info.usbStereoPairs.map(\.left)
+        XCTAssertEqual(info.hwStereoPairs.count, 4)
+        let lefts = info.hwStereoPairs.map(\.left)
         XCTAssertEqual(lefts, [1, 3, 5, 7])
-        let rights = info.usbStereoPairs.map(\.right)
+        let rights = info.hwStereoPairs.map(\.right)
         XCTAssertEqual(rights, [2, 4, 6, 8])
 
         XCTAssertEqual(info.channelNames[1], "BD")
@@ -188,7 +188,7 @@ final class SnapTests: XCTestCase {
         let info = try parseSnap(at: snapURL)
 
         // The 4 USB stereo pairs must appear exactly once each, in order.
-        let lefts = info.usbStereoPairs.map(\.left)
+        let lefts = info.hwStereoPairs.map(\.left)
         XCTAssertTrue(lefts.contains(1), "missing BD pair")
         XCTAssertTrue(lefts.contains(3), "missing SD pair")
         XCTAssertTrue(lefts.contains(5), "missing Toms pair")

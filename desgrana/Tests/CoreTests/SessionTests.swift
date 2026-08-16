@@ -43,7 +43,7 @@ final class SessionTests: XCTestCase {
     // pairs with name-detected LCL pairs. The old bridge path only did name detection.
     func testSnapDerivedMergesUsbAndLcl() {
         let snap = SnapInfo(
-            usbStereoPairs: [StereoPair(left: 5, right: 6)],
+            hwStereoPairs: [StereoPair(left: 5, right: 6)],
             channelNames: [1: "Kick_L", 2: "Kick_R"],
             sceneName: "Scene", showName: nil
         )
@@ -55,7 +55,7 @@ final class SessionTests: XCTestCase {
     // A USB pair claims its tracks; an overlapping name-detected pair on those tracks is dropped.
     func testUsbPairTakesPrecedenceOverName() {
         let snap = SnapInfo(
-            usbStereoPairs: [StereoPair(left: 1, right: 2)],
+            hwStereoPairs: [StereoPair(left: 1, right: 2)],
             channelNames: [1: "Mix_L", 2: "Mix_R"],
             sceneName: nil, showName: nil
         )
@@ -64,7 +64,7 @@ final class SessionTests: XCTestCase {
     }
 
     func testEffectivePairsHonourOverride() {
-        let snap = SnapInfo(usbStereoPairs: [], channelNames: [1: "A_L", 2: "A_R"],
+        let snap = SnapInfo(hwStereoPairs: [], channelNames: [1: "A_L", 2: "A_R"],
                             sceneName: nil, showName: nil)
         var session = Session(snapInfo: snap, inferredChannels: 4)
         XCTAssertEqual(session.effectivePairs, [StereoPair(left: 1, right: 2)])
@@ -80,7 +80,7 @@ final class SessionTests: XCTestCase {
     // MARK: - Pair editing
 
     func testLinkUnlinkReset() {
-        let snap = SnapInfo(usbStereoPairs: [], channelNames: [1: "Kick_L", 2: "Kick_R"],
+        let snap = SnapInfo(hwStereoPairs: [], channelNames: [1: "Kick_L", 2: "Kick_R"],
                             sceneName: nil, showName: nil)
         var session = Session(snapInfo: snap, inferredChannels: 8)
         XCTAssertEqual(session.effectivePairs, [StereoPair(left: 1, right: 2)])
@@ -101,7 +101,7 @@ final class SessionTests: XCTestCase {
     // Linking a channel already in a pair re-homes it without leaving a duplicate.
     func testLinkRehomesExistingChannel() {
         var session = Session(
-            snapInfo: SnapInfo(usbStereoPairs: [], channelNames: [:], sceneName: nil, showName: nil),
+            snapInfo: SnapInfo(hwStereoPairs: [], channelNames: [:], sceneName: nil, showName: nil),
             inferredChannels: 8,
             userOverridePairs: [StereoPair(left: 1, right: 2)]
         )

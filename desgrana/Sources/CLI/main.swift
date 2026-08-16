@@ -147,7 +147,7 @@ struct DesgranaCLI {
         }
         if let snap = session.snapInfo, !cliArgs.json {
             let src = cliArgs.snapURL != nil ? (session.snapName ?? "") : "\(session.snapName ?? "") (auto)"
-            print("Snap: \(src) — \(snap.channelNames.count) named channels, \(snap.usbStereoPairs.count) USB stereo pairs")
+            print("Snap: \(src) — \(snap.channelNames.count) named channels, \(snap.hwStereoPairs.count) hardware stereo pairs")
         }
 
         // Stereo pairs: --stereo (manual override) > snap-derived (USB + L/R names) > all mono.

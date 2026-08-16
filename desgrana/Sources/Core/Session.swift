@@ -138,12 +138,12 @@ public struct Session {
         let numCh = channelCount
         guard numCh > 0 else { return [] }
 
-        let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
-        let usbTracks = Set(usbPairs.flatMap { [$0.left, $0.right] })
-        let lclPairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
-            .filter { !usbTracks.contains($0.left) }
+        let hwPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
+        let hwTracks = Set(hwPairs.flatMap { [$0.left, $0.right] })
+        let namePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
+            .filter { !hwTracks.contains($0.left) }
 
-        return (usbPairs + lclPairs).sorted { $0.left < $1.left }
+        return (hwPairs + namePairs).sorted { $0.left < $1.left }
     }
 
     /// Pairs used for splitting: manual user override takes precedence, then snap-derived.
@@ -156,7 +156,7 @@ public struct Session {
     public var effectiveChannelNames: [Int: String] {
         applyUsbUnpairRename(
             names: snapInfo?.channelNames ?? fallbackChannelNames,
-            usbPairs: snapInfo?.usbStereoPairs ?? [],
+            usbPairs: snapInfo?.hwStereoPairs ?? [],
             activePairs: effectivePairs
         )
     }
@@ -178,7 +178,7 @@ public struct Session {
     /// any frontend (the CLI's effective pairs, or the GUI's live user edits).
     public func classifyPairs(_ pairs: [StereoPair]) -> [(pair: StereoPair, origin: PairOrigin)] {
         let numCh = channelCount
-        let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
+        let usbPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
         let namedPairs = detectStereoPairsFromNames(
             snapInfo?.channelNames ?? fallbackChannelNames, channelCount: numCh)
         return pairs.map { p in

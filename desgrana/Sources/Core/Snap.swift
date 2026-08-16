@@ -14,8 +14,9 @@ import Foundation
 // Channel names are keyed by WAV track number; right sides of USB pairs get no name.
 
 public struct SnapInfo {
-    /// USB stereo source pairs, 1-indexed. Explicit hardware routing — always honoured.
-    public let usbStereoPairs: [StereoPair]
+    /// Hardware stereo source pairs, 1-indexed. Explicit routing — always honoured.
+    /// Derived from card-output adjacency when CRD is present, else from USB inputs.
+    public let hwStereoPairs: [StereoPair]
     /// Channel names keyed by 1-based WAV track number. Empty-string names are omitted.
     public let channelNames: [Int: String]
     /// Scene name extracted from active_scene path (e.g. "LIVE TRIPLE B").
@@ -63,7 +64,7 @@ public func parseSnap(at url: URL) throws -> SnapInfo {
     let names    = collectNames(sorted: sorted, routes: routes, usbPairs: usbPairs, ioIn: ioIn)
     let (sceneName, showName) = sceneAndShow(from: dict["active_scene"] as? String)
 
-    return SnapInfo(usbStereoPairs: usbPairs, channelNames: names, sceneName: sceneName, showName: showName)
+    return SnapInfo(hwStereoPairs: usbPairs, channelNames: names, sceneName: sceneName, showName: showName)
 }
 
 // MARK: - Helpers

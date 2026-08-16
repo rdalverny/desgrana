@@ -61,7 +61,7 @@ public func parseX32Scene(at url: URL) throws -> SnapInfo {
 
     let resolvedScene = sceneName ?? url.deletingPathExtension().lastPathComponent
 
-    return SnapInfo(usbStereoPairs: [], channelNames: names, sceneName: resolvedScene, showName: nil)
+    return SnapInfo(hwStereoPairs: [], channelNames: names, sceneName: resolvedScene, showName: nil)
 }
 
 /// Returns the first .scn file found in `dir`, or nil.
