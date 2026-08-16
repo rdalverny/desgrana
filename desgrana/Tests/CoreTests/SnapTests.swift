@@ -203,11 +203,11 @@ final class SnapTests: XCTestCase {
         XCTAssertEqual(info.channelNames[5], "Toms")
         XCTAssertEqual(info.channelNames[7], "OH")
 
-        // Right-side USB tracks have no name.
-        XCTAssertNil(info.channelNames[2])
-        XCTAssertNil(info.channelNames[4])
-        XCTAssertNil(info.channelNames[6])
-        XCTAssertNil(info.channelNames[8])
+        // Card routing names both halves of a stereo pair from the same source input.
+        XCTAssertEqual(info.channelNames[2], "BD")
+        XCTAssertEqual(info.channelNames[4], "SD")
+        XCTAssertEqual(info.channelNames[6], "Toms")
+        XCTAssertEqual(info.channelNames[8], "OH")
     }
 
     // MARK: - Scene and show names

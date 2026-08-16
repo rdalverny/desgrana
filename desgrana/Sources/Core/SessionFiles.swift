@@ -116,6 +116,8 @@ public func channelNameSuffix(for channels: [Int], names: [Int: String]) -> Stri
     guard !parts.isEmpty else { return "" }
     if parts.count == 2 {
         if let base = sharedStereoBase(left: parts[0], right: parts[1]) { return "_\(base)" }
+        // Both sides carry the same name (e.g. a stereo input feeding L and R): use it once.
+        if parts[0] == parts[1], !parts[0].isEmpty { return "_\(parts[0])" }
         let joined = parts.filter { !$0.isEmpty }.joined(separator: "-")
         return joined.isEmpty ? "" : "_\(joined)"
     }
