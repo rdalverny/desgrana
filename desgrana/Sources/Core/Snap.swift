@@ -139,15 +139,17 @@ private func inputInfo(for src: CardSource, ioIn: [String: Any]?) -> [String: An
 /// Names each track from its source input, keyed by WAV track number.
 /// Both halves of a stereo pair name the same input; the combined output
 /// file collapses the two identical names into one.
-/// A source with no io.in entry (e.g. a bus output like MAIN) or an empty name stays unnamed.
+/// A source with no io.in name (an unnamed input, or a bus like MAIN that lives outside
+/// io.in) is labelled by its routing group and index, e.g. MAIN 1 for the main bus L leg.
 private func cardNames(routing: [Int: CardSource], ioIn: [String: Any]?) -> [Int: String] {
     var names: [Int: String] = [:]
     for (track, src) in routing {
-        guard let info = inputInfo(for: src, ioIn: ioIn),
-              let raw  = info[SnapKey.name] as? String
-        else { continue }
-        let s = sanitizeChannelName(raw)
-        if !s.isEmpty { names[track] = s }
+        if let raw = inputInfo(for: src, ioIn: ioIn)?[SnapKey.name] as? String,
+           case let named = sanitizeChannelName(raw), !named.isEmpty {
+            names[track] = named
+        } else {
+            names[track] = sanitizeChannelName("\(src.group) \(src.input)")
+        }
     }
     return names
 }
