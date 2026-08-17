@@ -167,22 +167,22 @@ public struct Session {
 
     /// Where an effective stereo pair came from.
     public enum PairOrigin: String {
-        case usb    // explicit USB hardware routing in the snap
-        case name   // detected from L/R channel names in the snap
-        case user   // manual override (CLI --stereo or GUI edit)
+        case hardware   // explicit hardware routing in the snap (USB, LCL, AES, card outputs)
+        case name       // detected from L/R channel names in the snap
+        case user       // manual override (CLI --stereo or GUI edit)
     }
 
-    /// Classifies each given pair against the snap: `.usb` if it matches an explicit USB
-    /// hardware pair, `.name` if it matches a pair detected from L/R channel names, else
+    /// Classifies each given pair against the snap: `.hardware` if it matches an explicit
+    /// hardware routing pair, `.name` if it matches a pair detected from L/R channel names, else
     /// `.user` (a manual link the snap does not account for). Works for pairs supplied by
     /// any frontend (the CLI's effective pairs, or the GUI's live user edits).
     public func classifyPairs(_ pairs: [StereoPair]) -> [(pair: StereoPair, origin: PairOrigin)] {
         let numCh = channelCount
-        let usbPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
+        let hwPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
         let namedPairs = detectStereoPairsFromNames(
             snapInfo?.channelNames ?? fallbackChannelNames, channelCount: numCh)
         return pairs.map { p in
-            if usbPairs.contains(p) { return (p, .usb) }
+            if hwPairs.contains(p) { return (p, .hardware) }
             if namedPairs.contains(p) { return (p, .name) }
             return (p, .user)
         }

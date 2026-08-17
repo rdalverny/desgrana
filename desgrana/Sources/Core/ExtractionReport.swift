@@ -77,7 +77,7 @@ public struct ExtractionReport: Codable {
     public struct Pair: Codable {
         public var left: Int
         public var right: Int
-        public var origin: String         // "usb" | "name" | "user"
+        public var origin: String         // "hardware" | "name" | "user"
     }
 
     public struct ChannelName: Codable {
