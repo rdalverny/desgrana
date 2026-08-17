@@ -138,7 +138,7 @@ private func inputInfo(for src: CardSource, ioIn: [String: Any]?) -> [String: An
 
 /// Names each track from its source input, keyed by WAV track number.
 /// Both halves of a stereo pair name the same input; the combined output
-// file collapses the two identical names into one.
+/// file collapses the two identical names into one.
 /// A source with no io.in entry (e.g. a bus output like MAIN) or an empty name stays unnamed.
 private func cardNames(routing: [Int: CardSource], ioIn: [String: Any]?) -> [Int: String] {
     var names: [Int: String] = [:]

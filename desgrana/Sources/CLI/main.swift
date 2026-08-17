@@ -150,7 +150,7 @@ struct DesgranaCLI {
             print("Snap: \(src) — \(snap.channelNames.count) named channels, \(snap.hwStereoPairs.count) hardware stereo pairs")
         }
 
-        // Stereo pairs: --stereo (manual override) > snap-derived (USB + L/R names) > all mono.
+        // Stereo pairs: --stereo (manual override) > snap-derived (hardware + L/R names) > all mono.
         if !cliArgs.stereoPairs.isEmpty {
             session.userOverridePairs = cliArgs.stereoPairs
         }

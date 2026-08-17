@@ -131,9 +131,9 @@ public struct Session {
     }
 
     /// Pairs derived from the snap.
-    /// USB pairs come from the snap config as-is (explicit hardware routing).
-    /// LCL pairs are detected from channel names (L/R suffixes); no name means mono.
-    /// clink is not used — it reflects live console behaviour, not recording intent.
+    /// Hardware pairs come from the snap's explicit routing and take precedence.
+    /// Remaining pairs are detected from L/R channel names; a track with no name stays mono.
+    /// clink is ignored — it reflects live console state, not recording intent.
     public var snapDerivedPairs: [StereoPair] {
         let numCh = channelCount
         guard numCh > 0 else { return [] }

@@ -39,8 +39,7 @@ final class SessionTests: XCTestCase {
 
     // MARK: - Pair derivation
 
-    // The divergence the extraction fixes: snap-derived pairs must merge USB hardware
-    // pairs with name-detected LCL pairs. The old bridge path only did name detection.
+    // snap-derived pairs merge explicit hardware pairs with name-detected pairs.
     func testSnapDerivedMergesUsbAndLcl() {
         let snap = SnapInfo(
             hwStereoPairs: [StereoPair(left: 5, right: 6)],
