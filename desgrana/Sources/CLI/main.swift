@@ -283,7 +283,14 @@ struct DesgranaCLI {
         guard silenced else { return try body() }
         fflush(stdout)
         let saved = dup(1)
-        let devnull = open("/dev/null", O_WRONLY)
+
+        #if os(Windows)
+        let nullPath = "NUL"
+        #else
+        let nullPath = "/dev/null"
+        #endif
+
+        let devnull = open(nullPath, O_WRONLY)
         if devnull >= 0 { dup2(devnull, 1) }
         defer {
             fflush(stdout)
