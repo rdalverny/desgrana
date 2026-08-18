@@ -34,9 +34,7 @@ struct TrackListView: View {
         var rows: [OutputRow] = []
 
         for pair in pairs {
-            let l = names[pair.left] ?? ""
-            let r = names[pair.right] ?? ""
-            let nameStr = [l, r].filter { !$0.isEmpty }.joined(separator: " & ")
+            let nameStr = stereoDisplayName(left: names[pair.left] ?? "", right: names[pair.right] ?? "")
             rows.append(OutputRow(
                 id: pair.left,
                 chLabel: String(format: "ch %02d–%02d", pair.left, pair.right),

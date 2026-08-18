@@ -51,6 +51,14 @@ func sharedStereoBase(left: String, right: String) -> String? {
     return nil
 }
 
+/// Display label for a stereo pair: a shared `_L`/`_R` base or two identical names fold
+/// to one; otherwise "left & right". Mirrors `channelNameSuffix` so label = filename.
+public func stereoDisplayName(left: String, right: String) -> String {
+    if let base = sharedStereoBase(left: left, right: right) { return base }
+    if left == right, !left.isEmpty { return left }
+    return [left, right].filter { !$0.isEmpty }.joined(separator: " & ")
+}
+
 /// Removes a trailing `_L`/`-L`/` L` (or R) side suffix from a single channel name,
 /// recovering its base (e.g. "OH_L" → "OH"). Returns the name unchanged if absent.
 func strippedStereoSide(_ s: String, _ side: Character) -> String {
