@@ -15,13 +15,16 @@ final class SnapTests: XCTestCase {
     }
 
     // Builds a minimal valid snap JSON from structured args and parses it.
+    // `extraAE` merges extra ae_data tables (e.g. "main" for bus sources).
     private func snap(
         channels: [String: Any] = [:],
         io: [String: Any]? = nil,
+        extraAE: [String: Any] = [:],
         activeScene: String? = nil
     ) throws -> SnapInfo {
         var ae: [String: Any] = ["ch": channels]
         if let io { ae["io"] = io }
+        for (k, v) in extraAE { ae[k] = v }
         var root: [String: Any] = ["ae_data": ae]
         if let activeScene { root["active_scene"] = activeScene }
         let data = try JSONSerialization.data(withJSONObject: root)
@@ -172,6 +175,95 @@ final class SnapTests: XCTestCase {
         XCTAssertNil(info.channelNames[4])
         XCTAssertNil(info.channelNames[6])
         XCTAssertNil(info.channelNames[8])
+    }
+
+    // MARK: - Card recorder bus sources (MAIN, BUS, EXT)
+
+    // A stereo main bus routed to two consecutive card outputs (grp=MAIN, in=1/2)
+    // links as one pair; both legs take the bus name from ae_data.main.
+    func testCardMainBusStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "MainPA", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  1)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 2)
+        // Both legs share the bus name so the combined file collapses to one.
+        XCTAssertEqual(info.channelNames[1], "MainPA")
+        XCTAssertEqual(info.channelNames[2], "MainPA")
+    }
+
+    // A mono main bus (busmono=true) must not be linked into a stereo pair.
+    func testCardMainBusMonoNoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "MainPA", "busmono": true]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertTrue(info.hwStereoPairs.isEmpty)
+    }
+
+    // A second stereo main bus lands on legs 3/4 → bus number (in-1)/2+1 = 2.
+    func testCardMainSecondBusLegMapping() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "5": ["grp": "MAIN", "in": 3],
+            "6": ["grp": "MAIN", "in": 4]
+        ]]]
+        let main: [String: Any] = ["2": ["name": "MainSub", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left, 5)
+        XCTAssertEqual(info.channelNames[5], "MainSub")
+        XCTAssertEqual(info.channelNames[6], "MainSub")
+    }
+
+    // An unnamed stereo main bus still pairs; both legs fall back to the group name
+    // so the combined file collapses to "MAIN", not "MAIN_1"/"MAIN_2".
+    func testCardMainBusUnnamedFallsBackToGroup() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.channelNames[1], "MAIN")
+        XCTAssertEqual(info.channelNames[2], "MAIN")
+    }
+
+    // BUS and MTX share the MAIN layout (2 legs per bus). A stereo bus routed to the
+    // card links as one pair named from ae_data.bus / ae_data.mtx.
+    func testCardBusStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "BUS", "in": 1],
+            "2": ["grp": "BUS", "in": 2]
+        ]]]
+        let bus: [String: Any] = ["1": ["name": "DrumsBus", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["bus": bus])
+
+        XCTAssertEqual(info.hwStereoPairs, [StereoPair(left: 1, right: 2)])
+        XCTAssertEqual(info.channelNames[1], "DrumsBus")
+        XCTAssertEqual(info.channelNames[2], "DrumsBus")
+    }
+
+    func testCardMtxStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MTX", "in": 1],
+            "2": ["grp": "MTX", "in": 2]
+        ]]]
+        let mtx: [String: Any] = ["1": ["name": "Stream", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["mtx": mtx])
+
+        XCTAssertEqual(info.hwStereoPairs, [StereoPair(left: 1, right: 2)])
+        XCTAssertEqual(info.channelNames[1], "Stream")
     }
 
     // MARK: - Real snap fixture
