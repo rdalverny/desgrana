@@ -5,18 +5,20 @@ canonical_base = "https://romaindalverny.com"
 site_name      = "Romain d'Alverny"
 author_url     = "https://romaindalverny.com/"
 
-version       = "1.11.1"
-download_date = "2026-06-24"
+version       = "1.12.0"
+download_date = "2026-08-21"
 
-dmg_url      = "https://github.com/rdalverny/desgrana/releases/download/v1.11.1/Desgrana-1.11.1.dmg"
+dmg_url      = "https://github.com/rdalverny/desgrana/releases/download/v1.12.0/Desgrana-1.12.0.dmg"
 linux_url    = "https://github.com/rdalverny/desgrana/releases/latest"
-windows_url  = "https://github.com/rdalverny/desgrana/releases/download/v1.12.0-beta/desgrana-1.12.0-beta-setup.exe"
+windows_url  = "https://github.com/rdalverny/desgrana/releases/download/v1.12.0/desgrana-1.12.0-setup.exe"
 releases_url = "https://github.com/rdalverny/desgrana/releases"
 github_url   = "https://github.com/rdalverny/desgrana"
 
-og_image   = "https://romaindalverny.com/atelier/desgrana/demo-poster.jpg"
-og_image_w = "530"
-og_image_h = "522"
+# 1200x630 (2:1-ish) card for summary_large_image; regenerate with scripts if the
+# screenshot or tagline changes.
+og_image   = "https://romaindalverny.com/atelier/desgrana/og-card.jpg"
+og_image_w = "1200"
+og_image_h = "630"
 
 # Support / donate block under the download buttons: inline links, no amount picker.
 # Ko-fi lets the donor choose the amount on their page; GitHub Sponsors is pre-filled at 10.

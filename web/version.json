@@ -1,5 +1,5 @@
 {
-  "version": "1.11.1",
-  "notes": "Embedded iXML/bext/cue metadata in outputs, RF64 (>4 GB) read & write, fixes",
-  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.11.1"
+  "version": "1.12.0",
+  "notes": "Wing Live card recorder routing, optional JSON extraction report, experimental Windows build, fixes",
+  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.12.0"
 }

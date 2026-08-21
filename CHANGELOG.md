@@ -1,13 +1,31 @@
 # Changelog
 
-## [1.12.0-beta] — 2026-07-01
+## [1.12.0] - 2026-08-21
 
-Essentially refactoring and build fixes.
+Wing Live card recorder:
 
-- Extract a shared Session struct used by the app, bridge and CLI
-- Split the app UI into per-view files (Views/, DAW/)
-- Fix Linux arm64 packages (.deb/.rpm) targeting the wrong CI runner
-- Make Windows CI build work, produce an unsigned installer (experimental)
+- Fix #18 reported by @xt99: map recorded tracks from the card recorder
+  routing, so exports match what the recorder actually captured
+- Pair stereo buses routed to the card recorder as stereo tracks
+- Label unnamed card sources by group and index instead of leaving them blank
+- Collapse doubled stereo names in the displayed track list
+
+Windows (experimental):
+
+- Windows build now works in CI and produces an unsigned installer,
+  needs testing
+
+Features:
+
+- Optional JSON extraction report (`--json` on the CLI, opt-in in the GUI)
+- Reject WAV files that declare an absurd channel count, with a clear error
+
+Fixes & internal:
+
+- Fix Linux arm64 packages (.deb/.rpm) that targeted the wrong CI runner
+- Extract a shared `Session` struct used by the app, bridge and CLI
+- Split the app UI into per-view files (`Views/`, `DAW/`)
+- Reorganise the test suite; run split tests in CI on macOS, Linux and Windows
 
 ## [1.11.1] — 2026-06-24
 

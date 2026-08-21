@@ -3,8 +3,8 @@
 # et dans les réponses FAQ / notes de version.
 
 [meta]
-title = "Desgrana - De la session au mix : extraire un multipiste Behringer Wing/X32"
-keywords = "desgrana, wav, multipiste, demux, extraction, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multipiste, WAV, enregistrement live, enregistrement concert, session, extraction audio, séparer pistes, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux"
+title = "Desgrana — Extraire un multipiste Behringer Wing/X32 en pistes nommées"
+keywords = "desgrana, multipiste, demux, extraction, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, WAV, enregistrement live, enregistrement concert, session, extraction audio, séparer pistes, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux"
 description = "Application gratuite pour macOS et Linux qui extrait les enregistrements multipistes Behringer Wing et X32 en pistes WAV séparées et nommées, prêtes à l'emploi dans un DAW. Open source, licence MIT."
 og_title = "Desgrana — Extracteur multipiste Behringer Wing/X32"
 
@@ -16,7 +16,7 @@ tagline    = "Extraire un enregistrement live Behringer Wing ou X32 en pistes no
 
 [download]
 macos_label = "Télécharger Desgrana pour macOS"
-macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 ou suivant &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a>'''
+macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 ou ultérieur &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a>'''
 linux_label = "Télécharger Desgrana pour Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
 #platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
@@ -26,16 +26,18 @@ windows_meta ="version 1.12.0-beta, 1<sup>er</sup> juillet 2026 &middot; expéri
 
 [support]
 free = "Desgrana reste gratuit et Open Source."
-lead = "S'il vous fait gagner du temps, vous pouvez soutenir son développement et sa maintenance"
+lead = "S'il vous fait gagner du temps, vous pouvez soutenir son développement et sa maintenance&nbsp;:"
 via = "via"
 or = "ou"
+alt = '''via une cassette/CD/vinyle de ce pour quoi vous l'avez utilisé, ou... une carte postale&nbsp;!
+      (<a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Carte%20postale">demandez-moi l'adresse</a>).'''
 
 [situation]
 heading = "La situation"
 paragraphs = [
-  "Quand une session est enregistrée avec une Behringer Wing ou X32 sur une carte SD, elle aboutit dans un fichier WAV multipistes.",
-  "La plupart des stations audio (Logic Pro, Pro Tools, Ableton Live et tant d'autres) ne savent pas encore l'ouvrir directement en pistes séparées : vous obtenez au mieux une piste stéréo, ou rien. Reaper se débrouille mieux, mais les pistes restent anonymes et toutes séparées.",
-  "Desgrana lit la session complète, sépare chaque canal en une piste mono ou stéréo, récupère les noms de canaux depuis le snapshot de votre console, et dépose le tout dans un dossier que votre DAW peut charger immédiatement.",
+  "Quand une Behringer Wing ou X32 enregistre une session multipiste (via une carte W-Live ou X-Live), elle écrit un seul WAV multicanal entrelacé : un fichier, tous vos canaux.",
+  "La plupart des DAW (Logic Pro, Pro Tools, Ableton Live) l'importent comme un simple fichier stéréo ; Reaper sait l'éclater en pistes séparées, mais elles ressortent numérotées et sans nom.",
+  "Desgrana lit ce fichier, sépare chaque canal en une piste mono ou stéréo, récupère les noms de canaux depuis le snapshot de votre console, et dépose le tout dans un dossier que votre DAW peut charger immédiatement.",
 ]
 
 [features]
@@ -50,14 +52,23 @@ items = [
   "Ça fonctionne aussi avec n'importe quel autre WAV multipiste.",
 ]
 
+[help]
+heading = "Support"
+intro_html = '''En cas d'erreur,
+      vous pouvez <a href="https://github.com/rdalverny/desgrana/issues/new">ouvrir un ticket sur GitHub</a>
+      ou <a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Support%20Desgrana">m'écrire directement</a>.'''
+checklist_intro = "Merci de joindre ces informations à votre rapport :"
+checklist = [
+  "le type et la version de votre système d'exploitation,",
+  "la version de Desgrana,",
+  "les étapes pour reproduire l'erreur,",
+  "des captures d'écran,",
+  "s'il s'agit d'un crash et que vous le trouvez, le journal de plantage (crash log).",
+]
+outro_html = 'Code source sur <a href="https://github.com/rdalverny/desgrana">GitHub</a>.'
+
 [faq]
 heading = "FAQ"
-
-[[faq.items]]
-q = "Pourquoi je ne peux pas ouvrir mon enregistrement Wing ou X32 directement dans Logic Pro ou Reaper ?"
-a_html = '''<p>La carte écrit un seul WAV multicanal entrelacé.
-        Logic Pro l'importe en stéréo ; Reaper sait l'éclater en pistes, mais elles ressortent
-        numérotées et sans nom. Desgrana le découpe en WAV nommés, organise les pistes stéréo ou mono, prêtes pour n'importe quel DAW.</p>'''
 
 [[faq.items]]
 id = "platforms"
@@ -111,20 +122,29 @@ a_html = '''<p>Pas pour cette session-là : Reaper enregistre les pistes individ
 
 [[faq.items]]
 q = "Une autre question ?"
-a_html = '''N'hésitez pas à me contacter
-        <a href="https://github.com/rdalverny/desgrana">sur GitHub</a>
-        ou <a href="mailto:rwx@romaindalverny.com">par e-mail</a>.'''
+a_html = '''N'hésitez pas à me contacter sur GitHub ou par e-mail :
+        voir la <a href="#support">section Support</a> ci-dessus.'''
 
 [changelog]
 heading = "Nouveautés"
+earlier = "Versions précédentes"
+
+[[changelog.items]]
+version = "1.12.0"
+date = "21 août 2026"
+notes_html = '''Enregistreur carte Wing Live : les pistes et paires stéréo suivent désormais le routage de l'enregistreur, les sources carte sans nom reçoivent un libellé groupe/index.<br>
+          Rapport d'extraction JSON optionnel (<code>--json</code> en CLI, activable dans l'interface).<br>
+          Build Windows expérimental avec un installeur non signé.<br>
+          Corrections et refactorisation interne.'''
 
 [[changelog.items]]
 version = "1.11.0/1.11.1"
 date = "23/24 juin 2026"
-notes_html = '''Métadonnées supplémentaires intégrées à chaque WAV de sortie :
-                provenance broadcast (bext), marqueurs cue.<br>
-          Remaniements internes et corrections diverses.<br>
-          Corrige build macOS.'''
+notes_html = '''Métadonnées intégrées à chaque WAV de sortie : noms de pistes iXML, provenance broadcast (bext), marqueurs cue.<br>
+          Lecture et écriture de fichiers RF64 de plus de 4 Go.<br>
+          Info de build (version, commit, date) affichée dans le panneau À propos.<br>
+          Les paires stéréo aux noms différents gardent les deux noms ; corrections diverses.<br>
+          Corrige la notarisation de l'app macOS.'''
 
 [[changelog.items]]
 version = "1.10.0"
@@ -193,15 +213,7 @@ notes_html = '''Séparation des sessions multicanal en pistes individuelles.<br>
           Support SE_LOG.bin et snapshot Wing, glisser-déposer.<br>
           Interface plus propre. Détail du résultat affiché après export.'''
 
-[roadmap]
-heading = "Feuille de route"
-paragraphs = [
-  '''Améliorer le support X32/M32 selon les retours terrain. Windows n'est pas prévu — voir <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
-  '''Le code source est sur <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
-      Rapports de bugs et contributions bienvenus.''',
-]
-
 [footer]
 text = '''Desgrana &nbsp;·&nbsp;
       par <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
-      Mis à jour le 18 juin 2026'''
+      Mis à jour le {date}'''

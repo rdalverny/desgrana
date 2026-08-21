@@ -2,7 +2,7 @@
 # HTML is allowed in *_html fields and in faq answers / changelog notes.
 
 [meta]
-title = "Desgrana — From session to mix: extract Behringer Wing/X32 multitrack WAV recordings"
+title = "Desgrana — Split Behringer Wing/X32 multitrack WAV into named tracks"
 keywords = "desgrana, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multitrack, WAV, live recording, concert recording, session, audio extraction, split tracks, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux, debian, ubuntu, fedora, rpm, deb"
 description = "Free app for macOS and Linux to extract Behringer Wing and X32 multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW. Open source, MIT license."
 og_title = "Desgrana — Behringer Wing/X32 multitrack extractor"
@@ -21,14 +21,16 @@ linux_label = "Download Desgrana for Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
 #platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
 platforms_note = '''&nbsp;'''
-windows_label = "Download Desgrana beta for Windows"
-windows_meta ="version 1.12.0-beta, July 1st 2026 &middot; experimental, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
+windows_label = "Download Desgrana for Windows"
+windows_meta ="version {v}, {date} &middot; experimental, unsigned installer, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
 
 [support]
 free = "Desgrana stays free and open source."
-lead = "If it saves you time, you can support its development and maintenance"
+lead = "If it saves you time, you can support its development and maintenance:"
 via = "via"
 or = "or"
+alt = '''via cassette/CD/vinyl records you used it on, or... a postcard!
+      (<a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Postcard">ask me for the address</a>).'''
 
 [situation]
 heading = "The situation"
@@ -50,14 +52,23 @@ items = [
   "Drop any multichannel WAV file and it splits that too.",
 ]
 
+[help]
+heading = "Support"
+intro_html = '''If you hit an error, please get in touch.
+      You can either <a href="https://github.com/rdalverny/desgrana/issues/new">open an issue on GitHub</a>
+      or <a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Desgrana%20support">email me directly</a>.'''
+checklist_intro = "Please include this with your report:"
+checklist = [
+  "your operating system and its version,",
+  "your Desgrana version,",
+  "the steps to reproduce the error,",
+  "screenshots,",
+  "if it crashed and you can find it, the crash log.",
+]
+outro_html = 'Source code available on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.'
+
 [faq]
 heading = "FAQ"
-
-[[faq.items]]
-q = "Why can't I open my Wing or X32 recording directly in Logic Pro or Reaper?"
-a_html = '''<p>The card writes one interleaved multichannel WAV.
-        Logic Pro imports it as stereo; Reaper can explode it into tracks, but they come out
-        numbered and unnamed. Desgrana splits it into named WAVs, ready for any DAW.</p>'''
 
 [[faq.items]]
 id = "platforms"
@@ -108,12 +119,20 @@ a_html = '''<p>Not for that session: Reaper records individual tracks directly, 
 
 [[faq.items]]
 q = "Have another question?"
-a_html = '''Feel free to reach out
-        <a href="https://github.com/rdalverny/desgrana">on GitHub</a>
-        or <a href="mailto:rwx@romaindalverny.com">by email</a>.'''
+a_html = '''Feel free to reach out on GitHub or by email:
+        see the <a href="#support">Support section</a> above.'''
 
 [changelog]
 heading = "What's new"
+earlier = "Earlier versions"
+
+[[changelog.items]]
+version = "1.12.0"
+date = "Aug 21 2026"
+notes_html = '''Wing Live card recorder: tracks and stereo pairs now follow the recorder routing, unnamed card sources get a group/index label.<br>
+          Optional JSON extraction report (<code>--json</code> on the CLI, opt-in in the GUI).<br>
+          Experimental Windows build with an unsigned installer.<br>
+          Fixes and internal refactoring.'''
 
 [[changelog.items]]
 version = "1.11.0/1.11.1"
@@ -191,15 +210,7 @@ notes_html = '''Split multichannel sessions into separate tracks.<br>
           SE_LOG.bin and Wing snapshot support, drag &amp; drop.<br>
           Cleaner UI. Split result breakdown shown after export.'''
 
-[roadmap]
-heading = "Roadmap"
-paragraphs = [
-  '''Improved X32/M32 support based on user feedback. Windows support is not planned — see <a href="https://github.com/rdalverny/desgrana/blob/main/CONTRIBUTING.md">CONTRIBUTING</a>.''',
-  '''Source code is on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.
-      Bug reports and contributions welcome.''',
-]
-
 [footer]
 text = '''Desgrana &nbsp;·&nbsp;
       by <a href="https://romaindalverny.com/">Romain d'Alverny</a> &nbsp;·&nbsp;
-      Updated June 18, 2026'''
+      Updated {date}'''

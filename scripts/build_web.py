@@ -20,6 +20,7 @@ from __future__ import annotations
 import sys
 import tomllib
 import shutil
+from datetime import date
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
@@ -129,6 +130,7 @@ def main() -> int:
             "switch_label": loc["switch_label"],
             "switch_href": loc["switch_href"],
             "download_date": format_date(common["download_date"], name),
+            "build_date": format_date(date.today().isoformat(), name),
             "version_display": v_display,
             # hreflang alternates, identical on every page
             "alt_en": base + LOCALES["en"]["canonical"],
