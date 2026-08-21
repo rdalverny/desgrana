@@ -131,19 +131,19 @@ public struct Session {
     }
 
     /// Pairs derived from the snap.
-    /// USB pairs come from the snap config as-is (explicit hardware routing).
-    /// LCL pairs are detected from channel names (L/R suffixes); no name means mono.
-    /// clink is not used — it reflects live console behaviour, not recording intent.
+    /// Hardware pairs come from the snap's explicit routing and take precedence.
+    /// Remaining pairs are detected from L/R channel names; a track with no name stays mono.
+    /// clink is ignored — it reflects live console state, not recording intent.
     public var snapDerivedPairs: [StereoPair] {
         let numCh = channelCount
         guard numCh > 0 else { return [] }
 
-        let usbPairs = filterStereoPairs(snapInfo?.usbStereoPairs ?? [], channelCount: numCh)
-        let usbTracks = Set(usbPairs.flatMap { [$0.left, $0.right] })
-        let lclPairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
-            .filter { !usbTracks.contains($0.left) }
+        let hwPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
+        let hwTracks = Set(hwPairs.flatMap { [$0.left, $0.right] })
+        let namePairs = detectStereoPairsFromNames(snapInfo?.channelNames ?? [:], channelCount: numCh)
+            .filter { !hwTracks.contains($0.left) }
 
-        return (usbPairs + lclPairs).sorted { $0.left < $1.left }
+        return (hwPairs + namePairs).sorted { $0.left < $1.left }
     }
 
     /// Pairs used for splitting: manual user override takes precedence, then snap-derived.
@@ -156,12 +156,50 @@ public struct Session {
     public var effectiveChannelNames: [Int: String] {
         applyUsbUnpairRename(
             names: snapInfo?.channelNames ?? fallbackChannelNames,
-            usbPairs: snapInfo?.usbStereoPairs ?? [],
+            usbPairs: snapInfo?.hwStereoPairs ?? [],
             activePairs: effectivePairs
         )
     }
 
     public var isCustomized: Bool { userOverridePairs != nil }
+
+    // MARK: Provenance (for the extraction report)
+
+    /// Where an effective stereo pair came from.
+    public enum PairOrigin: String {
+        case hardware   // explicit hardware routing in the snap (USB, LCL, AES, card outputs)
+        case name       // detected from L/R channel names in the snap
+        case user       // manual override (CLI --stereo or GUI edit)
+    }
+
+    /// Classifies each given pair against the snap: `.hardware` if it matches an explicit
+    /// hardware routing pair, `.name` if it matches a pair detected from L/R channel names, else
+    /// `.user` (a manual link the snap does not account for). Works for pairs supplied by
+    /// any frontend (the CLI's effective pairs, or the GUI's live user edits).
+    public func classifyPairs(_ pairs: [StereoPair]) -> [(pair: StereoPair, origin: PairOrigin)] {
+        let numCh = channelCount
+        let hwPairs = filterStereoPairs(snapInfo?.hwStereoPairs ?? [], channelCount: numCh)
+        let namedPairs = detectStereoPairsFromNames(
+            snapInfo?.channelNames ?? fallbackChannelNames, channelCount: numCh)
+        return pairs.map { p in
+            if hwPairs.contains(p) { return (p, .hardware) }
+            if namedPairs.contains(p) { return (p, .name) }
+            return (p, .user)
+        }
+    }
+
+    /// Where a channel's name came from.
+    public enum NameSource: String {
+        case snap   // console snapshot (.snap / .scn)
+        case wav    // embedded iXML track name (no snap)
+        case none   // unnamed channel
+    }
+
+    public func nameSource(forChannel ch: Int) -> NameSource {
+        if snapInfo?.channelNames[ch] != nil { return .snap }
+        if fallbackChannelNames[ch] != nil { return .wav }
+        return .none
+    }
 
     public mutating func unlinkPair(left: Int) {
         var p = effectivePairs

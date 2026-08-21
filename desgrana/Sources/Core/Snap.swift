@@ -7,15 +7,46 @@ import Foundation
 // A Wing snapshot is a JSON file produced by the Behringer Wing console.
 // Documented in "WING Remote Protocols" by Patrick-Gilles Maillot.
 //
-// USB stereo: ae_data.io.in.USB.N.mode is "ST" or "M/S"; one Wing channel occupies two
-// consecutive USB inputs, so the WAV pair is (USB-in, USB-in+1).
+// A recorded WAV track resolves to a source two ways:
+//  - Card routing (WLive / SD): track N comes from ae_data.io.out.CRD.N.{grp,in}.
+//    The source is an input (io.in) or a bus like MAIN (ae_data.main). Used when
+//    the snap has an io.out.CRD section.
+//  - Channel strips (ae_data.ch): track N follows USB input numbers for USB
+//    stereo, channel numbers otherwise. Used when there is no CRD.
 //
-// WAV track numbers follow USB input numbers for USB stereo, channel numbers otherwise.
-// Channel names are keyed by WAV track number; right sides of USB pairs get no name.
+// Names key on WAV track number. Card routing names every routed track, so both
+// halves of a stereo pair share a name; channel strips name only the pair's left.
+
+/// JSON keys and enumerated values used across the Wing snapshot.
+private enum SnapKey {
+    static let card   = "CRD"   // card recorder output routing group (ae_data.io.out.CRD)
+    static let usb    = "USB"
+    static let off    = "OFF"   // "no source" placeholder for an unrouted output
+    static let group  = "grp"
+    static let input  = "in"
+    static let name    = "name"
+    static let mode    = "mode"
+    static let busMono = "busmono" // ae_data.<bus>.N.busmono: true when the bus is mono
+}
+
+/// Input modes that make an input occupy two consecutive slots (a stereo pair).
+private enum SnapMode {
+    static let stereo   = "ST"
+    static let midSide  = "M/S"
+
+    static func isStereo(_ mode: String?) -> Bool {
+        mode == stereo || mode == midSide
+    }
+}
+
+/// Bus source groups routable to the card: CRD group token → ae_data table key.
+private enum BusTable {
+    static let byGroup: [String: String] = ["MAIN": "main", "BUS": "bus", "MTX": "mtx"]
+}
 
 public struct SnapInfo {
-    /// USB stereo source pairs, 1-indexed. Explicit hardware routing — always honoured.
-    public let usbStereoPairs: [StereoPair]
+    /// Hardware stereo source pairs (explicit routing), 1-indexed.
+    public let hwStereoPairs: [StereoPair]
     /// Channel names keyed by 1-based WAV track number. Empty-string names are omitted.
     public let channelNames: [Int: String]
     /// Scene name extracted from active_scene path (e.g. "LIVE TRIPLE B").
@@ -54,16 +85,151 @@ public func parseSnap(at url: URL) throws -> SnapInfo {
           let ch   = ae["ch"] as? [String: Any]
     else { throw SnapError.missingChannelData }
 
-    let sorted = ch.keys.compactMap(Int.init).sorted()
-    let ioIn   = (ae["io"] as? [String: Any]).flatMap { $0["in"] as? [String: Any] }
-    let usbIO  = ioIn?["USB"] as? [String: Any]
+    let io    = ae["io"] as? [String: Any]
+    let ioIn  = io.flatMap { $0["in"] as? [String: Any] }
+    let ioOut = io.flatMap { $0["out"] as? [String: Any] }
+    let (sceneName, showName) = sceneAndShow(from: dict["active_scene"] as? String)
 
+    // The card routing decides which input lands on each recorded track.
+    if let routing = cardRouting(ioOut) {
+        let busTables = collectBusTables(ae)
+        let names = cardNames(routing: routing, ioIn: ioIn, busTables: busTables)
+        let pairs = cardStereoPairs(routing: routing, ioIn: ioIn, busTables: busTables)
+        return SnapInfo(hwStereoPairs: pairs, channelNames: names, sceneName: sceneName, showName: showName)
+    }
+
+    // Otherwise, derive names and pairs from the channel strips.
+    let sorted   = ch.keys.compactMap(Int.init).sorted()
+    let usbIO    = ioIn?[SnapKey.usb] as? [String: Any]
     let routes   = channelRoutes(channels: ch, sorted: sorted, usbIO: usbIO)
     let usbPairs = collectUsbPairs(sorted: sorted, routes: routes)
     let names    = collectNames(sorted: sorted, routes: routes, usbPairs: usbPairs, ioIn: ioIn)
-    let (sceneName, showName) = sceneAndShow(from: dict["active_scene"] as? String)
 
-    return SnapInfo(usbStereoPairs: usbPairs, channelNames: names, sceneName: sceneName, showName: showName)
+    return SnapInfo(hwStereoPairs: usbPairs, channelNames: names, sceneName: sceneName, showName: showName)
+}
+
+// MARK: - Card recorder routing
+//
+// ae_data.io.out.CRD maps each card output (= recorded WAV track) to a source
+// {grp, in}; names and stereo linking come from ae_data.io.in.[grp][in].
+
+/// A physical source feeding one card output.
+private struct CardSource {
+    let group: String
+    let input: Int
+}
+
+/// Reads ae_data.io.out.CRD into [trackNumber: CardSource].
+/// Track number = card output number.
+/// Returns nil when the snap has no card routing (fall back to the channel-strip path).
+/// Unrouted outputs (grp == "OFF") are dropped: they carry no source and stay unnamed.
+private func cardRouting(_ ioOut: [String: Any]?) -> [Int: CardSource]? {
+    guard let crd = ioOut?[SnapKey.card] as? [String: Any] else { return nil }
+
+    var result: [Int: CardSource] = [:]
+    for (key, value) in crd {
+        guard let track = Int(key),
+              let entry = value as? [String: Any],
+              let group = entry[SnapKey.group] as? String,
+              group != SnapKey.off,
+              let input = entry[SnapKey.input] as? Int
+        else { continue }
+        result[track] = CardSource(group: group, input: input)
+    }
+    return result
+}
+
+/// Looks up the input dictionary ae_data.io.in.[grp][in] for a card source.
+private func inputInfo(for src: CardSource, ioIn: [String: Any]?) -> [String: Any]? {
+    (ioIn?[src.group] as? [String: Any])?["\(src.input)"] as? [String: Any]
+}
+
+/// One leg of a stereo bus routed to the card. Bus number = (in-1)/2+1; odd in = left.
+private struct BusLeg {
+    let entry: [String: Any] // ae_data.<table>.<busNumber>
+    let isLeft: Bool
+}
+
+/// ae_data bus tables that can source a card output
+private func collectBusTables(_ ae: [String: Any]) -> [String: [String: Any]] {
+    var tables: [String: [String: Any]] = [:]
+    for (group, key) in BusTable.byGroup {
+        if let table = ae[key] as? [String: Any] { tables[group] = table }
+    }
+    return tables
+}
+
+/// Bus-table leg for a card source, or nil when the source is an io.in input.
+private func busLeg(for src: CardSource, busTables: [String: [String: Any]]) -> BusLeg? {
+    guard let table = busTables[src.group] else { return nil }
+    let busNumber = (src.input - 1) / 2 + 1
+    guard let entry = table["\(busNumber)"] as? [String: Any] else { return nil }
+    return BusLeg(entry: entry, isLeft: src.input % 2 == 1)
+}
+
+/// Names each track from its source, keyed by WAV track number.
+private func cardNames(routing: [Int: CardSource], ioIn: [String: Any]?, busTables: [String: [String: Any]]) -> [Int: String] {
+    var names: [Int: String] = [:]
+    for (track, src) in routing {
+        names[track] = cardSourceName(for: src, ioIn: ioIn, busTables: busTables)
+    }
+    return names
+}
+
+/// One card source's name (never empty): bus name for a bus, io.in name for an input,
+/// else "group index". Both legs of a stereo source share it, so the file collapses.
+private func cardSourceName(for src: CardSource, ioIn: [String: Any]?, busTables: [String: [String: Any]]) -> String {
+    // Bus source: named bus, else the group alone (still shared across legs).
+    if let leg = busLeg(for: src, busTables: busTables) {
+        if let raw = leg.entry[SnapKey.name] as? String,
+           case let named = sanitizeChannelName(raw), !named.isEmpty {
+            return named
+        }
+        return sanitizeChannelName(src.group)
+    }
+
+    // Input source: name from io.in, else "group index".
+    if let raw = inputInfo(for: src, ioIn: ioIn)?[SnapKey.name] as? String,
+       case let named = sanitizeChannelName(raw), !named.isEmpty {
+        return named
+    }
+    return sanitizeChannelName("\(src.group) \(src.input)")
+}
+
+/// Pairs consecutive card outputs carrying the L/R legs of one stereo source:
+/// (grp, in) and (grp, in+1). Stereo inputs (mode ST/M/S) and stereo buses.
+private func cardStereoPairs(routing: [Int: CardSource], ioIn: [String: Any]?, busTables: [String: [String: Any]]) -> [StereoPair] {
+    var pairs: [StereoPair] = []
+    var claimed = Set<Int>()
+
+    for track in routing.keys.sorted() {
+        guard !claimed.contains(track), let left = routing[track] else { continue }
+
+        // The source must be the left leg of a stereo source.
+        guard sourceIsStereoLeft(left, ioIn: ioIn, busTables: busTables) else { continue }
+
+        // The next card output must carry its right leg.
+        guard let right = routing[track + 1],
+              right.group == left.group,
+              right.input == left.input + 1
+        else { continue }
+
+        pairs.append(StereoPair(left: track, right: track + 1))
+        claimed.insert(track)
+        claimed.insert(track + 1)
+    }
+    return pairs
+}
+
+/// True when a card source is the left leg of a stereo source: a stereo bus's odd leg,
+/// or a stereo input (mode ST/M/S).
+private func sourceIsStereoLeft(_ src: CardSource, ioIn: [String: Any]?, busTables: [String: [String: Any]]) -> Bool {
+    if let leg = busLeg(for: src, busTables: busTables) {
+        let isMono = leg.entry[SnapKey.busMono] as? Bool ?? false
+        return !isMono && leg.isLeft
+    }
+    let mode = inputInfo(for: src, ioIn: ioIn)?[SnapKey.mode] as? String
+    return SnapMode.isStereo(mode)
 }
 
 // MARK: - Helpers
@@ -90,10 +256,10 @@ private func channelRoutes(
         let name  = info["name"] as? String
         let grp   = conn?["grp"] as? String
         let inNum = conn?["in"] as? Int
-        if grp == "USB",
+        if grp == SnapKey.usb,
            let usbIn = inNum,
-           let mode  = (usbIO?["\(usbIn)"] as? [String: Any])?["mode"] as? String,
-           mode == "ST" || mode == "M/S" {
+           let mode  = (usbIO?["\(usbIn)"] as? [String: Any])?[SnapKey.mode] as? String,
+           SnapMode.isStereo(mode) {
             result[n] = ChannelRoute(trackKey: usbIn, isUsbStereo: true,
                                      name: name, inputGroup: grp, inputNumber: inNum)
         } else {

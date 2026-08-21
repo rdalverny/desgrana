@@ -15,13 +15,16 @@ final class SnapTests: XCTestCase {
     }
 
     // Builds a minimal valid snap JSON from structured args and parses it.
+    // `extraAE` merges extra ae_data tables (e.g. "main" for bus sources).
     private func snap(
         channels: [String: Any] = [:],
         io: [String: Any]? = nil,
+        extraAE: [String: Any] = [:],
         activeScene: String? = nil
     ) throws -> SnapInfo {
         var ae: [String: Any] = ["ch": channels]
         if let io { ae["io"] = io }
+        for (k, v) in extraAE { ae[k] = v }
         var root: [String: Any] = ["ae_data": ae]
         if let activeScene { root["active_scene"] = activeScene }
         let data = try JSONSerialization.data(withJSONObject: root)
@@ -112,9 +115,9 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "ST"]]]]
         )
-        XCTAssertEqual(info.usbStereoPairs.count, 1)
-        XCTAssertEqual(info.usbStereoPairs[0].left,  1)
-        XCTAssertEqual(info.usbStereoPairs[0].right, 2)
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  1)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 2)
         // Name keyed by WAV track 1 (= USB in 1), not Wing ch 1 (same here, but explicit)
         XCTAssertEqual(info.channelNames[1], "BD")
         XCTAssertNil(info.channelNames[2])
@@ -126,7 +129,7 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 1]]]],
             io: ["in": ["USB": ["1": ["mode": "M"]]]]
         )
-        XCTAssertTrue(info.usbStereoPairs.isEmpty)
+        XCTAssertTrue(info.hwStereoPairs.isEmpty)
     }
 
     func testUsbMidSideChannelProducesPair() throws {
@@ -135,9 +138,9 @@ final class SnapTests: XCTestCase {
                              "in": ["conn": ["grp": "USB", "in": 3]]]],
             io: ["in": ["USB": ["3": ["mode": "M/S"]]]]
         )
-        XCTAssertEqual(info.usbStereoPairs.count, 1)
-        XCTAssertEqual(info.usbStereoPairs[0].left,  3)
-        XCTAssertEqual(info.usbStereoPairs[0].right, 4)
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  3)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 4)
         XCTAssertEqual(info.channelNames[3], "OH")
     }
 
@@ -157,10 +160,10 @@ final class SnapTests: XCTestCase {
         ]]]
         let info = try snap(channels: channels, io: io)
 
-        XCTAssertEqual(info.usbStereoPairs.count, 4)
-        let lefts = info.usbStereoPairs.map(\.left)
+        XCTAssertEqual(info.hwStereoPairs.count, 4)
+        let lefts = info.hwStereoPairs.map(\.left)
         XCTAssertEqual(lefts, [1, 3, 5, 7])
-        let rights = info.usbStereoPairs.map(\.right)
+        let rights = info.hwStereoPairs.map(\.right)
         XCTAssertEqual(rights, [2, 4, 6, 8])
 
         XCTAssertEqual(info.channelNames[1], "BD")
@@ -172,6 +175,95 @@ final class SnapTests: XCTestCase {
         XCTAssertNil(info.channelNames[4])
         XCTAssertNil(info.channelNames[6])
         XCTAssertNil(info.channelNames[8])
+    }
+
+    // MARK: - Card recorder bus sources (MAIN, BUS, EXT)
+
+    // A stereo main bus routed to two consecutive card outputs (grp=MAIN, in=1/2)
+    // links as one pair; both legs take the bus name from ae_data.main.
+    func testCardMainBusStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "MainPA", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left,  1)
+        XCTAssertEqual(info.hwStereoPairs[0].right, 2)
+        // Both legs share the bus name so the combined file collapses to one.
+        XCTAssertEqual(info.channelNames[1], "MainPA")
+        XCTAssertEqual(info.channelNames[2], "MainPA")
+    }
+
+    // A mono main bus (busmono=true) must not be linked into a stereo pair.
+    func testCardMainBusMonoNoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "MainPA", "busmono": true]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertTrue(info.hwStereoPairs.isEmpty)
+    }
+
+    // A second stereo main bus lands on legs 3/4 → bus number (in-1)/2+1 = 2.
+    func testCardMainSecondBusLegMapping() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "5": ["grp": "MAIN", "in": 3],
+            "6": ["grp": "MAIN", "in": 4]
+        ]]]
+        let main: [String: Any] = ["2": ["name": "MainSub", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.hwStereoPairs[0].left, 5)
+        XCTAssertEqual(info.channelNames[5], "MainSub")
+        XCTAssertEqual(info.channelNames[6], "MainSub")
+    }
+
+    // An unnamed stereo main bus still pairs; both legs fall back to the group name
+    // so the combined file collapses to "MAIN", not "MAIN_1"/"MAIN_2".
+    func testCardMainBusUnnamedFallsBackToGroup() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MAIN", "in": 1],
+            "2": ["grp": "MAIN", "in": 2]
+        ]]]
+        let main: [String: Any] = ["1": ["name": "", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["main": main])
+
+        XCTAssertEqual(info.hwStereoPairs.count, 1)
+        XCTAssertEqual(info.channelNames[1], "MAIN")
+        XCTAssertEqual(info.channelNames[2], "MAIN")
+    }
+
+    // BUS and MTX share the MAIN layout (2 legs per bus). A stereo bus routed to the
+    // card links as one pair named from ae_data.bus / ae_data.mtx.
+    func testCardBusStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "BUS", "in": 1],
+            "2": ["grp": "BUS", "in": 2]
+        ]]]
+        let bus: [String: Any] = ["1": ["name": "DrumsBus", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["bus": bus])
+
+        XCTAssertEqual(info.hwStereoPairs, [StereoPair(left: 1, right: 2)])
+        XCTAssertEqual(info.channelNames[1], "DrumsBus")
+        XCTAssertEqual(info.channelNames[2], "DrumsBus")
+    }
+
+    func testCardMtxStereoPair() throws {
+        let io: [String: Any] = ["out": ["CRD": [
+            "1": ["grp": "MTX", "in": 1],
+            "2": ["grp": "MTX", "in": 2]
+        ]]]
+        let mtx: [String: Any] = ["1": ["name": "Stream", "busmono": false]]
+        let info = try snap(channels: ["1": [:]], io: io, extraAE: ["mtx": mtx])
+
+        XCTAssertEqual(info.hwStereoPairs, [StereoPair(left: 1, right: 2)])
+        XCTAssertEqual(info.channelNames[1], "Stream")
     }
 
     // MARK: - Real snap fixture
@@ -188,7 +280,7 @@ final class SnapTests: XCTestCase {
         let info = try parseSnap(at: snapURL)
 
         // The 4 USB stereo pairs must appear exactly once each, in order.
-        let lefts = info.usbStereoPairs.map(\.left)
+        let lefts = info.hwStereoPairs.map(\.left)
         XCTAssertTrue(lefts.contains(1), "missing BD pair")
         XCTAssertTrue(lefts.contains(3), "missing SD pair")
         XCTAssertTrue(lefts.contains(5), "missing Toms pair")
@@ -203,11 +295,11 @@ final class SnapTests: XCTestCase {
         XCTAssertEqual(info.channelNames[5], "Toms")
         XCTAssertEqual(info.channelNames[7], "OH")
 
-        // Right-side USB tracks have no name.
-        XCTAssertNil(info.channelNames[2])
-        XCTAssertNil(info.channelNames[4])
-        XCTAssertNil(info.channelNames[6])
-        XCTAssertNil(info.channelNames[8])
+        // Card routing names both halves of a stereo pair from the same source input.
+        XCTAssertEqual(info.channelNames[2], "BD")
+        XCTAssertEqual(info.channelNames[4], "SD")
+        XCTAssertEqual(info.channelNames[6], "Toms")
+        XCTAssertEqual(info.channelNames[8], "OH")
     }
 
     // MARK: - Scene and show names

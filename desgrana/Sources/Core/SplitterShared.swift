@@ -45,17 +45,20 @@ public func collectSplitResult(
     specs: [OutputSpec],
     hasSignal: [Bool],
     totalFramesWritten: UInt64,
-    sampleRate: Double
+    sampleRate: Double,
+    sourceFormat: SourceFormat? = nil
 ) -> SplitResult {
     var keptOutputs: [OutputFile] = []
-    var silentCount = 0
+    var droppedOutputs: [OutputFile] = []
     var keptMonoCount = 0, keptStereoCount = 0
     for (spec, signal) in zip(specs, hasSignal) {
+        let file = OutputFile(url: spec.url, trackNames: spec.trackNames,
+                              kind: spec.kind, channels: spec.kind.sourceChannels)
         if !signal {
             try? FileManager.default.removeItem(at: spec.url)
-            silentCount += 1
+            droppedOutputs.append(file)
         } else {
-            keptOutputs.append(OutputFile(url: spec.url, trackNames: spec.trackNames))
+            keptOutputs.append(file)
             switch spec.kind {
             case .mono:   keptMonoCount += 1
             case .stereo: keptStereoCount += 1
@@ -63,7 +66,9 @@ public func collectSplitResult(
         }
     }
     return SplitResult(
-        outputs: keptOutputs, keptMono: keptMonoCount, keptStereo: keptStereoCount,
-        silentSkipped: silentCount, totalFrames: totalFramesWritten, sampleRate: sampleRate
+        outputs: keptOutputs, dropped: droppedOutputs,
+        keptMono: keptMonoCount, keptStereo: keptStereoCount,
+        silentSkipped: droppedOutputs.count, totalFrames: totalFramesWritten,
+        sampleRate: sampleRate, sourceFormat: sourceFormat
     )
 }

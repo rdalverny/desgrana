@@ -174,7 +174,7 @@ public final class WAVReader {
     /// Fills `buffer` with raw interleaved sample bytes, truncated to a whole number of
     /// frames and to the remaining `data` payload. Returns bytes written (0 at end).
     public func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
-        guard !closed, let base = buffer.baseAddress else { return 0 }
+        guard !closed, buffer.baseAddress != nil else { return 0 }
         let blockAlign = UInt64(format.blockAlign)
         guard blockAlign > 0 else { return 0 }
 
@@ -231,6 +231,11 @@ public final class WAVReader {
             throw WAVReaderError.unsupportedFormat("bit depth \(bits)")
         }
         guard channels > 0 else { throw WAVReaderError.malformed("zero channels") }
+
+        // Reject an absurd channel count before the splitter allocates a writer per channel.
+        guard channels <= Constants.Format.maxChannels else {
+            throw WAVReaderError.unsupportedFormat("\(channels) channels (max \(Constants.Format.maxChannels))")
+        }
 
         return WAVFormat(channels: channels, sampleRate: rate, bitsPerSample: bits,
                          isFloat: effectiveTag == 3,

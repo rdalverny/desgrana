@@ -91,6 +91,17 @@ public func probeWavHeader(at url: URL) -> WavHeaderInfo? {
     return WavHeaderInfo(channels: reader.format.channels, sampleRate: sampleRate, duration: duration)
 }
 
+/// Reads the full source format (channels, sample rate, bit depth, float flag) from a
+/// WAV header. Used by the extraction report in dry-run, before any split runs.
+public func probeSourceFormat(at url: URL) -> SourceFormat? {
+    guard let reader = try? WAVReader(url: url) else { return nil }
+    defer { reader.close() }
+    let fmt = reader.format
+    guard fmt.channels > 0, fmt.sampleRate > 0 else { return nil }
+    return SourceFormat(channels: fmt.channels, sampleRate: fmt.sampleRate,
+                        bitsPerSample: fmt.bitsPerSample, isFloat: fmt.isFloat)
+}
+
 /// Returns the raw payload of a pre-`data` metadata chunk (e.g. "bext", "iXML"), or nil.
 /// Backed by WAVReader's single header walk (see `WAVReader.metadata`).
 func riffChunk(at url: URL, id: String) -> Data? {
@@ -105,6 +116,8 @@ public func channelNameSuffix(for channels: [Int], names: [Int: String]) -> Stri
     guard !parts.isEmpty else { return "" }
     if parts.count == 2 {
         if let base = sharedStereoBase(left: parts[0], right: parts[1]) { return "_\(base)" }
+        // Both sides carry the same name (e.g. a stereo input feeding L and R): use it once.
+        if parts[0] == parts[1], !parts[0].isEmpty { return "_\(parts[0])" }
         let joined = parts.filter { !$0.isEmpty }.joined(separator: "-")
         return joined.isEmpty ? "" : "_\(joined)"
     }

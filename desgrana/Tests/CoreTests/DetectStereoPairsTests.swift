@@ -81,4 +81,24 @@ final class DetectStereoPairsTests: XCTestCase {
         let pairs = detectStereoPairsFromNames([4: "Out_L", 5: "Out_R"], channelCount: 4)
         XCTAssertTrue(pairs.isEmpty)
     }
+
+    // MARK: - Stereo display name
+
+    func testDisplayNameFoldsLRSuffix() {
+        XCTAssertEqual(stereoDisplayName(left: "OH_L", right: "OH_R"), "OH")
+    }
+
+    func testDisplayNameFoldsIdenticalNames() {
+        // Card routing names both legs of a pair identically (e.g. a stereo bus).
+        XCTAssertEqual(stereoDisplayName(left: "MainPA", right: "MainPA"), "MainPA")
+    }
+
+    func testDisplayNameJoinsDistinctNames() {
+        XCTAssertEqual(stereoDisplayName(left: "Kick", right: "Snare"), "Kick & Snare")
+    }
+
+    func testDisplayNameDropsEmptySide() {
+        XCTAssertEqual(stereoDisplayName(left: "Vox", right: ""), "Vox")
+        XCTAssertEqual(stereoDisplayName(left: "", right: ""), "")
+    }
 }

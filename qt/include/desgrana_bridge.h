@@ -80,6 +80,12 @@ int32_t desgrana_load_snap(
  * out_kept_mono:      receives the number of mono tracks written (nullable).
  * out_kept_stereo:    receives the number of stereo tracks written (nullable).
  *
+ * write_report: when non-zero, a machine-readable JSON report (formats, takes, chosen
+ *   extractions with provenance, markers, skipped tracks) is written to
+ *   <output_dir>/<prefix>report.json. Off (0) writes nothing.
+ * out_report_path: receives the absolute path of the written report (nullable; only
+ *   filled when write_report is non-zero and the report was written).
+ *
  * Returns 0 on success, -1 on error (err_buf filled).
  */
 int32_t desgrana_split(
@@ -98,7 +104,10 @@ int32_t desgrana_split(
     int32_t       *out_kept_mono,      /* nullable */
     int32_t       *out_kept_stereo,    /* nullable */
     char          *err_buf,           /* nullable */
-    int32_t        err_len
+    int32_t        err_len,
+    int32_t        write_report,       /* 0 = write nothing */
+    char          *out_report_path,    /* nullable */
+    int32_t        out_report_len
 );
 
 /**

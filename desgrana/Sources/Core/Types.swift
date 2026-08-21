@@ -13,32 +13,62 @@ public struct StereoPair: Equatable {
     }
 }
 
-/// One written output file: its URL plus the per-channel track names
-/// (1 entry for a mono file, 2 for a stereo L/R file). Names may be empty
-/// when the source channel had no name.
+/// One written output file: its URL, per-channel track names (1 entry for a mono
+/// file, 2 for a stereo L/R file; empty when the source channel had no name), its
+/// kind, and the 1-indexed source channels it draws from.
 public struct OutputFile {
     public let url: URL
     public let trackNames: [String]
-    public init(url: URL, trackNames: [String]) {
+    public let kind: TrackKind
+    /// 1-indexed source channel(s): [ch] for mono, [left, right] for stereo.
+    public let channels: [Int]
+    public init(url: URL, trackNames: [String], kind: TrackKind, channels: [Int]) {
         self.url = url
         self.trackNames = trackNames
+        self.kind = kind
+        self.channels = channels
+    }
+}
+
+/// Format of the source takes, read once from the first WAV header.
+public struct SourceFormat {
+    public let channels: Int
+    public let sampleRate: Int
+    public let bitsPerSample: Int
+    public let isFloat: Bool
+    public init(channels: Int, sampleRate: Int, bitsPerSample: Int, isFloat: Bool) {
+        self.channels = channels
+        self.sampleRate = sampleRate
+        self.bitsPerSample = bitsPerSample
+        self.isFloat = isFloat
     }
 }
 
 public struct SplitResult {
+    /// Kept (non-silent) output files.
     public let outputs: [OutputFile]
+    /// Files that were written then removed because the channel(s) carried no signal.
+    public let dropped: [OutputFile]
     public let keptMono: Int
     public let keptStereo: Int
     public let silentSkipped: Int
     public let totalFrames: UInt64
     public let sampleRate: Double
-    public init(outputs: [OutputFile], keptMono: Int, keptStereo: Int, silentSkipped: Int, totalFrames: UInt64, sampleRate: Double) {
+    /// Source format read from the first take (nil only if never populated).
+    public let sourceFormat: SourceFormat?
+    public init(
+        outputs: [OutputFile], dropped: [OutputFile] = [],
+        keptMono: Int, keptStereo: Int, silentSkipped: Int,
+        totalFrames: UInt64, sampleRate: Double, sourceFormat: SourceFormat? = nil
+    ) {
         self.outputs = outputs
+        self.dropped = dropped
         self.keptMono = keptMono
         self.keptStereo = keptStereo
         self.silentSkipped = silentSkipped
         self.totalFrames = totalFrames
         self.sampleRate = sampleRate
+        self.sourceFormat = sourceFormat
     }
 }
 
@@ -92,6 +122,14 @@ public enum TrackKind {
 
     public var isStereo: Bool { if case .stereo = self { return true }; return false }
     public var channelCount: Int { isStereo ? 2 : 1 }
+
+    /// 1-indexed source channel(s): [ch] for mono, [left, right] for stereo.
+    public var sourceChannels: [Int] {
+        switch self {
+        case .mono(let ch):           return [ch + 1]
+        case .stereo(let l, let r):   return [l + 1, r + 1]
+        }
+    }
 }
 
 /// Platform-independent description of one output track (URL + kind).

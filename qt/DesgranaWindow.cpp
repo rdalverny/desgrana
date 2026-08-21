@@ -17,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QCheckBox>
 #include <QLineEdit>
 #include <QLocale>
 #include <QMessageBox>
@@ -43,6 +44,7 @@
 static const char* kUpdateCheckEnabled      = "updateCheck/enabled";
 static const char* kUpdateCheckIntervalDays = "updateCheck/intervalDays";
 static const char* kUpdateCheckLastTs       = "updateCheck/lastTimestamp";
+static const char* kWriteReport             = "report/enabled";
 
 // ---------------------------------------------------------------------------
 // Palette-aware stylesheet helpers
@@ -354,6 +356,26 @@ void DesgranaWindow::buildReadyPage() {
     m_lowDiskWarningLabel->setWordWrap(true);
     m_lowDiskWarningLabel->setVisible(false);
 
+    // JSON report checkbox (off by default): writes report.json alongside the WAVs.
+    m_reportCheck = new QCheckBox("Write JSON report (formats, takes, extractions, markers)");
+    {
+        QFont f = m_reportCheck->font();
+        f.setPixelSize(11);
+        m_reportCheck->setFont(f);
+    }
+    m_reportCheck->setToolTip(
+        "Saves report.json in the output folder, describing the extraction "
+        "for other tools and AI agents.");
+    {
+        QSettings s;
+        m_writeReport = s.value(kWriteReport, false).toBool();
+    }
+    m_reportCheck->setChecked(m_writeReport);
+    connect(m_reportCheck, &QCheckBox::toggled, this, [this](bool on) {
+        m_writeReport = on;
+        QSettings().setValue(kWriteReport, on);
+    });
+
     // Bottom row: browse (left) + extract (right), mirroring macOS layout
     m_browseBtn = new QPushButton("Choose a different folder\xe2\x80\xa6");
     connect(m_browseBtn, &QPushButton::clicked, this, &DesgranaWindow::browseOutput);
@@ -384,6 +406,8 @@ void DesgranaWindow::buildReadyPage() {
     layout->addWidget(m_outputEdit);
     layout->addWidget(m_outputWarningLabel);
     layout->addWidget(m_lowDiskWarningLabel);
+    layout->addSpacing(8);
+    layout->addWidget(m_reportCheck);
     layout->addSpacing(12);
     layout->addLayout(btnRow);
 }
@@ -766,6 +790,7 @@ void DesgranaWindow::startSplit() {
     }
     p.chKeys.assign(m_chKeys, m_chKeys + m_chCount);
     for (int i = 0; i < m_chCount; i++) p.chNames.push_back(m_chNames[i]);
+    p.writeReport = m_writeReport;
 
     auto *thread = new QThread;
     auto *worker = new SplitWorker(std::move(p));
