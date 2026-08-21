@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from .test_model import PREFIX, ExpectedOutput, TestCase
 from .selog import write_selog_bin
@@ -348,3 +349,51 @@ def run_case_real(case: TestCase, binary: str, var_dir: str, tests_dir: str) -> 
         print(f"\n  {total} check(s) failed")
 
     return audio_failures, marker_failures
+
+
+def verify_outputs_byte_exact(
+    binary: str,
+    session_dir: str,
+    ref_wav: str,
+    extra_args: "list[str] | None" = None,
+) -> int:
+    """Run desgrana on `session_dir` and check every output file is a byte-exact
+    extraction of its source channels from `ref_wav`. The file -> channel mapping comes
+    from desgrana's own `outputs.files` report, so this needs no hand-written expected
+    list and works for any interleaved reference. Independent Python anchor.
+    Returns the number of mismatched files (0 = all good)."""
+    _, num_channels, _, bits = read_wav_fmt(ref_wav)
+    bytes_per_sample = bits // 8
+    ref = read_data_bytes(ref_wav)
+
+    out_dir = tempfile.mkdtemp(prefix="byte_exact_")
+    try:
+        argv = [binary, session_dir, "-o", out_dir, "--json"] + (extra_args or [])
+        result = subprocess.run(argv, capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"  FAIL  extraction exit {result.returncode}: {result.stderr.strip()!r}")
+            return 1
+
+        files = json.loads(result.stdout)["outputs"]["files"]
+        failures = 0
+        for f in files:
+            channels = f["channels"]  # 1-indexed source channels
+            got = read_data_bytes(os.path.join(out_dir, f["file"]))
+
+            # Stereo interleaves both legs; mono copies the single channel.
+            if len(channels) == 2:
+                want = extract_stereo_bytes(ref, channels[0] - 1, channels[1] - 1,
+                                            num_channels, bytes_per_sample)
+            else:
+                want = extract_channel_bytes(ref, channels[0] - 1,
+                                             num_channels, bytes_per_sample)
+
+            label = f"{f['file']} = ch {channels} byte-exact"
+            if got == want:
+                print(f"  OK    {label}")
+            else:
+                print(f"  FAIL  {label}  ({len(got)} got vs {len(want)} expected)")
+                failures += 1
+        return failures
+    finally:
+        shutil.rmtree(out_dir, ignore_errors=True)
