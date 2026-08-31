@@ -111,12 +111,26 @@ struct ContentView: View {
                 destinationLine(sessionDir: sessionDir)
 
                 if vm.snapInfo == nil {
-                    HStack(spacing: 6) {
-                        Text("No snapshot \u{2014} channel names will be numbered.")
-                        Button("Add\u{2026}") { browseSnap() }
+                    if let suggested = vm.suggestedSnapURL {
+                        // Snapshot found nearby: offer it, never auto-apply.
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkle.magnifyingglass")
+                            Text("Snapshot found nearby: \(suggested.lastPathComponent)")
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Button("Use") { vm.loadSnap(url: suggested) }
+                            Button("Ignore") { vm.ignoreSuggestion() }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 6) {
+                            Text("No snapshot \u{2014} channel names will be numbered.")
+                            Button("Add\u{2026}") { browseSnap() }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 }
 
                 HStack(alignment: .center) {

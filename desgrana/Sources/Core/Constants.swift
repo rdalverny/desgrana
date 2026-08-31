@@ -29,6 +29,10 @@ public enum Constants {
         /// while rejecting a malformed or hostile `fmt `: without this cap the splitter
         /// would allocate one output writer per declared channel, up to 65535.
         public static let maxChannels = 256
+
+        /// Max size of a snapshot file the parsers read whole into memory.
+        /// Real Wing `.snap` dumps run 0.7-1.3 MB; 6 MB rejects a hostile file.
+        public static let snapMaxBytes = 6 * 1024 * 1024
     }
 
     public enum URLs {

@@ -24,6 +24,8 @@ public enum X32SceneError: Error, CustomStringConvertible {
 }
 
 public func parseX32Scene(at url: URL) throws -> SnapInfo {
+    try guardSnapshotSize(at: url)
+
     let text: String
     do {
         text = try String(contentsOf: url, encoding: .utf8)

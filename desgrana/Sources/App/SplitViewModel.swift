@@ -70,6 +70,7 @@ class SplitViewModel: ObservableObject {
     var sessionInfo: SessionInfo? { session.sessionInfo }
     var snapInfo: SnapInfo? { session.snapInfo }
     var snapName: String? { session.snapName }
+    var suggestedSnapURL: URL? { session.suggestedSnapURL }
     var wavFiles: [URL] { session.takes }
     var resolvedTakes: [URL] { session.takes }
     var inferredChannels: Int? { session.inferredChannels }
@@ -115,6 +116,9 @@ class SplitViewModel: ObservableObject {
     func loadSnap(url: URL) {
         session.loadSnap(url: url)
     }
+
+    /// Dismisses a nearby-snapshot suggestion without applying it.
+    func ignoreSuggestion() { session.suggestedSnapURL = nil }
 
     // MARK: - Splitting
 

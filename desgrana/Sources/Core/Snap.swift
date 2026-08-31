@@ -70,6 +70,8 @@ public enum SnapError: Error, CustomStringConvertible {
 }
 
 public func parseSnap(at url: URL) throws -> SnapInfo {
+    try guardSnapshotSize(at: url)
+
     let data: Data
     do { data = try Data(contentsOf: url) } catch {
         throw SnapError.cannotRead(url.path)
@@ -353,6 +355,47 @@ public func findSnap(in dir: URL) -> URL? {
 /// Returns the first console snapshot in `dir`: .snap first, then .scn.
 public func findConsoleSnapshot(in dir: URL) -> URL? {
     findSnap(in: dir) ?? findX32Scene(in: dir)
+}
+
+/// Console snapshots (.snap and .scn) directly in `dir`, sorted. Non-recursive.
+func consoleSnapshots(in dir: URL) -> [URL] {
+    let snapshotExts: Set<String> = ["snap", "scn"]
+    guard let contents = try? FileManager.default.contentsOfDirectory(
+        at: dir, includingPropertiesForKeys: nil
+    ) else { return [] }
+    return contents
+        .filter { snapshotExts.contains($0.pathExtension.lowercased()) }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+}
+
+/// Where a console snapshot was located relative to the session folder.
+public enum SnapDiscovery: Equatable {
+    case inSession(URL)   // beside the takes: authoritative, apply as today
+    case suggested(URL)   // exactly one found nearby: offer it, do not apply
+    case none             // nothing, or several candidates (ambiguous): stay silent
+}
+
+/// Escalates outward only when the session folder has no snapshot: a snapshot
+/// beside the takes is applied, one found in the parent or volume root is only
+/// suggested, and only when unambiguous. Lists and counts, never parses.
+public func discoverSnapshot(sessionDir: URL) -> SnapDiscovery {
+    if let here = findConsoleSnapshot(in: sessionDir) {
+        return .inSession(here)
+    }
+
+    let parent = sessionDir.deletingLastPathComponent()
+    let volumeRoot = (try? sessionDir.resourceValues(forKeys: [.volumeURLKey]))?.volume
+    let sessionStd = sessionDir.standardizedFileURL
+
+    let nearby = [parent, volumeRoot]
+        .compactMap { $0 }
+        .filter { $0.standardizedFileURL != sessionStd }
+        .flatMap { consoleSnapshots(in: $0) }
+
+    // Parent and volume root can be the same dir; count distinct files.
+    let unique = Set(nearby.map { $0.standardizedFileURL })
+
+    return unique.count == 1 ? .suggested(unique.first!) : .none
 }
 
 /// Parses a Wing .snap or X32 .scn file, dispatching on the file extension.

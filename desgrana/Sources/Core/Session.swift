@@ -26,6 +26,8 @@ public struct Session {
     /// Manual pair edits; takes precedence over the snap-derived pairs when non-nil.
     public var userOverridePairs: [StereoPair]?
     public var sessionName: String
+    /// A snapshot found outside the session folder, offered but not applied.
+    public var suggestedSnapURL: URL?
 
     public init(
         sessionInfo: SessionInfo? = nil,
@@ -36,7 +38,8 @@ public struct Session {
         inferredDuration: Double? = nil,
         fallbackChannelNames: [Int: String] = [:],
         userOverridePairs: [StereoPair]? = nil,
-        sessionName: String = ""
+        sessionName: String = "",
+        suggestedSnapURL: URL? = nil
     ) {
         self.sessionInfo = sessionInfo
         self.snapInfo = snapInfo
@@ -47,6 +50,7 @@ public struct Session {
         self.fallbackChannelNames = fallbackChannelNames
         self.userOverridePairs = userOverridePairs
         self.sessionName = sessionName
+        self.suggestedSnapURL = suggestedSnapURL
     }
 
     // MARK: Loading
@@ -84,7 +88,14 @@ public struct Session {
                 .first { FileManager.default.fileExists(atPath: $0.path) }
             let sessionInfo = selogURL.flatMap { try? parseSELog(at: $0) }
 
-            let snapURL = findConsoleSnapshot(in: dir)
+            let discovery = discoverSnapshot(sessionDir: dir)
+            let snapURL: URL?
+            let suggestedSnap: URL?
+            switch discovery {
+            case .inSession(let url): snapURL = url;  suggestedSnap = nil
+            case .suggested(let url): snapURL = nil;  suggestedSnap = url
+            case .none:               snapURL = nil;  suggestedSnap = nil
+            }
             let snapInfo = snapURL.flatMap { try? parseSnapOrScene(at: $0) }
 
             // No SE_LOG: recover channel count and duration from the first WAV header.
@@ -102,7 +113,8 @@ public struct Session {
                 takes: takes,
                 inferredChannels: header?.channels,
                 inferredDuration: header?.duration,
-                fallbackChannelNames: fallbackNames
+                fallbackChannelNames: fallbackNames,
+                suggestedSnapURL: suggestedSnap
             )
             session.sessionName = isFileInput
                 ? input.deletingPathExtension().lastPathComponent
@@ -117,6 +129,7 @@ public struct Session {
         guard let info = try? parseSnapOrScene(at: url) else { return }
         snapInfo = info
         snapName = url.lastPathComponent
+        suggestedSnapURL = nil
         userOverridePairs = nil
         if let scene = info.sceneName, !scene.isEmpty {
             sessionName = scene

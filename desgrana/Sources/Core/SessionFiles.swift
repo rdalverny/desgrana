@@ -5,6 +5,26 @@ import Foundation
 /// Case variants to try when locating the Behringer SE_LOG binary on case-sensitive filesystems.
 public let seLogCandidates = ["SE_LOG.BIN", "se_log.bin", "SE_LOG.bin"]
 
+/// Snapshot file larger than `Constants.Format.snapMaxBytes`.
+public enum SnapshotFileError: Error, CustomStringConvertible {
+    case tooLarge(path: String, size: Int)
+
+    public var description: String {
+        switch self {
+        case .tooLarge(let path, let size):
+            return "Snapshot file too large (\(size) bytes, max \(Constants.Format.snapMaxBytes)): \(path)"
+        }
+    }
+}
+
+/// Rejects a snapshot file over the cap before a parser reads it whole into memory.
+func guardSnapshotSize(at url: URL) throws {
+    let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+    if size > Constants.Format.snapMaxBytes {
+        throw SnapshotFileError.tooLarge(path: url.path, size: size)
+    }
+}
+
 /// All `.wav` files directly in `dir`, sorted by name.
 func wavFilesInDir(_ dir: URL) -> [URL] {
     guard let contents = try? FileManager.default.contentsOfDirectory(
