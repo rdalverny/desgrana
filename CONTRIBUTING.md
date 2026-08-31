@@ -1,5 +1,10 @@
 # Contributing
 
+First off, thank you for considering contributing to Desgrana!
+
+All types of contributions are welcome: bug reports, documentation improvements,
+feature requests, and code contributions.
+
 ## Build prerequisites
 
 CI (`.github/workflows/build.yml`) produces the release artifacts for all three
@@ -197,29 +202,32 @@ Under consideration (no timeline, contributions welcome):
   testing, signing, DAW integration
 - AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
 
-
 ## AI disclosure
 
-This project is built with AI assistance. If your contribution includes
-AI-generated code, add these trailers to each relevant commit:
+This project is built with AI assistance. We welcome AI-assisted code, 
+provided it is thoroughly reviewed and tested by the contributor 
+submitting and signing off the changes.
 
-```
+In such cases, you may add these trailers to the end of each relevant commit message:
+
+```text
 Co-Authored-By: <AI Name Version> <noreply@provider.com>
 AI-Assisted: generated|partial|suggestion
 ```
 
-- `generated` — AI wrote the bulk of it; you reviewed and validated.
-- `partial` — collaborative; you directed, AI implemented portions.
-- `suggestion` — AI proposed an approach or snippet; you wrote the code.
+* **`generated`** — AI wrote the bulk of the code; you reviewed,
+  tested, and validated it.
+* **`partial`** — Collaborative development; you directed, and the AI
+  implemented portions.
+* **`suggestion`** — AI proposed an approach or snippet; you wrote
+  the final code.
 
-Omit for minor assistance (lookups, explanations, rephrasing).
+You may omit these trailers for minor assistance (lookups, syntax
+explanations, or text rephrasing).
 
-Example for Claude:
+**Note:** Regardless of the tools used, you remain fully responsible
+and in charge of the code you submit and sign off.
 
-```
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-AI-Assisted: partial
-```
 
 ## License
 
