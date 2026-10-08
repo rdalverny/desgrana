@@ -167,6 +167,10 @@ jobs:
           swift build --package-path desgrana -c release --product desgrana
           python desgrana/Tests/test_split.py desgrana/.build/release/desgrana.exe
 
+      - name: Swift unit tests
+        shell: bash
+        run: swift test --package-path desgrana
+
       - name: Build Swift bridge (DLL)
         shell: bash
         run: cd desgrana && swift build -c release --product DesgranaBridge

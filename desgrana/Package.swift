@@ -9,7 +9,6 @@ let package = Package(
         // macOS app, which must not be affected). The dynamic bridge library is
         // consumed by the Qt GUI on Linux/Windows only; macOS never builds it.
         .executable(name: "desgrana", targets: ["desgrana"]),
-        .executable(name: "DesgranaApp", targets: ["DesgranaApp"]),
         .library(name: "DesgranaBridge", type: .dynamic, targets: ["DesgranaBridgeC"]),
     ],
     targets: [
@@ -35,13 +34,6 @@ let package = Package(
             dependencies: ["DesgranaCore"],
             path: "Sources/BridgeC"
         ),
-        // GUI executable (macOS only)
-        .executableTarget(
-            name: "DesgranaApp",
-            dependencies: ["DesgranaCore"],
-            path: "Sources/App",
-            exclude: ["Desgrana.entitlements"]
-        ),
         // Core unit tests
         .testTarget(
             name: "DesgranaCoreTests",
@@ -56,3 +48,16 @@ let package = Package(
         )
     ]
 )
+
+// SwiftUI app: declared on macOS only, so `swift test` also builds on Linux/Windows.
+#if os(macOS)
+package.products.append(.executable(name: "DesgranaApp", targets: ["DesgranaApp"]))
+package.targets.append(
+    .executableTarget(
+        name: "DesgranaApp",
+        dependencies: ["DesgranaCore"],
+        path: "Sources/App",
+        exclude: ["Desgrana.entitlements"]
+    )
+)
+#endif
