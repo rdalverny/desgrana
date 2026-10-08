@@ -37,7 +37,7 @@ struct ContentView: View {
             UserDefaults.standard.set(600, forKey: "NSInitialToolTipDelay")
             handlePendingURL()
             Task.detached(priority: .background) {
-                if let info = await UpdateCheck.checkIfDue(current: v) {
+                if let info = await UpdateCheck.checkIfDue(current: v, store: UserDefaultsUpdateStore()) {
                     await MainActor.run {
                         self.updateInfo = info
                         self.showUpdateSheet = true
@@ -48,7 +48,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .checkForUpdatesNow)) { _ in
             let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
             Task.detached(priority: .background) {
-                if let info = await UpdateCheck.checkNow(current: v) {
+                if let info = await UpdateCheck.checkNow(current: v, store: UserDefaultsUpdateStore()) {
                     await MainActor.run {
                         self.updateInfo = info
                         self.showUpdateSheet = true

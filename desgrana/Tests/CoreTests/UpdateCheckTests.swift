@@ -71,4 +71,59 @@ final class UpdateCheckTests: XCTestCase {
         XCTAssertFalse(isUpdateDue(lastCheckEpoch: twoDaysAgo, intervalDays: 7))
         XCTAssertTrue(isUpdateDue(lastCheckEpoch: twoDaysAgo, intervalDays: 1))
     }
+
+    // MARK: - Policy
+
+    func testUnsetSettingsAreDue() {
+        XCTAssertTrue(UpdateCheck.isDue(enabled: nil, intervalDays: nil, lastCheck: nil))
+    }
+
+    func testDisabledIsNeverDue() {
+        XCTAssertFalse(UpdateCheck.isDue(enabled: false, intervalDays: nil, lastCheck: nil))
+    }
+
+    func testDefaultIntervalApplies() {
+        XCTAssertFalse(UpdateCheck.isDue(enabled: nil, intervalDays: nil, lastCheck: daysAgo(29)))
+        XCTAssertTrue(UpdateCheck.isDue(enabled: nil, intervalDays: nil, lastCheck: daysAgo(31)))
+    }
+
+    func testStoredIntervalApplies() {
+        XCTAssertTrue(UpdateCheck.isDue(enabled: true, intervalDays: 7, lastCheck: daysAgo(8)))
+        XCTAssertFalse(UpdateCheck.isDue(enabled: true, intervalDays: 7, lastCheck: daysAgo(6)))
+    }
+
+    func testCheckIfDueSkipsWhenDisabled() async {
+        let store = MemoryStore(enabled: false)
+
+        let info = await UpdateCheck.checkIfDue(current: "1.0.0", store: store)
+
+        XCTAssertNil(info)
+        XCTAssertNil(store.lastCheck)
+    }
+
+    func testCheckIfDueSkipsWhenRecent() async {
+        let recent = daysAgo(1)
+        let store = MemoryStore(lastCheck: recent)
+
+        let info = await UpdateCheck.checkIfDue(current: "1.0.0", store: store)
+
+        XCTAssertNil(info)
+        XCTAssertEqual(store.lastCheck, recent)
+    }
+
+    private func daysAgo(_ days: Double) -> Date {
+        Date().addingTimeInterval(-days * 86_400)
+    }
+}
+
+private final class MemoryStore: UpdateCheckStore {
+    let enabled: Bool?
+    let intervalDays: Int?
+    var lastCheck: Date?
+
+    init(enabled: Bool? = nil, intervalDays: Int? = nil, lastCheck: Date? = nil) {
+        self.enabled = enabled
+        self.intervalDays = intervalDays
+        self.lastCheck = lastCheck
+    }
 }

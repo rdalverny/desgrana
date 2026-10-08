@@ -5,8 +5,8 @@ import DesgranaCore
 
 struct SettingsView: View {
     @EnvironmentObject private var vm: SplitViewModel
-    @AppStorage(updateCheckEnabledKey) private var updateEnabled: Bool = true
-    @AppStorage(updateCheckIntervalKey) private var updateIntervalDays: Int = 30
+    @AppStorage(updateCheckEnabledKey) private var updateEnabled: Bool = UpdateCheck.defaultEnabled
+    @AppStorage(updateCheckIntervalKey) private var updateIntervalDays: Int = UpdateCheck.defaultIntervalDays
 
     var body: some View {
         Form {
