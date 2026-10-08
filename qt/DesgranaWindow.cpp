@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Romain d'Alverny
 // SPDX-License-Identifier: MIT
 #include "DesgranaWindow.hpp"
+#include "Preferences.hpp"
 #include "SplitWorker.hpp"
 #include "include/desgrana_bridge.h"
 
@@ -17,16 +18,15 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
-#include <QCheckBox>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QSettings>
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QStyle>
@@ -37,14 +37,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-// ---------------------------------------------------------------------------
-// UpdateCheck settings keys
-// ---------------------------------------------------------------------------
-static const char* kUpdateCheckEnabled      = "updateCheck/enabled";
-static const char* kUpdateCheckIntervalDays = "updateCheck/intervalDays";
-static const char* kUpdateCheckLastTs       = "updateCheck/lastTimestamp";
-static const char* kWriteReport             = "report/enabled";
 
 // ---------------------------------------------------------------------------
 // Palette-aware stylesheet helpers
@@ -174,6 +166,7 @@ DesgranaWindow::DesgranaWindow(QWidget *parent) : QWidget(parent) {
     auto *root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
+    root->setMenuBar(buildMenuBar());
     // Pages added directly — hidden widgets are excluded from QVBoxLayout's
     // sizeHint, so the window resizes to the visible page only.
     root->addWidget(m_idlePage);
@@ -191,6 +184,23 @@ DesgranaWindow::DesgranaWindow(QWidget *parent) : QWidget(parent) {
     checkForUpdate();
 
     applyDynamicStyles();
+}
+
+// Windows convention: Tools > Options. Linux desktops: Edit > Preferences.
+QMenuBar *DesgranaWindow::buildMenuBar() {
+    auto *bar = new QMenuBar(this);
+
+#ifdef Q_OS_WIN
+    QMenu *menu = bar->addMenu("&Tools");
+    QAction *prefs = menu->addAction("&Options\xe2\x80\xa6");
+#else
+    QMenu *menu = bar->addMenu("&Edit");
+    QAction *prefs = menu->addAction("&Preferences\xe2\x80\xa6");
+#endif
+    prefs->setShortcut(QKeySequence::Preferences);
+    connect(prefs, &QAction::triggered, this, &DesgranaWindow::openPreferences);
+
+    return bar;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,26 +366,6 @@ void DesgranaWindow::buildReadyPage() {
     m_lowDiskWarningLabel->setWordWrap(true);
     m_lowDiskWarningLabel->setVisible(false);
 
-    // JSON report checkbox (off by default): writes report.json alongside the WAVs.
-    m_reportCheck = new QCheckBox("Write JSON report (formats, takes, extractions, markers)");
-    {
-        QFont f = m_reportCheck->font();
-        f.setPixelSize(11);
-        m_reportCheck->setFont(f);
-    }
-    m_reportCheck->setToolTip(
-        "Saves report.json in the output folder, describing the extraction "
-        "for other tools and AI agents.");
-    {
-        QSettings s;
-        m_writeReport = s.value(kWriteReport, false).toBool();
-    }
-    m_reportCheck->setChecked(m_writeReport);
-    connect(m_reportCheck, &QCheckBox::toggled, this, [this](bool on) {
-        m_writeReport = on;
-        QSettings().setValue(kWriteReport, on);
-    });
-
     // Bottom row: browse (left) + extract (right), mirroring macOS layout
     m_browseBtn = new QPushButton("Choose a different folder\xe2\x80\xa6");
     connect(m_browseBtn, &QPushButton::clicked, this, &DesgranaWindow::browseOutput);
@@ -406,8 +396,6 @@ void DesgranaWindow::buildReadyPage() {
     layout->addWidget(m_outputEdit);
     layout->addWidget(m_outputWarningLabel);
     layout->addWidget(m_lowDiskWarningLabel);
-    layout->addSpacing(8);
-    layout->addWidget(m_reportCheck);
     layout->addSpacing(12);
     layout->addLayout(btnRow);
 }
@@ -705,10 +693,24 @@ void DesgranaWindow::onSessionNameChanged(const QString &name) {
 }
 
 void DesgranaWindow::updateOutputPath() {
+    const QString custom = Prefs::customOutputDir();
+    if (!custom.isEmpty() && QDir(custom).exists()) {
+        m_outputEdit->setText(custom);
+        checkOutputExists();
+        return;
+    }
+
     const QString desktop = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
     m_outputEdit->setText(QDir(desktop).filePath(
         m_sessionName.trimmed().replace(' ', '_')));
     checkOutputExists();
+}
+
+void DesgranaWindow::openPreferences() {
+    auto *dlg = new PreferencesDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    connect(dlg, &PreferencesDialog::changed, this, &DesgranaWindow::updateOutputPath);
+    dlg->open();
 }
 
 void DesgranaWindow::checkOutputExists() {
@@ -779,7 +781,7 @@ void DesgranaWindow::startSplit() {
     SplitWorker::Params p;
     p.sessionPath = m_sessionPath;
     p.outputPath  = m_lastOutputPath;
-    if (!m_useShortNames) {
+    if (!Prefs::shortNames()) {
         const QString name = m_sessionName.isEmpty()
             ? QDir(p.outputPath).dirName() : m_sessionName;
         p.prefix = name.trimmed().replace(' ', '_') + "_";
@@ -790,7 +792,7 @@ void DesgranaWindow::startSplit() {
     }
     p.chKeys.assign(m_chKeys, m_chKeys + m_chCount);
     for (int i = 0; i < m_chCount; i++) p.chNames.push_back(m_chNames[i]);
-    p.writeReport = m_writeReport;
+    p.writeReport = Prefs::writeReport();
 
     auto *thread = new QThread;
     auto *worker = new SplitWorker(std::move(p));
@@ -1037,17 +1039,18 @@ void DesgranaWindow::handleChannelRowClick(QWidget *row) {
 // ---------------------------------------------------------------------------
 
 void DesgranaWindow::checkForUpdate() {
-    QSettings s;
-    if (!s.value(kUpdateCheckEnabled, true).toBool()) return;
+    const int32_t due = desgrana_update_due(
+        Prefs::updateEnabledSetting(),
+        Prefs::updateIntervalSetting(),
+        Prefs::lastUpdateCheck());
 
-    const qint64  lastCheck   = s.value(kUpdateCheckLastTs, 0LL).toLongLong();
-    const int32_t intervalDays = s.value(kUpdateCheckIntervalDays, 30).toInt();
-    const qint64  now          = QDateTime::currentSecsSinceEpoch();
-    if (now - lastCheck < static_cast<qint64>(intervalDays) * 86400) return;
+    if (!due) {
+        return;
+    }
 
     // Mark the check as performed before spawning the thread, so a second
     // launch during a slow request won't trigger a duplicate check.
-    s.setValue(kUpdateCheckLastTs, now);
+    Prefs::setLastUpdateCheck(QDateTime::currentSecsSinceEpoch());
 
     // desgrana_check_update blocks until the HTTP response arrives — run it
     // on a background thread and marshal the result back to the main thread.

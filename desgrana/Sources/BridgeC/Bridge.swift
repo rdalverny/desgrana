@@ -247,6 +247,34 @@ public func desgrana_load_snap(
 
 // MARK: - Update check
 
+private let unsetSetting: Int32 = -1
+
+/// Returns 1 when an update check is due, 0 otherwise. Applies Core's policy
+/// and defaults: pass -1 for any setting the user never set, 0 for "never checked".
+@_cdecl("desgrana_update_due")
+public func desgrana_update_due(
+    _ enabled: Int32,
+    _ intervalDays: Int32,
+    _ lastCheckEpoch: Int64
+) -> Int32 {
+    let due = UpdateCheck.isDue(
+        enabled: enabled == unsetSetting ? nil : enabled != 0,
+        intervalDays: intervalDays == unsetSetting ? nil : Int(intervalDays),
+        lastCheck: lastCheckEpoch > 0 ? Date(timeIntervalSince1970: TimeInterval(lastCheckEpoch)) : nil)
+
+    return due ? 1 : 0
+}
+
+/// Core's update-check defaults, for UIs that display unset settings.
+@_cdecl("desgrana_update_defaults")
+public func desgrana_update_defaults(
+    _ outEnabled: UnsafeMutablePointer<Int32>,
+    _ outIntervalDays: UnsafeMutablePointer<Int32>
+) {
+    outEnabled.pointee = UpdateCheck.defaultEnabled ? 1 : 0
+    outIntervalDays.pointee = Int32(UpdateCheck.defaultIntervalDays)
+}
+
 /// Fetches the remote version feed and reports the result via `callback`.
 /// Designed to be called from a background thread — blocks until the HTTP
 /// response is received (or times out / errors).

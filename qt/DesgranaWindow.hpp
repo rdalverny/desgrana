@@ -11,10 +11,10 @@
 class QDragEnterEvent;
 class QDragLeaveEvent;
 class QDropEvent;
-class QCheckBox;
 class QFrame;
 class QLabel;
 class QLineEdit;
+class QMenuBar;
 class QProgressBar;
 class QPushButton;
 class QScrollArea;
@@ -38,7 +38,9 @@ private slots:
     void onSplitDone(int silentSkipped, int keptMono, int keptStereo);
     void onSplitError(const QString &msg);
     void onSessionNameChanged(const QString &name);
+    void openPreferences();
 private:
+    QMenuBar *buildMenuBar();
     void buildIdlePage();
     void buildReadyPage();
     void buildSplittingPage();
@@ -81,7 +83,6 @@ private:
     QLabel      *m_lowDiskWarningLabel = nullptr;
     QPushButton *m_browseBtn;
     QPushButton *m_splitBtn;
-    QCheckBox   *m_reportCheck = nullptr;
 
     // Splitting page
     QWidget      *m_splittingPage;
@@ -106,8 +107,6 @@ private:
     int     m_channels  = 0;
     double  m_duration  = 0;
     qint64  m_expectedOutputBytes = 0;  // ~size the extraction will write
-    bool    m_useShortNames = true;
-    bool    m_writeReport   = false;
 
     static constexpr int kSnapCap = 64;
     int32_t m_pairLefts[kSnapCap]              = {};

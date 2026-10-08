@@ -110,6 +110,26 @@ int32_t desgrana_split(
     int32_t        out_report_len
 );
 
+/** Setting value meaning "never set by the user": Core applies its default. */
+#define DESGRANA_UNSET (-1)
+
+/**
+ * Return 1 when an update check is due, 0 otherwise (Core's policy and defaults).
+ * enabled / interval_days: DESGRANA_UNSET when not set.
+ * last_check_epoch: 0 when never checked.
+ */
+int32_t desgrana_update_due(
+    int32_t enabled,
+    int32_t interval_days,
+    int64_t last_check_epoch
+);
+
+/** Core's update-check defaults (enabled: 0/1), for displaying unset settings. */
+void desgrana_update_defaults(
+    int32_t *out_enabled,
+    int32_t *out_interval_days
+);
+
 /**
  * Fetch the remote version feed and report the result via callback.
  * Designed to be called from a background thread — blocks until the HTTP

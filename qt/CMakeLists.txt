@@ -44,6 +44,7 @@ set(GUI_TARGET desgrana-gui)
 qt_add_executable(${GUI_TARGET} WIN32
     main.cpp
     DesgranaWindow.cpp
+    Preferences.cpp
     SplitWorker.cpp
 )
 
