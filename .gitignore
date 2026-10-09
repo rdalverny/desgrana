@@ -24,3 +24,4 @@ desgrana/Tests/Private
 /*.md
 *.afdesign
 *.mov
+__pycache__
