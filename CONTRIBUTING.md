@@ -187,15 +187,19 @@ The roadmap is indicative, not a commitment. Priorities may shift.
 
 Current focus:
 
+- Windows: testing on real machines, code signing
+- Graceful handling of truncated takes, with a readable extraction report
 - X-Live / W-Live validation with real session samples
 - X32/M32 support testing (parser implemented, needs real-world `.scn` files)
 
 Under consideration (no timeline, contributions welcome):
 
+- Snap channel colors in the track list
+- Per-track levels (peak, LUFS), cue sheet, suggested gain staging
 - Localization
-- Windows version: CI (done), installer (done); what's left:
-  testing, signing, DAW integration
 - AAF export for Pro Tools, Nuendo, Cubase (requires libaaf integration)
+
+Full backlog: [docs/TODO.md](docs/TODO.md).
 
 
 ## AI disclosure
