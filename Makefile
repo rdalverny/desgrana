@@ -24,16 +24,12 @@ include make/macos.mk
 include make/linux.mk
 include make/release.mk
 
-# Lock the default goal so it can't shift when fragments are reordered.
 .DEFAULT_GOAL := buildinfo
 
 .PHONY: buildinfo cli test test-unit test-generate tag patch minor \
-        lint lint-fix format format-check clean fmtdoc web
+        lint lint-fix format format-check clean fmtdoc web coverage
 
-# ── Build ─────────────────────────────────────────────────────────
 
-# Generate BuildInfo.swift (version + commit) when its contents change. Gitignored
-# so it never dirties the working tree (see `tag`). Required by every Swift build.
 buildinfo:
 	@mkdir -p $(dir $(BUILDINFO)); \
 	 tmp=$$(mktemp); \
@@ -81,3 +77,24 @@ clean:
 fmtdoc:
 	prettier --prose-wrap preserve --print-width 78 --write "**/*.md"
 
+# Paths relative to desgrana/.
+COV_DIR   := .build/cov
+COV_CLI   := $(COV_DIR)/debug/desgrana
+COV_TESTS := .build/debug/DesgranaPackageTests.xctest/Contents/MacOS/DesgranaPackageTests
+
+# Swift unit tests + Python CLI suite (run on an instrumented CLI), in one report.
+coverage: buildinfo
+	cd desgrana && swift test --enable-code-coverage
+	cd desgrana && swift build --product desgrana --build-path $(COV_DIR) \
+		-Xswiftc -profile-generate -Xswiftc -profile-coverage-mapping
+	rm -rf desgrana/$(COV_DIR)/profraw
+	cd desgrana && LLVM_PROFILE_FILE="$$PWD/$(COV_DIR)/profraw/cli-%p.profraw" \
+		python3 Tests/test_split.py $(COV_CLI) > /dev/null
+	cd desgrana && xcrun llvm-profdata merge -sparse \
+		.build/debug/codecov/default.profdata $(COV_DIR)/profraw/*.profraw \
+		-o $(COV_DIR)/merged.profdata
+	cd desgrana && xcrun llvm-cov report $(COV_TESTS) \
+		-object $(COV_CLI) \
+		-instr-profile=$(COV_DIR)/merged.profdata \
+		-ignore-filename-regex=".build|Tests" \
+		-use-color
