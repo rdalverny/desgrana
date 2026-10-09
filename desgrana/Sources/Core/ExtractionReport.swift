@@ -23,6 +23,7 @@ public struct ExtractionReport: Codable {
     public var plannedOutputs: [FileEntry]?   // dry-run only
     public var ignored: Ignored?          // nil in dry-run
     public var markers: Markers
+    public var performance: Performance?   // nil in dry-run
 
     public struct Tool: Codable {
         public var name: String
@@ -124,6 +125,15 @@ public struct ExtractionReport: Codable {
         public var csv: String?
         public var txt: String?
         public var mid: String?
+    }
+
+    /// Compares runs across machines (e.g. a Windows VM vs macOS on the same session).
+    public struct Performance: Codable {
+        public var elapsedSec: Double
+        public var bytesRead: Int
+        public var readMBPerSec: Double       // decimal MB (10^6 bytes)
+        public var realtimeFactor: Double     // audio duration / elapsed
+        public var platform: String           // "<os>-<arch>"
     }
 
     /// Pretty-printed, key-sorted JSON. Stable output for diffing and agent parsing.
@@ -228,6 +238,7 @@ public func buildExtractionReport(
             sampleRate: sr, totalFrames: Int(result.totalFrames),
             durationSec: sr > 0 ? Double(result.totalFrames) / result.sampleRate : 0)
         report.ignored = ExtractionReport.Ignored(silentTracks: dropped)
+        report.performance = performance(of: result, durationSec: report.outputs?.durationSec ?? 0)
     } else if let plannedSpecs {
         report.plannedOutputs = plannedSpecs.map { fileEntry(from: $0) }
     }
@@ -241,6 +252,19 @@ private func iso8601(_ date: Date) -> String {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime]
     return f.string(from: date)
+}
+
+private let bytesPerMB = 1_000_000.0
+
+private func performance(of result: SplitResult, durationSec: Double) -> ExtractionReport.Performance {
+    let elapsed = result.elapsedSec
+    let mbPerSec = elapsed > 0 ? Double(result.bytesRead) / bytesPerMB / elapsed : 0
+    let realtime = elapsed > 0 ? durationSec / elapsed : 0
+
+    return ExtractionReport.Performance(
+        elapsedSec: elapsed, bytesRead: Int(result.bytesRead),
+        readMBPerSec: mbPerSec, realtimeFactor: realtime,
+        platform: "\(Platform.os)-\(Platform.arch)")
 }
 
 private func fileSizeBytes(_ url: URL) -> Int? {

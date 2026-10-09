@@ -46,7 +46,9 @@ public func collectSplitResult(
     hasSignal: [Bool],
     totalFramesWritten: UInt64,
     sampleRate: Double,
-    sourceFormat: SourceFormat? = nil
+    sourceFormat: SourceFormat? = nil,
+    elapsedSec: Double = 0,
+    bytesRead: UInt64 = 0
 ) -> SplitResult {
     var keptOutputs: [OutputFile] = []
     var droppedOutputs: [OutputFile] = []
@@ -69,6 +71,7 @@ public func collectSplitResult(
         outputs: keptOutputs, dropped: droppedOutputs,
         keptMono: keptMonoCount, keptStereo: keptStereoCount,
         silentSkipped: droppedOutputs.count, totalFrames: totalFramesWritten,
-        sampleRate: sampleRate, sourceFormat: sourceFormat
+        sampleRate: sampleRate, sourceFormat: sourceFormat,
+        elapsedSec: elapsedSec, bytesRead: bytesRead
     )
 }

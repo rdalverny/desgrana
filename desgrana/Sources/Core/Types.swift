@@ -56,10 +56,15 @@ public struct SplitResult {
     public let sampleRate: Double
     /// Source format read from the first take (nil only if never populated).
     public let sourceFormat: SourceFormat?
+    /// Wall-clock duration of the split, from first open to last finalize.
+    public let elapsedSec: Double
+    /// Audio data bytes read across all takes.
+    public let bytesRead: UInt64
     public init(
         outputs: [OutputFile], dropped: [OutputFile] = [],
         keptMono: Int, keptStereo: Int, silentSkipped: Int,
-        totalFrames: UInt64, sampleRate: Double, sourceFormat: SourceFormat? = nil
+        totalFrames: UInt64, sampleRate: Double, sourceFormat: SourceFormat? = nil,
+        elapsedSec: Double = 0, bytesRead: UInt64 = 0
     ) {
         self.outputs = outputs
         self.dropped = dropped
@@ -69,6 +74,8 @@ public struct SplitResult {
         self.totalFrames = totalFrames
         self.sampleRate = sampleRate
         self.sourceFormat = sourceFormat
+        self.elapsedSec = elapsedSec
+        self.bytesRead = bytesRead
     }
 }
 

@@ -35,6 +35,9 @@ public func splitSession(
     markers: [UInt32] = [],
     progress: ProgressCallback? = nil
 ) throws -> SplitResult {
+    let clock = ContinuousClock()
+    let start = clock.now
+
     let wavFiles = takes ?? findWavTakes(in: sessionDir)
     guard !wavFiles.isEmpty else { throw SplitError.noWavFiles }
 
@@ -98,6 +101,7 @@ public func splitSession(
     }
 
     var totalFramesWritten: UInt64 = 0
+    var totalBytesRead: UInt64 = 0
 
     for (takeIdx, wavURL) in wavFiles.enumerated() {
         let reader = try openReader(wavURL)
@@ -114,6 +118,7 @@ public func splitSession(
         while true {
             let bytesRead = try reader.read(into: UnsafeMutableRawBufferPointer(start: rawIn, count: readBytes))
             if bytesRead == 0 { break }
+            totalBytesRead += UInt64(bytesRead)
             let frames = bytesRead / frameStride
 
             for ti in 0 ..< tracks.count {
@@ -148,11 +153,15 @@ public func splitSession(
 
     for track in tracks { try track.writer.finalize() }
 
+    let elapsed = (clock.now - start).components
+    let elapsedSec = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+
     return collectSplitResult(
         specs: tracks.map(\.spec), hasSignal: tracks.map(\.hasSignal),
         totalFramesWritten: totalFramesWritten, sampleRate: sampleRate,
         sourceFormat: SourceFormat(channels: numChannels, sampleRate: Int(sampleRate),
-                                   bitsPerSample: sourceBits, isFloat: isFloat)
+                                   bitsPerSample: sourceBits, isFloat: isFloat),
+        elapsedSec: elapsedSec, bytesRead: totalBytesRead
     )
 }
 // swiftlint:enable function_body_length cyclomatic_complexity

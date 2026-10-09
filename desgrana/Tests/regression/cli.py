@@ -175,6 +175,7 @@ def run_cli_json_tests(binary: str, fixtures_dir: str, var_dir: str) -> int:
         expect("schema == 1 and dryRun", d.get("schema") == 1 and d.get("dryRun") is True)
         expect("has plannedOutputs, no outputs",
                "plannedOutputs" in d and d.get("outputs") is None)
+        expect("no performance in dry-run", d.get("performance") is None)
         pairs = d["decisions"]["stereoPairs"]
         expect("pair 3:4 from name",
                any(p["left"] == 3 and p["right"] == 4 and p["origin"] == "name" for p in pairs),
@@ -196,6 +197,15 @@ def run_cli_json_tests(binary: str, fixtures_dir: str, var_dir: str) -> int:
                d["outputs"]["keptMono"] == 2 and d["outputs"]["keptStereo"] == 1)
         expect("marker sidecars recorded",
                all(d["markers"]["sidecars"].get(k) for k in ("csv", "txt", "mid")))
+
+        perf = d.get("performance") or {}
+        source_bytes = os.path.getsize(os.path.join(snap_session, "00000001.wav"))
+        expect("performance: elapsed > 0", perf.get("elapsedSec", 0) > 0, str(perf))
+        expect("performance: bytesRead covers the audio data",
+               0 < perf.get("bytesRead", 0) <= source_bytes, str(perf))
+        expect("performance: throughput and realtime factor",
+               perf.get("readMBPerSec", 0) > 0 and perf.get("realtimeFactor", 0) > 0, str(perf))
+        expect("performance: platform", bool(perf.get("platform")), str(perf))
 
     # 3. Hardware-routing provenance.
     if os.path.isdir(usb_session):
