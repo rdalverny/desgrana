@@ -2,3 +2,26 @@
 // @DESGRANA_ICO@ is filled in by CMake (configure_file) with an absolute path,
 // using forward slashes so the resource compiler does not treat them as escapes.
 1 ICON "@DESGRANA_ICO@"
+
+// SignPath requires ProductName and ProductVersion on every signed binary.
+1 VERSIONINFO
+FILEVERSION     @DESGRANA_VERSION_RC@
+PRODUCTVERSION  @DESGRANA_VERSION_RC@
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "Romain d'Alverny"
+            VALUE "FileDescription",  "Desgrana"
+            VALUE "FileVersion",      "@DESGRANA_VERSION@"
+            VALUE "OriginalFilename", "desgrana-gui.exe"
+            VALUE "ProductName",      "Desgrana"
+            VALUE "ProductVersion",   "@DESGRANA_VERSION@"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

@@ -17,7 +17,7 @@ import sys
 import json
 import urllib.request
 
-URL = "https://romaindalverny.com/atelier/desgrana/version.json"
+URL = "https://romaindalverny.com/desgrana/version.json"
 
 
 def is_newer(a: str, b: str) -> bool:

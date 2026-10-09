@@ -1,0 +1,13 @@
+Desgrana works offline. It reads your session files and writes tracks to your
+disk. Nothing is uploaded.
+
+The only network request is an optional update check, once a month, to:
+
+    https://romaindalverny.com/desgrana/version.json
+
+It sends: operating system, OS version, CPU architecture, Desgrana version and
+system language. Nothing else.
+
+It is off by default. You can turn it on on the next page ("Check for updates").
+
+Full privacy policy: https://github.com/rdalverny/desgrana/blob/main/PRIVACY.md

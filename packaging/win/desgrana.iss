@@ -19,6 +19,9 @@ AppId={{B7E3F1C2-4A6D-4B8E-9F1A-2C5D7E9A0B34}
 AppName=Desgrana
 AppVersion={#AppVersion}
 AppPublisher=Romain d'Alverny
+VersionInfoVersion={#AppVersion}
+VersionInfoProductTextVersion={#AppVersion}
+InfoBeforeFile=privacy.txt
 DefaultDirName={autopf}\Desgrana
 DefaultGroupName=Desgrana
 DisableProgramGroupPage=yes
@@ -31,6 +34,17 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
+
+[Tasks]
+Name: "updatecheck"; Description: "Check for updates once a month"; Flags: unchecked
+
+; QSettings falls back from HKCU to HKLM: this sets the machine default,
+; the user setting still wins.
+[Registry]
+Root: HKLM; Subkey: "Software\elephathom"; Flags: uninsdeletekeyifempty
+Root: HKLM; Subkey: "Software\elephathom\Desgrana"; Flags: uninsdeletekeyifempty
+Root: HKLM; Subkey: "Software\elephathom\Desgrana\updateCheck"; ValueType: string; ValueName: "enabled"; ValueData: "false"; Tasks: not updatecheck; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\elephathom\Desgrana\updateCheck"; ValueType: none; ValueName: "enabled"; Tasks: updatecheck; Flags: deletevalue uninsdeletekey
 
 [Files]
 Source: "{#BundleDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs

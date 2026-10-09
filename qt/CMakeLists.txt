@@ -60,6 +60,10 @@ if(WIN32)
     # Embed the app icon into the exe (also used by the shortcut and uninstaller).
     # configure_file bakes an absolute path so the resource compiler always finds it.
     set(DESGRANA_ICO "${CMAKE_SOURCE_DIR}/../packaging/win/desgrana.ico")
+
+    # VERSIONINFO wants four comma-separated integers: 1.12.0 -> 1,12,0,0
+    string(REPLACE "." "," DESGRANA_VERSION_RC "${DESGRANA_VERSION},0")
+
     configure_file(desgrana.rc.in "${CMAKE_CURRENT_BINARY_DIR}/desgrana.rc" @ONLY)
     target_sources(${GUI_TARGET} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/desgrana.rc")
 

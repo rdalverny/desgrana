@@ -4,32 +4,40 @@ Desgrana works strictly offline.
 
 ## Update check
 
-The only network request Desgrana makes is a regular update check.
+The only network request Desgrana makes is an optional update check.
 
-When enabled (the default), once a month, it sends a single GET request to:
+When enabled, it sends a single GET request, once a week, month or six months
+(monthly by default), to:
 
-    https://romaindalverny.com/atelier/desgrana/version.json
-
-It can be disabled in Preferences under "Check for updates automatically".
+    https://romaindalverny.com/desgrana/version.json
 
 The request includes these query parameters:
 
-| Parameter | Value                        | Example          |
-| --------- | ---------------------------- | ---------------- |
-| `os`      | Operating system             | `macos`          |
-| `osv`     | OS or distro + major version | `15`, `debian12` |
-| `arch`    | CPU architecture             | `arm64`          |
-| `v`       | Application version          | `1.7`            |
-| `l`       | System language code         | `en`             |
+| Parameter | Value                        | Example                 |
+| --------- | ---------------------------- | ----------------------- |
+| `os`      | Operating system             | `macos`, `windows`      |
+| `osv`     | OS or distro + major version | `15`, `11`, `debian12`  |
+| `arch`    | CPU architecture             | `arm64`                 |
+| `v`       | Application version          | `1.7`                   |
+| `l`       | System language code         | `en`                    |
 
 The purpose of these is to get an idea of the platforms usage, for future
 support updates.
 
 That is all, nothing else leaves your system.
 
-On macOS it can also be disabled from the terminal:
+## Turning it on or off
 
-    defaults write eu.elephathom.apps.desgrana UpdateCheck.enabled -bool false
+In Preferences, "Check for updates automatically":
+
+| Platform | Menu                  | Default |
+| -------- | --------------------- | ------- |
+| macOS    | Desgrana > Settings…  | on      |
+| Linux    | Edit > Preferences…   | on      |
+| Windows  | Tools > Options…      | off     |
+
+On Windows, the installer also shows this policy and offers the choice
+("Check for updates" option).
 
 ## Contact
 
