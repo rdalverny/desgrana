@@ -1,0 +1,19 @@
+{
+  "active_scene": "I:/TEST_SHOW/Stereo_Names.snap",
+  "ae_data": {
+    "ch": {
+      "1": {
+        "name": "MainPA"
+      },
+      "2": {
+        "name": "MainPA"
+      },
+      "3": {
+        "name": "Gtr"
+      },
+      "4": {
+        "name": "Keys"
+      }
+    }
+  }
+}

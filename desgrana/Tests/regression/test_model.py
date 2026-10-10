@@ -16,6 +16,9 @@ FREQS         = [440.0, 550.0, 660.0, 880.0]
 
 PREFIX = "test_"
 
+# Explicit --snap file, written next to session/ so auto-detection never sees it.
+OVERRIDE_SNAP_FILENAME = "override.snap"
+
 # Local-only test data (real captures), git-ignored.
 PRIVATE_DIR = "Private"
 
@@ -83,6 +86,9 @@ class TestCase:
     # The snap is auto-detected by desgrana (no --snap flag needed).
     snap_data:     "dict | None" = None
     snap_filename: str = "test.snap"
+
+    # Optional snap passed with --snap; must replace the auto-detected one.
+    override_snap_data: "dict | None" = None
 
     # desgrana invocation
     desgrana_extra_args: list = field(default_factory=list)

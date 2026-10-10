@@ -227,6 +227,82 @@ CASES: list = [
         desgrana_extra_args=["--stereo", "3:4"],
         markers=MARKER_FRAMES,
     ),
+    # case13: stereo pairs whose names share no _L/_R base. Two identical names fold
+    # into one (a stereo source feeding both sides); two different names are joined.
+    TestCase(
+        name="case13_stereo_names",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], SAMPLE_RATE // 4),
+            SignalSpec(FREQS[2], SAMPLE_RATE // 2),
+            SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
+        ],
+        snap_data={
+            "active_scene": "I:/TEST_SHOW/Stereo_Names.snap",
+            "ae_data": {
+                "ch": {
+                    "1": {"name": "MainPA"},
+                    "2": {"name": "MainPA"},
+                    "3": {"name": "Gtr"},
+                    "4": {"name": "Keys"},
+                },
+            },
+        },
+        desgrana_extra_args=["--short-names", "--stereo", "1:2,3:4"],
+        markers=[],
+        expected_ixml={
+            "MainPA.wav":   ["MainPA", "MainPA"],
+            "Gtr-Keys.wav": ["Gtr", "Keys"],
+        },
+    ),
+    # case14: --snap replaces the snap found in the session folder: names and pairs
+    # come from the override only. The auto-detected snap pairs 1:2 in hardware;
+    # leftovers from it would show up as a 1-2 stereo file or WRONG* names.
+    TestCase(
+        name="case14_snap_override",
+        num_channels=4,
+        sample_rate=SAMPLE_RATE,
+        total_frames=TOTAL_FRAMES,
+        channel_signals=[
+            SignalSpec(FREQS[0], 0),
+            SignalSpec(FREQS[1], SAMPLE_RATE // 4),
+            SignalSpec(FREQS[2], SAMPLE_RATE // 2),
+            SignalSpec(FREQS[3], SAMPLE_RATE * 3 // 4),
+        ],
+        snap_data={
+            "active_scene": "I:/OLD_SHOW/Old.snap",
+            "ae_data": {
+                "ch": {
+                    "1": {"name": "WRONG1", "in": {"conn": {"grp": "USB", "in": 1}}},
+                    "2": {"name": "WRONG2"},
+                    "3": {"name": "WRONG3"},
+                    "4": {"name": "WRONG4"},
+                },
+                "io": {"in": {"USB": {"1": {"mode": "ST"}}}},
+            },
+        },
+        override_snap_data={
+            "active_scene": "I:/TEST_SHOW/Test_Scene.snap",
+            "ae_data": {
+                "ch": {
+                    "1": {"name": "Kick"},
+                    "2": {"name": "Snare"},
+                    "3": {"name": "OH_L"},
+                    "4": {"name": "OH_R"},
+                },
+            },
+        },
+        desgrana_extra_args=["--short-names"],
+        markers=[],
+        expected_ixml={
+            "Kick.wav":  ["Kick"],
+            "Snare.wav": ["Snare"],
+            "OH.wav":    ["OH L", "OH R"],
+        },
+    ),
 ]
 
 # Local-only cases from Tests/Private/; empty on a clone.

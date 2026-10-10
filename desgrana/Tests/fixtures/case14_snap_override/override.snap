@@ -1,0 +1,19 @@
+{
+  "active_scene": "I:/TEST_SHOW/Test_Scene.snap",
+  "ae_data": {
+    "ch": {
+      "1": {
+        "name": "Kick"
+      },
+      "2": {
+        "name": "Snare"
+      },
+      "3": {
+        "name": "OH_L"
+      },
+      "4": {
+        "name": "OH_R"
+      }
+    }
+  }
+}

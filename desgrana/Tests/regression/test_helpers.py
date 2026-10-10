@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 
-from .test_model import PREFIX, ExpectedOutput, TestCase
+from .test_model import OVERRIDE_SNAP_FILENAME, PREFIX, ExpectedOutput, TestCase
 from .selog import write_selog_bin
 from .chunks import verify_bext, verify_ixml, verify_markers
 from .wav import (
@@ -79,6 +79,22 @@ def write_session(case: TestCase, session_dir: str, tests_dir: str,
             json.dump(case.snap_data, f, indent=2)
         print(f"  Generated: {case.snap_filename}")
 
+    if case.override_snap_data is not None:
+        with open(override_snap_path(session_dir), "w") as f:
+            json.dump(case.override_snap_data, f, indent=2)
+        print(f"  Generated: {OVERRIDE_SNAP_FILENAME}")
+
+
+def override_snap_path(session_dir: str) -> str:
+    return os.path.join(os.path.dirname(session_dir), OVERRIDE_SNAP_FILENAME)
+
+
+def desgrana_args(case: TestCase, session_dir: str) -> list:
+    """The case's extra args, plus --snap when it carries an override snap."""
+    if case.override_snap_data is None:
+        return case.desgrana_extra_args
+    return case.desgrana_extra_args + ["--snap", override_snap_path(session_dir)]
+
 
 def run_desgrana(binary: str, session_dir: str, output_dir: str,
                  extra_args: list) -> bool:
@@ -115,7 +131,7 @@ def run_case_generate(case: TestCase, binary: str, fixtures_dir: str) -> None:
         shutil.rmtree(expected_dir)
     os.makedirs(expected_dir)
 
-    if not run_desgrana(binary, session_dir, expected_dir, case.desgrana_extra_args):
+    if not run_desgrana(binary, session_dir, expected_dir, desgrana_args(case, session_dir)):
         sys.exit(1)
 
     written = sorted(os.listdir(expected_dir))
@@ -232,7 +248,7 @@ def run_case_test(case: TestCase, binary: str, fixtures_dir: str, tmp_dir: str) 
     os.makedirs(output_dir)
 
     print("\n-- Running desgrana")
-    if not run_desgrana(binary, session_dir, output_dir, case.desgrana_extra_args):
+    if not run_desgrana(binary, session_dir, output_dir, desgrana_args(case, session_dir)):
         return 1
 
     print("\n-- Comparing output to expected/")

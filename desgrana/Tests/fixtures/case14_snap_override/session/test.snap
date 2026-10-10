@@ -1,0 +1,34 @@
+{
+  "active_scene": "I:/OLD_SHOW/Old.snap",
+  "ae_data": {
+    "ch": {
+      "1": {
+        "name": "WRONG1",
+        "in": {
+          "conn": {
+            "grp": "USB",
+            "in": 1
+          }
+        }
+      },
+      "2": {
+        "name": "WRONG2"
+      },
+      "3": {
+        "name": "WRONG3"
+      },
+      "4": {
+        "name": "WRONG4"
+      }
+    },
+    "io": {
+      "in": {
+        "USB": {
+          "1": {
+            "mode": "ST"
+          }
+        }
+      }
+    }
+  }
+}
