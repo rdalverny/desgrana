@@ -1,13 +1,11 @@
-# English prose for the Desgrana web page.
-# HTML is allowed in *_html fields and in faq answers / changelog notes.
+# English
 
 [meta]
 title = "Desgrana — Split Behringer Wing/X32 multitrack WAV into named tracks"
 keywords = "desgrana, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multitrack, WAV, live recording, concert recording, session, audio extraction, split tracks, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux, debian, ubuntu, fedora, rpm, deb"
 description = "Free app for macOS and Linux to extract Behringer Wing and X32 multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW. Open source, MIT license."
 og_title = "Desgrana — Behringer Wing/X32 multitrack extractor"
-# og_description omitted on purpose: falls back to `description` in the template.
-# Set it here only if you want the social card to differ from the meta description.
+
 jsonld_description = "Extract Behringer Wing/X32 multitrack WAV recordings into separate named mono or stereo tracks, ready for any DAW."
 
 [hero]
@@ -17,12 +15,12 @@ tagline    = "Extract a Behringer Wing or X32 live recording into named, DAW-rea
 [download]
 macos_label = "Download Desgrana for macOS"
 macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 or later &nbsp;·&nbsp; <a href="#changelog">See what's new</a>'''
-linux_label = "Download Desgrana for Linux"
+linux_label = "for Linux"
 linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
-#platforms_note = '''macOS and Linux only. <a href="#platforms">See the FAQ</a>'''
+
 platforms_note = '''&nbsp;'''
-windows_label = "Download Desgrana for Windows"
-windows_meta ="version {v}, {date} &middot; experimental, unsigned installer, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
+windows_label = "for Windows"
+windows_meta ="version {v}, {date} &middot; unsigned installer, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
 
 [support]
 free = "Desgrana stays free and open source."
@@ -73,8 +71,7 @@ heading = "FAQ"
 [[faq.items]]
 id = "platforms"
 q = "Which platforms are supported?"
-a_html = '''<p>Desgrana is available for macOS 13+ and Linux (Debian/Ubuntu 12+, Fedora 41+).</p>
-        <p>An experimental Windows build now exists, available <a href="https://github.com/rdalverny/desgrana/releases">as a pre-release on GitHub</a>.</p>'''
+a_html = '''<p>Desgrana is available for macOS 13+, Linux (Debian/Ubuntu 12+, Fedora 41+) and Windows 10+.</p>'''
 
 [[faq.items]]
 q = "Which consoles are supported?"
@@ -125,6 +122,14 @@ a_html = '''Feel free to reach out on GitHub or by email:
 [changelog]
 heading = "What's new"
 earlier = "Earlier versions"
+
+[[changelog.items]]
+version = "1.13.0"
+date = "Oct 12 2026"
+notes_html = '''Windows build tested on real machines, with a preferences dialog shared with Linux.<br>
+          Suggests a console snapshot found near the session folder.<br>
+          JSON report includes extraction performance.<br>
+          Update check is now opt-in on all platforms.'''
 
 [[changelog.items]]
 version = "1.12.0"

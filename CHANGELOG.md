@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.13.0] — 2026-10-12
+
+Windows:
+
+- Windows build tested on real machines, more feedback welcome
+- Preferences dialog, shared with Linux
+
+Features:
+
+- Suggest a console snapshot if found near the session folder
+- JSON report includes extraction performance
+- Update check is now opt-in on all platforms
+
+Fixes & internal:
+
+- Move update check policy to the shared core
+- Move the update feed & web page
+- Run Swift unit tests in Windows CI
+- Add a coverage target; test stereo name folding and `--snap` override
+
+
 ## [1.12.0] - 2026-08-21
 
 Wing Live card recorder:

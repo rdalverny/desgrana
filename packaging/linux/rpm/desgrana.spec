@@ -50,5 +50,8 @@ done
 %{_datadir}/icons/hicolor/*/apps/desgrana.png
 
 %changelog
+* Mon Oct 12 2026 Romain d'Alverny <rwx@romaindalverny.com> - 1.13.0-1
+- Release 1.13.0.
+
 * Wed May 13 2026 Romain d'Alverny <rwx@romaindalverny.com> - 1.8.0-1
 - Initial RPM package.
