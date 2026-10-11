@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 
 from .test_model import OVERRIDE_SNAP_FILENAME, PREFIX, ExpectedOutput, TestCase
 from .selog import write_selog_bin
@@ -166,11 +167,12 @@ def compare_outputs(output_dir: str, expected_dir: str) -> int:
         print("  SKIP  expected/ not found -- run with --generate first")
         return 0
 
+    # macOS Foundation writes NFD names ("Café"), fixtures are NFC ("Café").
     expected_files = sorted(
-        f for f in os.listdir(expected_dir) if not f.startswith(".")
+        unicodedata.normalize("NFC", f) for f in os.listdir(expected_dir) if not f.startswith(".")
     )
     output_set = set(
-        f for f in os.listdir(output_dir) if not f.startswith(".")
+        unicodedata.normalize("NFC", f) for f in os.listdir(output_dir) if not f.startswith(".")
     )
 
     failures = 0
