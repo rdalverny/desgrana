@@ -75,6 +75,8 @@ static QString dropZoneTargetedStyle(const QPalette &pal) {
 
 namespace {
 
+constexpr int kPathMax = 4096;
+
 struct DawTarget {
     QString name;  // shown on the button
     int     kind;  // desgrana_daw_kind
@@ -313,6 +315,32 @@ void DesgranaWindow::buildReadyPage() {
     }
     m_snapHintLabel->setVisible(false);
 
+    // Snapshot found nearby: offer it, never auto-apply.
+    m_snapSuggestLabel = new QLabel;
+    m_snapSuggestLabel->setForegroundRole(QPalette::PlaceholderText);
+    {
+        QFont f = m_snapSuggestLabel->font();
+        f.setPixelSize(11);
+        m_snapSuggestLabel->setFont(f);
+    }
+
+    auto *useSnapBtn = new QPushButton("Use");
+    connect(useSnapBtn, &QPushButton::clicked, this, [this]() { loadSnap(m_suggestedSnap); });
+
+    auto *ignoreSnapBtn = new QPushButton("Ignore");
+    connect(ignoreSnapBtn, &QPushButton::clicked, this, [this]() {
+        m_suggestedSnap.clear();
+        showSnapHint();
+    });
+
+    m_snapSuggestRow = new QWidget;
+    auto *suggestRow = new QHBoxLayout(m_snapSuggestRow);
+    suggestRow->setContentsMargins(0, 0, 0, 0);
+    suggestRow->addWidget(m_snapSuggestLabel, 1);
+    suggestRow->addWidget(useSnapBtn);
+    suggestRow->addWidget(ignoreSnapBtn);
+    m_snapSuggestRow->setVisible(false);
+
     // Hint below the name
     auto *warningLabel = new QLabel("Make sure your tracks are grouped as expected below:");
     warningLabel->setForegroundRole(QPalette::PlaceholderText);
@@ -388,6 +416,7 @@ void DesgranaWindow::buildReadyPage() {
     layout->setSpacing(6);
     layout->addLayout(topRow);
     layout->addWidget(m_snapHintLabel);
+    layout->addWidget(m_snapSuggestRow);
     layout->addWidget(warningLabel);
     layout->addSpacing(4);
     layout->addWidget(m_channelScroll);
@@ -624,6 +653,7 @@ void DesgranaWindow::loadSession(const QString &path) {
     int32_t channels    = 0;
     double  duration    = 0;
     int32_t snapFound   = 0;
+    char suggestedSnap[kPathMax] = {};
 
     int rc = desgrana_probe(
         path.toUtf8().constData(),
@@ -631,7 +661,8 @@ void DesgranaWindow::loadSession(const QString &path) {
         sceneName, sizeof(sceneName),
         m_pairLefts,  m_pairRights,  kSnapCap, &m_pairCount,
         m_chKeys,     &m_chNames[0][0], kSnapCap, &m_chCount,
-        err, sizeof(err), &snapFound
+        err, sizeof(err), &snapFound,
+        suggestedSnap, sizeof(suggestedSnap)
     );
 
     if (rc != 0) {
@@ -643,6 +674,7 @@ void DesgranaWindow::loadSession(const QString &path) {
     m_channels    = channels;
     m_duration    = duration;
     m_snapFound   = snapFound;
+    m_suggestedSnap = QString::fromUtf8(suggestedSnap);
 
     m_effectivePairs.clear();
     for (int i = 0; i < m_pairCount; i++)
@@ -657,7 +689,19 @@ void DesgranaWindow::loadSession(const QString &path) {
     else
         m_sessionName = QString("NONAME_%1").arg(QDateTime::currentDateTime().toString("yyMMddHH"));
     showReady();
-    m_snapHintLabel->setVisible(!snapFound);
+    showSnapHint();
+}
+
+void DesgranaWindow::showSnapHint() {
+    const bool suggest = !m_snapFound && !m_suggestedSnap.isEmpty();
+
+    if (suggest) {
+        m_snapSuggestLabel->setText(
+            "Snapshot found nearby: " + QFileInfo(m_suggestedSnap).fileName());
+    }
+
+    m_snapSuggestRow->setVisible(suggest);
+    m_snapHintLabel->setVisible(!m_snapFound && !suggest);
 }
 
 void DesgranaWindow::loadSnap(const QString &snapPath) {
@@ -682,7 +726,7 @@ void DesgranaWindow::loadSnap(const QString &snapPath) {
     }
 
     m_snapFound = 1;
-    m_snapHintLabel->setVisible(false);
+    showSnapHint();
     populateChannelList();
 }
 

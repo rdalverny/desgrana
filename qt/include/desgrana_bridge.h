@@ -41,7 +41,9 @@ int32_t desgrana_probe(
     int32_t    *out_ch_count,     /* nullable */
     char       *err_buf,          /* nullable */
     int32_t     err_len,
-    int32_t    *out_snap_found    /* nullable — 1 if a snap was loaded, 0 otherwise */
+    int32_t    *out_snap_found,   /* nullable — 1 if a snap was loaded, 0 otherwise */
+    char       *suggested_snap_buf, /* nullable — snapshot found near the session, "" if none */
+    int32_t     suggested_snap_len
 );
 
 /**

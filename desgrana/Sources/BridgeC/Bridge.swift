@@ -24,7 +24,9 @@ public func desgrana_probe(
     _ outChCount: UnsafeMutablePointer<Int32>?,
     _ errBuf: UnsafeMutablePointer<CChar>?,
     _ errLen: Int32,
-    _ outSnapFound: UnsafeMutablePointer<Int32>?
+    _ outSnapFound: UnsafeMutablePointer<Int32>?,
+    _ suggestedSnapBuf: UnsafeMutablePointer<CChar>?,
+    _ suggestedSnapLen: Int32
 ) -> Int32 {
     let input = URL(fileURLWithPath: String(cString: sessionPath))
 
@@ -45,6 +47,8 @@ public func desgrana_probe(
     outChannels.pointee = Int32(session.channelCount)
     outDuration.pointee = session.sessionInfo?.totalDuration ?? session.inferredDuration ?? 0
     outSnapFound?.pointee = session.snapInfo != nil ? 1 : 0
+
+    cStringCopy(session.suggestedSnapURL?.path ?? "", into: suggestedSnapBuf, maxLen: Int(suggestedSnapLen))
 
     if let buf = sceneNameBuf, sceneNameLen > 1 {
         // Only fill when the snap provides a non-empty scene name.

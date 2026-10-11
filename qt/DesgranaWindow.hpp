@@ -48,6 +48,7 @@ private:
 
     void loadSession(const QString &path);
     void loadSnap(const QString &snapPath);
+    void showSnapHint();
     void switchToPage(int index);
     void showIdle(const QString &error = {});
     void showReady();
@@ -74,6 +75,8 @@ private:
     QWidget     *m_readyPage;
     QLineEdit   *m_sessionNameEdit;
     QLabel      *m_snapHintLabel = nullptr;
+    QWidget     *m_snapSuggestRow = nullptr;
+    QLabel      *m_snapSuggestLabel = nullptr;
     QScrollArea *m_channelScroll;
     QWidget     *m_channelContainer = nullptr;
     std::map<int, QLabel*> m_badgeLabels;
@@ -102,6 +105,7 @@ private:
     // Session data
     QString  m_sessionPath;
     int32_t  m_snapFound = 0;
+    QString  m_suggestedSnap;
     QString m_sessionName;
     QString m_lastOutputPath;
     int     m_channels  = 0;
