@@ -25,6 +25,11 @@ check-ci:
 	 echo "✓ CI green on v$(VERSION)."
 
 
+ci:
+	git push origin main
+	gh workflow run build.yml --repo $(GITHUB_REPO) --ref main
+	open "https://github.com/$(GITHUB_REPO)/actions"
+
 tag: preflight
 	@TAG=v$(VERSION); \
 	 git rev-parse "$$TAG" >/dev/null 2>&1 \

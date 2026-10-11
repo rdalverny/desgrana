@@ -28,7 +28,7 @@ include make/release.mk
 
 .PHONY: buildinfo cli test test-unit test-generate tag patch minor \
         lint lint-fix format format-check clean fmtdoc web coverage \
-        preflight check-ci retag
+        preflight check-ci retag ci
 
 
 buildinfo:
