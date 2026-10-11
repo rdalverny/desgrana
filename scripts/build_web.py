@@ -2,17 +2,8 @@
 # requires-python = ">=3.11"
 # dependencies = ["jinja2"]
 # ///
-"""Render the Desgrana web pages from a Jinja2 template + per-language TOML.
-
-Single source of truth: web/template.html.j2 (structure) + web/i18n/*.toml (data).
-Generated files (web/index.html, web/fr/index.html) are committed so deployment
-stays a dumb copy of web/.
-
+"""
     uv run scripts/build_web.py        # or: make web
-
-Autoescape is OFF: the TOML content is author-controlled and contains raw HTML
-(entities, <p>, <code>, links). Treating it as trusted keeps byte-for-byte
-fidelity with the hand-written source.
 """
 
 from __future__ import annotations
@@ -28,10 +19,8 @@ from jinja2 import Environment, FileSystemLoader
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 I18N = WEB / "i18n"
-DIST = WEB / "dist"   # self-contained, deployable build output (gitignored)
+DIST = WEB / "dist"
 
-# Source/internal files in web/ that must NOT be copied into the deployable dist.
-# Everything else in web/ (demo.mp4, poster, version.json, icon…) is an asset to ship.
 DIST_EXCLUDE = {"dist", "i18n", "template.html.j2", "NOTES.md", "demo.mov"}
 
 GENERATED_HEADER = (
@@ -39,7 +28,6 @@ GENERATED_HEADER = (
     "Run `make web` (uv run scripts/build_web.py) to regenerate. -->\n"
 )
 
-# Month names for localized release dates (avoids a Babel dependency).
 MONTHS = {
     "en": ["January", "February", "March", "April", "May", "June",
            "July", "August", "September", "October", "November", "December"],
@@ -47,8 +35,6 @@ MONTHS = {
            "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
 }
 
-# Per-locale structural config (paths, URLs, language switcher).
-# Not in the TOML: these are layout concerns, derived from the output location.
 LOCALES = {
     "en": {
         "lang": "en",
@@ -84,8 +70,6 @@ def format_date(iso: str, lang: str) -> str:
 
 
 def build_dist_assets() -> None:
-    """Rebuild web/dist from scratch and copy every deployable asset from web/ into it,
-    so web/dist is a complete, self-contained tree to upload."""
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True)

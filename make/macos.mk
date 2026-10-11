@@ -1,6 +1,4 @@
-# macOS app: universal build, .app bundle, codesigning, notarization, DMG, icon.
-# Included by the top-level Makefile, which defines the shared variables
-# (NAME, VERSION, BUILD, DIST, CLI_BUILD…) this fragment relies on.
+# macOS
 
 TEAM_ID        ?=
 SIGN_IDENTITY  ?= Developer ID Application: $(TEAM_ID)
@@ -58,7 +56,7 @@ run: build
 	rm -rf /Applications/$(APP) && cp -r var/build/$(APP) /Applications/
 	open -a $(NAME)
 
-# ── signature, notarization
+
 sign: build-universal
 	codesign --deep --force --options runtime \
 		--entitlements $(ENTITLEMENTS) \
@@ -95,8 +93,7 @@ notarize: package
 	$(MAKE) --no-print-directory verify-dmg
 	@printf "\033[1;32m✓ Notarized + verified\033[0m → $(DMG)\n"
 
-# Counter-check: a built DMG is only valid if Gatekeeper accepts the app inside
-# as notarized AND the ticket is stapled. Fails loudly otherwise.
+
 verify-dmg:
 	@set -eu; \
 	[ -f "$(DMG)" ] || { echo "✗ $(DMG) does not exist."; exit 1; }; \

@@ -1,6 +1,4 @@
-# Linux binaries + .deb/.rpm packaging, built in Docker (via colima on macOS).
-# Included by the top-level Makefile, which defines the shared variables this
-# fragment relies on (BUILDINFO target, etc.).
+# Linux binaries + .deb/.rpm packaging, built in Docker
 
 DOCKER         ?= docker
 BUILDX_BUILDER = multi
@@ -21,7 +19,6 @@ ARCH ?= amd64
 # Prerequisites: brew install colima docker docker-buildx
 #
 # Start colima + a docker-container buildx builder (needed for --output type=local).
-# Idempotent: safe to re-run; reuses the VM and builder if already there.
 # --vz-rosetta gives linux/amd64 emulation; arm64 builds run natively.
 docker-up:
 	colima start --vm-type=vz --vz-rosetta --cpu $(COLIMA_CPU) --memory $(COLIMA_MEMORY)
@@ -30,18 +27,13 @@ docker-up:
 	$(DOCKER) buildx use $(BUILDX_BUILDER)
 	$(DOCKER) buildx inspect --bootstrap
 
-# Stop the VM (and the builder running inside it). Fast restart, nothing lost.
 docker-down:
 	colima stop
 
-# Remove the builder and delete the VM entirely (reclaims disk).
 docker-clean:
 	-$(DOCKER) buildx rm $(BUILDX_BUILDER)
 	colima delete --force
 
-# buildinfo regenerates desgrana/Sources/Core/BuildInfo.swift on the host before
-# the Docker build COPYs desgrana/ in — otherwise the binary bakes a stale version
-# (the dockerfile does not generate it; CI runs `make buildinfo` as a prior step).
 package-debian: buildinfo
 	# --progress=plain
 	$(DOCKER) buildx build \
@@ -65,11 +57,6 @@ test-image:
 		-t desgrana-tester \
 		-f packaging/linux/deb/tester.dockerfile .
 
-# Installs the exact arch+version package (not a glob) so a polluted dist/ with
-# old versions or other arches can't be picked up by mistake. Checks, in order:
-# the CLI split tests, that every GUI dynamic dep resolves (the real test of the
-# bridge's $ORIGIN rpath reaching the bundled Swift runtime), and that the GUI
-# binary starts without a loader/init crash.
 test-debian:
 	$(DOCKER) run --rm \
 		--platform linux/$(ARCH) \
@@ -86,11 +73,7 @@ test-debian:
 			case $$rc in 0|124) echo "GUI: all libraries resolved, starts cleanly." ;; \
 				*) echo "GUI failed to start (exit $$rc)"; exit 1 ;; esac'
 
-# Build the Linux CLI + Qt GUI as package-ready binaries: static-stdlib CLI, GNU
-# build-id, and the install rpath (/usr/lib/desgrana) baked in. Single source of
-# truth for the Linux build — package-linux-native just wraps it with packaging.
-# Note: because the rpath is the install path, the GUI won't run straight from
-# var/build/qt without LD_LIBRARY_PATH — test it via the installed .deb.
+# Build the Linux CLI + Qt GUI
 build-linux: buildinfo
 	cd desgrana \
 		&& swift build -c release --product desgrana -Xswiftc -static-stdlib -Xlinker --build-id \
@@ -104,25 +87,21 @@ build-linux: buildinfo
 		-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 	cmake --build var/build/qt
 
-# Package directly on the current Debian/Ubuntu host (no Docker). Reuses
-# build-linux for the binaries, then assembles and builds the .deb.
-# One-time setup:
+# Package directly on the current Debian/Ubuntu host (no Docker).
+# Setup:
 #   sudo apt-get install cmake ninja-build qt6-base-dev libgl1-mesa-dev libxkbcommon-dev \
 #                        dpkg-dev fakeroot debhelper lintian \
 #                        libqt6widgets6 libqt6gui6 libqt6core6
-# Output: dist/desgrana_<version>_<arch>.deb
 package-linux-native: build-linux
 	mkdir -p dist var/swift-libs
-	# Copy all Swift runtime dylibs needed at runtime. Using a glob rather than
-	# readelf to avoid chasing transitive deps across Swift toolchain versions.
+
 	cp $(SWIFT_RUNTIME_DIR)/libswift*.so \
 	   $(SWIFT_RUNTIME_DIR)/libFoundation*.so \
 	   $(SWIFT_RUNTIME_DIR)/lib_Foundation*.so \
 	   $(SWIFT_RUNTIME_DIR)/libdispatch.so \
 	   $(SWIFT_RUNTIME_DIR)/libBlocksRuntime.so \
 	   var/swift-libs/ 2>/dev/null || true
-	# The shared bridge library itself, shipped to /usr/lib/desgrana next to the
-	# runtime it resolves via its $$ORIGIN rpath.
+
 	cp desgrana/.build/release/libDesgranaBridge.so var/swift-libs/
 	mkdir -p var/pkg-src
 	cp desgrana/.build/release/desgrana  var/pkg-src/desgrana

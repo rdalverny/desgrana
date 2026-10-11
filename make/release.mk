@@ -1,12 +1,32 @@
 
-# ── Tag & push ───────────────────────────────────────────────────────
-tag:
-	@TAG=v$(VERSION); \
-	 git diff --quiet && git diff --cached --quiet \
-	   || { echo "Uncommitted changes — aborting."; exit 1; }; \
+preflight:
+	@set -eu; \
+	 fail() { echo "✗ $$1"; exit 1; }; \
+	 git diff --quiet && git diff --cached --quiet || fail "Uncommitted changes."; \
 	 git fetch --quiet origin; \
-	 git diff --quiet HEAD origin/main \
-	   || { echo "main is not in sync with origin/main — push or pull first."; exit 1; }; \
+	 [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] \
+	   || fail "HEAD is not origin/main — push or pull first."; \
+	 grep -Eq "^## \[$(VERSION)\] (-|—) [0-9]{4}-[0-9]{2}-[0-9]{2}" CHANGELOG.md \
+	   || fail "CHANGELOG.md has no dated $(VERSION) entry."; \
+	 grep -q '^version *= *"$(VERSION)"' web/i18n/common.toml \
+	   || fail "web/i18n/common.toml is not at $(VERSION)."; \
+	 python3 -c "import json, sys; v = lambda s: tuple(map(int, s.split('.'))); \
+	   sys.exit(v(json.load(open('web/version.json'))['version']) >= v('$(VERSION)'))" \
+	   || fail "web/version.json already announces $(VERSION) or later."; \
+	 echo "✓ Ready to tag v$(VERSION)."
+
+check-ci:
+	@set -eu; \
+	 SHA=$$(git rev-parse "v$(VERSION)^{commit}"); \
+	 STATUS=$$(gh run list --repo $(GITHUB_REPO) --workflow build.yml --commit $$SHA \
+	   --limit 1 --json conclusion -q '.[0].conclusion'); \
+	 [ "$$STATUS" = "success" ] \
+	   || { echo "✗ build.yml on v$(VERSION) ($$SHA): $${STATUS:-no run}."; exit 1; }; \
+	 echo "✓ CI green on v$(VERSION)."
+
+
+tag: preflight
+	@TAG=v$(VERSION); \
 	 git rev-parse "$$TAG" >/dev/null 2>&1 \
 	   && { echo "Tag $$TAG already exists."; exit 1; } || true; \
 	 git tag "$$TAG"; \
@@ -14,18 +34,32 @@ tag:
 	 open "https://github.com/$(GITHUB_REPO)/actions"; \
 	 echo "Tagged and pushed $$TAG — opening Actions."
 
-# ── version ─────────────────────────────────────────────────────────
+
+retag:
+	@TAG=v$(VERSION); \
+	 git tag -d "$$TAG"; \
+	 git push origin ":refs/tags/$$TAG"
+	$(MAKE) tag
+
+
 define bump-version
 	@NEW=$$(cat VERSION); \
 	 DATE=$$(date +"%Y-%m-%d"); \
 	 RFC_DATE=$$(date -R); \
+	 RPM_DATE=$$(LC_ALL=C date +"%a %b %d %Y"); \
 	 MAINT="Romain d'Alverny <rwx@romaindalverny.com>"; \
 	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] — $$DATE\n/" CHANGELOG.md; \
 	 { printf 'desgrana (%s-1) unstable; urgency=medium\n\n  * Release %s.\n\n -- %s  %s\n\n' \
 	     "$$NEW" "$$NEW" "$$MAINT" "$$RFC_DATE"; \
 	   cat packaging/linux/deb/debian/changelog; } > /tmp/_deb_changelog \
 	 && mv /tmp/_deb_changelog packaging/linux/deb/debian/changelog; \
-	 echo "Version → $$NEW  (CHANGELOG.md + debian/changelog updated)"
+	 sed -i '' "1s/\"[0-9-]*\" \"desgrana [0-9.]*\"/\"$$DATE\" \"desgrana $$NEW\"/" \
+	   packaging/linux/deb/debian/desgrana.1 packaging/linux/deb/debian/desgrana-gui.1; \
+	 awk -v head="* $$RPM_DATE $$MAINT - $$NEW-1" -v body="- Release $$NEW." \
+	   '{ print } /^%changelog$$/ { print head; print body; print "" }' \
+	   packaging/linux/rpm/desgrana.spec > /tmp/_rpm_spec \
+	 && mv /tmp/_rpm_spec packaging/linux/rpm/desgrana.spec; \
+	 echo "Version → $$NEW  (CHANGELOG.md + debian/changelog + rpm spec + man pages updated)"
 endef
 
 patch:
@@ -41,10 +75,11 @@ minor:
 check-builds:
 	gh workflow run codeql.yml
 
-fetch-artifacts:
+fetch-artifacts: check-ci
 	mkdir -p dist
 	RUN_ID=$$(gh run list --repo $(GITHUB_REPO) \
 		--workflow build.yml --status success \
+		--commit $$(git rev-parse "v$(VERSION)^{commit}") \
 		--limit 1 --json databaseId -q '.[0].databaseId'); \
 	echo "Fetching from run $$RUN_ID…"; \
 	gh run download $$RUN_ID --repo $(GITHUB_REPO) \
@@ -78,7 +113,7 @@ release: shasums verify-dmg
 		--title "Desgrana $(VERSION)" \
 		--notes-file CHANGELOG.md
 
-shipit: release
+shipit: check-ci notarize fetch-artifacts release
 	# sed -i '' \
 	# 	-e 's|href="[^"]*Desgrana-[0-9.]*\.dmg"|href="$(GITHUB_BASE)/v$(VERSION)/Desgrana-$(VERSION).dmg"|' \
 	# 	-e 's|Download Desgrana [0-9.]* ([^)]*)|Download Desgrana $(VERSION) ($(DATE))|' \
@@ -91,17 +126,10 @@ shipit: release
 	@echo "dist/ contains: $$(ls $(DIST))"
 
 
-# Requires network. Tests the live version endpoint: shape, reachability,
-# and numeric comparison against an old, equal, and future version.
 test-update-check:
 	python3 desgrana/Tests/test_update_check.py
 
 
-# ── Web ──────────────────────────────────────────────────────────
-# Build the deployable site into web/dist/ (gitignored) from web/template.html.j2
-# + web/i18n/*.toml: en -> web/dist/index.html, fr -> web/dist/fr/index.html, plus
-# a copy of every asset (demo.mp4, poster, version.json, icon…). Deploy = upload
-# web/dist/. Update version/dates in web/i18n/common.toml on each release.
 web:
 	uv run scripts/build_web.py
 

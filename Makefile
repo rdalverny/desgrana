@@ -27,7 +27,8 @@ include make/release.mk
 .DEFAULT_GOAL := buildinfo
 
 .PHONY: buildinfo cli test test-unit test-generate tag patch minor \
-        lint lint-fix format format-check clean fmtdoc web coverage
+        lint lint-fix format format-check clean fmtdoc web coverage \
+        preflight check-ci retag
 
 
 buildinfo:
