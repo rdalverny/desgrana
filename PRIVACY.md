@@ -34,7 +34,7 @@ In Preferences, "Check for updates automatically":
 | -------- | --------------------- | ------- |
 | macOS    | Desgrana > Settings…  | on      |
 | Linux    | Edit > Preferences…   | on      |
-| Windows  | Tools > Options…      | off     |
+| Windows  | Tools > Options…      | on      |
 
 On Windows, the installer also shows this policy and offers the choice
 ("Check for updates" option).

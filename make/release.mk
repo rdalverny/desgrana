@@ -78,25 +78,6 @@ release: shasums verify-dmg
 		--title "Desgrana $(VERSION)" \
 		--notes-file CHANGELOG.md
 
-# ── Windows testing pre-release ──────────────────────────────────────────────
-# Publish the experimental Windows installer for testers. Flow:
-#   git tag v$(VERSION)-$(PRERELEASE) && git push origin v$(VERSION)-$(PRERELEASE)
-#   # wait for the CI build to finish, then:
-#   make prerelease
-# Creates a DRAFT pre-release (review the notes / fix the issue link, then
-# publish from the GitHub UI). VERSION stays clean; the tag carries the suffix.
-# Override the suffix with e.g. PRERELEASE=beta2 or PRERELEASE=rc1.
-PRERELEASE       ?= beta
-PRERELEASE_NOTES ?= packaging/win/prerelease-notes.md
-
-prerelease: fetch-artifacts
-	gh release create "v$(VERSION)-$(PRERELEASE)" \
-		--draft \
-		--prerelease \
-		--title "Desgrana $(VERSION)-$(PRERELEASE)" \
-		--notes-file $(PRERELEASE_NOTES) \
-		$(DIST)/*-setup.exe
-
 shipit: release
 	# sed -i '' \
 	# 	-e 's|href="[^"]*Desgrana-[0-9.]*\.dmg"|href="$(GITHUB_BASE)/v$(VERSION)/Desgrana-$(VERSION).dmg"|' \

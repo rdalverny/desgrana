@@ -53,20 +53,20 @@ LOCALES = {
     "en": {
         "lang": "en",
         "out": DIST / "index.html",
-        "css_href": "/atelier/atelier.css",   # page at /atelier/desgrana/
+        "css_href": "/atelier/atelier.css",
         "asset_prefix": "",
-        "canonical": "/atelier/desgrana/",
+        "canonical": "/desgrana/",
         "switch_label": "FR",
-        "switch_href": "/fr/atelier/desgrana/",
+        "switch_href": "/fr/desgrana/",
     },
     "fr": {
         "lang": "fr",
         "out": DIST / "index.fr.html",
-        "css_href": "/atelier/atelier.css",  # page at /fr/atelier/desgrana/
-        "asset_prefix": "/atelier/desgrana/",
-        "canonical": "/fr/atelier/desgrana/",
+        "css_href": "/atelier/atelier.css",
+        "asset_prefix": "/desgrana/",
+        "canonical": "/fr/desgrana/",
         "switch_label": "EN",
-        "switch_href": "/atelier/desgrana/",
+        "switch_href": "/desgrana/",
     },
 }
 

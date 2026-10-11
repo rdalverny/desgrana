@@ -13,25 +13,20 @@ Works with Behringer Wing, X32 consoles.
 
 <p align="center">
 Free &amp; open source ·
-native macOS app ·
-Linux &amp; Windows (experimental) versions
+macOS, Linux &amp; Windows
 </p>
 
 <p align="center">
-  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-1a1a1a" />
-  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-2ea44f" />
-  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-linux-2ea44f" />
-  <img alt="Platform: Windows (experimental)" src="https://img.shields.io/badge/platform-windows-1a1a1a" />
   <a href="https://github.com/rdalverny/desgrana/actions"><img alt="CI" src="https://github.com/rdalverny/desgrana/actions/workflows/build.yml/badge.svg" /></a>
 </p>
 
 ---
 
 
-**[Download & documentation → romaindalverny.com/atelier/desgrana](https://romaindalverny.com/atelier/desgrana/)**
+**[Download & documentation → romaindalverny.com/desgrana](https://romaindalverny.com/desgrana/)**
 
 Use case: you have a multitrack session recorded by a
-[Behringer Wing](https://www.behringer.com/series.html?category=R-BEHRINGER-WINGSERIES)
+[Behringer Wing](https://www.behringer.com/)
 or X32 using the W-Live or X-Live recorder — several WAV files, plus
 `SE_LOG.bin` and optionally a `.snap`. With Desgrana, you get each named
 channel in its own continuous WAV file, your markers exported for your DAW,
@@ -44,18 +39,10 @@ and a session ready to open.
 - Automatically dismiss empty tracks.
 - Keeps source metadata into exported tracks.
 - Exports session markers in exported WAV, MIDI and CSV, to reuse in DAWs.
-- Works entirely offline. Nothing uploaded, nothing tracked.
 - Opens extracted tracks ready to work in your DAW.
+- Works offline.
+- Optional updates online check (defaults to on, see PRIVACY.md)
 
-## Privacy
-
-Desgrana works entirely offline. It reads your local session files and writes
-output to your local disk — nothing is uploaded or transmitted.
-
-There is an optional outbound request, once a month, checking for updates.
-It sends OS name, version, CPU architecture, app version, and system language.
-Nothing else. See [PRIVACY.md](PRIVACY.md) for full details and how to disable
-it.
 
 ## Usage
 
@@ -84,10 +71,10 @@ Output filenames follow the pattern `ChannelName.wav` (mono) or
 Channel names come from the console snapshot (`.snap` for Wing, `.scn` for
 X32).
 
-## Contributing & roadmap
+## Contributing & Roadmap
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for session format documentation, build
-guidelines, roadmap, and AI disclosure requirements.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for session format documentation,
+build guidelines and roadmap.
 
 ## License
 

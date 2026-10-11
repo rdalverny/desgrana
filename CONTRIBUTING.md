@@ -43,7 +43,7 @@ make test-debian          # install the .deb and run the CLI test suite
 You may need to adjust `SWIFT_*` variables in the Makefile to match your Swift
 installation path.
 
-### Windows (experimental)
+### Windows
 
 Windows builds are produced in CI (`.github/workflows/build.yml`, job
 `windows-gui`): a portable zip plus an Inno Setup installer. The GUI is Qt (same
@@ -52,7 +52,9 @@ as Linux); the Swift core is consumed as a DLL (`DesgranaBridge`).
 Building locally needs the Swift toolchain for Windows (via
 [compnerd/gha-setup-swift](https://github.com/compnerd/gha-setup-swift) or a
 manual install) and Qt 6 for MSVC — the `windows-gui` job is the canonical
-recipe. Not yet tested on a real machine; feedback welcome.
+recipe. Only tested a few times; more feedback welcome.
+
+The installer and binary is not signed yet.
 
 ## Before you start
 
@@ -187,7 +189,7 @@ The roadmap is indicative, not a commitment. Priorities may shift.
 
 Current focus:
 
-- Windows: testing on real machines, code signing
+- Windows: more testing, installer signing
 - Graceful handling of truncated takes, with a readable extraction report
 - X-Live / W-Live validation with real session samples
 - X32/M32 support testing (parser implemented, needs real-world `.scn` files)
