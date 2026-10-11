@@ -1,4 +1,4 @@
-.TH DESGRANA-GUI 1 "May 2026" "desgrana 1.6.3" "User Commands"
+.TH DESGRANA-GUI 1 "2026-08-21" "desgrana 1.12.0" "User Commands"
 .SH NAME
 desgrana-gui \- graphical interface for desgrana
 .SH SYNOPSIS
@@ -7,8 +7,19 @@ desgrana-gui \- graphical interface for desgrana
 .B desgrana-gui
 is a graphical front-end for
 .BR desgrana (1).
-Drop a session directory onto the window to load it, adjust stereo pairs
-if needed, choose an output directory, and click Split.
+Drop a session directory or a multichannel WAV file onto the window to load
+it, review the channel list and stereo pairs, choose an output directory,
+and click Extract.
+.PP
+Drop a \fI.snap\fR or \fI.scn\fR file to apply channel names and stereo
+pairs. When no snapshot is in the session directory but one is found nearby,
+it is offered, never applied automatically.
+.PP
+Once extracted, the tracks can be opened in a DAW found on \fBPATH\fR
+(Ardour, Reaper, Audacity).
+.SH PREFERENCES
+Edit > Preferences: short filenames, JSON report, default output directory,
+and the update check.
 .SH SEE ALSO
 .BR desgrana (1)
 .PP

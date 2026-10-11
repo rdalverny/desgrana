@@ -1,18 +1,21 @@
-.TH DESGRANA 1 "May 2026" "desgrana 1.6.3" "User Commands"
+.TH DESGRANA 1 "2026-08-21" "desgrana 1.12.0" "User Commands"
 .SH NAME
-desgrana \- extract channels from Behringer Wing multitrack WAV recordings
+desgrana \- extract channels from Wing and X32 multitrack WAV recordings
 .SH SYNOPSIS
 .B desgrana
-\fI<session-dir>\fR [\fIOPTIONS\fR]
+\fI<session-dir>\fR|\fI<file.wav>\fR [\fIOPTIONS\fR]
 .SH DESCRIPTION
 .B desgrana
 extracts individual mono or stereo tracks from the interleaved multichannel
-WAV files produced by a Behringer Wing (or X\-Live) console.
+WAV files produced by a Behringer Wing or X32 console (W\-Live, X\-Live
+or card recorder), or from a single multichannel WAV file.
 .PP
 It reads session metadata from \fISE_LOG.BIN\fR, channel names and stereo
-pairs from a Wing snapshot (\fI.snap\fR), skips silent channels automatically,
-and exports session markers as cue chunks in every output WAV, plus CSV and
-Standard MIDI File (type 0) exports.
+pairs from a console snapshot (Wing \fI.snap\fR or X32 \fI.scn\fR), skips
+silent channels automatically, and writes session markers as cue chunks in
+every output WAV, plus CSV, text and Standard MIDI File (type 0) exports.
+Output WAVs carry iXML track names and bext provenance metadata.
+Files larger than 4 GB are read and written as RF64.
 .SH OPTIONS
 .TP
 .B \-o, \-\-output \fI<path>\fR
@@ -22,17 +25,41 @@ Output directory (default: \fI<session-dir>_extract/\fR).
 Prefix for output filenames.
 .TP
 .B \-\-snap \fI<file>\fR
-Wing snapshot (.snap) for stereo pairs and channel names.
-Auto-detected if present in the session directory.
+Console snapshot (Wing \fI.snap\fR or X32 \fI.scn\fR) for channel names and
+stereo pairs. Auto-detected if present in the session directory.
 .TP
 .B \-s, \-\-stereo \fI<pairs>\fR
-Stereo pairs, e.g. \fI1:2,3:4\fR. Overrides pairs from \-\-snap.
+Stereo pairs, e.g. \fI1:2,3:4\fR. Overrides pairs from the snapshot.
+.TP
+.B \-\-short\-names
+Use the channel name only for filenames (e.g. \fIKICK.wav\fR instead of
+\fIprefix_ch01_KICK.wav\fR).
+.TP
+.B \-\-dry\-run
+Show what would be extracted without writing any files.
+.TP
+.B \-\-json
+Print a machine-readable JSON report on stdout. Combines with
+\fB\-\-dry\-run\fR and \fB\-\-info\fR.
 .TP
 .B \-i, \-\-info
 Show session info only, without extracting.
 .TP
 .B \-h, \-\-help
 Display help and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Bad arguments or session directory not found.
+.TP
+.B 2
+Filesystem error (cannot read input or write output).
+.TP
+.B 3
+Format error (invalid WAV, channel count mismatch between takes).
 .SH EXAMPLES
 .TP
 .B desgrana /media/SD/X_LIVE/4B5C62B0
@@ -43,17 +70,22 @@ Show session metadata without extracting.
 .TP
 .B desgrana /media/SD/X_LIVE/4B5C62B0 \-\-snap ~/MyShow.snap \-o ~/Desktop/extract
 Extract using a named snapshot file, writing to a custom output path.
+.TP
+.B desgrana /media/SD/X_LIVE/4B5C62B0 \-\-dry\-run \-\-json
+Print the extraction plan as JSON, without writing files.
 .SH FILES
 .TP
 .I <session-dir>/SE_LOG.BIN
 Session metadata: channel count, sample rate, take sizes, markers.
 .TP
-.I <session-dir>/*.snap
-Wing snapshot (optional): channel names, stereo pairs.
+.I <session-dir>/*.snap, <session-dir>/*.scn
+Console snapshot (optional): channel names, stereo pairs.
 .TP
 .I <session-dir>/00000001.WAV, 00000002.WAV, \&...
-Interleaved multichannel WAV takes (32-bit PCM, max ~4 GB each).
+Interleaved multichannel WAV takes.
 .SH AUTHOR
 Romain d'Alverny <rwx@romaindalverny.com>
 .SH SEE ALSO
+.BR desgrana\-gui (1)
+.PP
 Project homepage: https://github.com/rdalverny/desgrana

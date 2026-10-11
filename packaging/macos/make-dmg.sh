@@ -29,8 +29,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ── 1. Staging folder ─────────────────────────────────────────────
 
+#
 cp -r "$APP_PATH" "$STAGING/Desgrana.app"
 cp    "$CLI_PATH" "$STAGING/desgrana"
 ln -s /Applications "$STAGING/Applications"
@@ -43,8 +43,7 @@ if [ -f "$SCRIPT_DIR/dmg-background.png" ]; then
     # sips -s dpiWidth 144 -s dpiHeight 144 "$STAGING/.background/background.png" &>/dev/null
 fi
 
-# ── 2. Read-write DMG ─────────────────────────────────────────────
-
+#
 rm -f "$RW_DMG"
 hdiutil create -fs HFS+ \
     -srcfolder "$STAGING" \
@@ -52,16 +51,12 @@ hdiutil create -fs HFS+ \
     -format    UDRW \
     -ov        "$RW_DMG"
 
-# ── 3. Mount ──────────────────────────────────────────────────────
-
+#
 MOUNTPT=$(hdiutil attach "$RW_DMG" -noautoopen -nobrowse \
     | sed -n 's|.*\t\(/Volumes/.*\)|\1|p' \
     | head -1)
 
-# ── 4. Finder layout via AppleScript ──────────────────────────────
-# Window bounds {left, top, right, bottom} → 700 × 440 content area.
-# Icon positions are (x, y) from the content area's top-left corner.
-
+#
 osascript << APPLESCRIPT
 tell application "Finder"
   tell disk "$VOL_NAME"
@@ -87,14 +82,12 @@ tell application "Finder"
 end tell
 APPLESCRIPT
 
-# ── 5. Flush and detach ───────────────────────────────────────────
-
+#
 sync
 hdiutil detach "$MOUNTPT" -quiet
 MOUNTPT=""   # prevent double-detach in cleanup
 
-# ── 6. Compress to final DMG ──────────────────────────────────────
-
+#
 rm -f "$OUTPUT_DMG"
 hdiutil convert "$RW_DMG" -format UDZO -o "$OUTPUT_DMG"
 

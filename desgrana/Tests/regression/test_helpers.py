@@ -167,7 +167,7 @@ def compare_outputs(output_dir: str, expected_dir: str) -> int:
         print("  SKIP  expected/ not found -- run with --generate first")
         return 0
 
-    # macOS Foundation writes NFD names ("Café"), fixtures are NFC ("Café").
+    # macOS writes NFD file names; fixtures are NFC.
     expected_files = sorted(
         unicodedata.normalize("NFC", f) for f in os.listdir(expected_dir) if not f.startswith(".")
     )

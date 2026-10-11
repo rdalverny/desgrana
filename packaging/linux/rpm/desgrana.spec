@@ -1,11 +1,10 @@
 Name:           desgrana
 Version:        %{_pkg_version}
 Release:        1%{?dist}
-Summary:        Extract channels from Behringer Wing multitrack WAV recordings
+Summary:        Extract channels from Behringer Wing and X32 multitrack WAV recordings
 License:        MIT
 URL:            https://github.com/rdalverny/desgrana
 
-# Binaries are pre-built; no compilation here.
 %global debug_package %{nil}
 
 Requires:       qt6-qtbase
@@ -13,25 +12,25 @@ Requires:       libcurl
 
 %description
 Desgrana extracts individual mono or stereo tracks from interleaved
-multichannel WAV files recorded by a Behringer Wing (or X-Live) console.
+multichannel WAV files recorded by a Behringer Wing or X32 console.
 
 It reads session metadata from SE_LOG.BIN, channel names and stereo pairs
-from a Wing snapshot (.snap), skips silent channels automatically, and
+from a console snapshot (.snap or .scn), skips silent channels automatically, and
 exports markers as cue chunks in every output WAV, plus CSV and MIDI files.
 
 Includes a command-line tool (desgrana) and a graphical interface
 (desgrana-gui).
 
 %install
-# Binaries
 install -Dm755 %{_sourcedir}/desgrana     %{buildroot}%{_bindir}/desgrana
 install -Dm755 %{_sourcedir}/desgrana-gui %{buildroot}%{_bindir}/desgrana-gui
 
-# Bundled Swift private libs (accessed via RPATH baked into the binary)
+install -Dm644 %{_sourcedir}/man/desgrana.1     %{buildroot}%{_mandir}/man1/desgrana.1
+install -Dm644 %{_sourcedir}/man/desgrana-gui.1 %{buildroot}%{_mandir}/man1/desgrana-gui.1
+
 install -d %{buildroot}/usr/lib/desgrana
 cp %{_sourcedir}/swift-libs/*.so %{buildroot}/usr/lib/desgrana/
 
-# Desktop integration
 install -Dm644 %{_sourcedir}/desgrana-gui.desktop \
     %{buildroot}%{_datadir}/applications/desgrana-gui.desktop
 
@@ -44,6 +43,8 @@ done
 %files
 %{_bindir}/desgrana
 %{_bindir}/desgrana-gui
+%{_mandir}/man1/desgrana.1*
+%{_mandir}/man1/desgrana-gui.1*
 /usr/lib/desgrana/*.so
 %{_datadir}/applications/desgrana-gui.desktop
 %{_datadir}/icons/hicolor/*/apps/desgrana.png

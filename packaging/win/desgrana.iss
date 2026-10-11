@@ -1,9 +1,3 @@
-; Inno Setup script for Desgrana (Windows GUI).
-; Packages the dist\desgrana bundle (desgrana-gui.exe + Qt and Swift runtime DLLs)
-; into a single setup.exe with a Start Menu entry and an uninstaller.
-; Invoked by CI; AppVersion / BundleDir / OutDir are passed via ISCC /D switches.
-; The defaults below let it also run locally: iscc packaging\win\desgrana.iss
-
 #ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif

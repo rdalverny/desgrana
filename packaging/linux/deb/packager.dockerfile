@@ -1,15 +1,4 @@
 # syntax=docker/dockerfile:1.6
-#
-# Package pre-built binaries into a .deb.
-# Build context: repo root, with binaries/ populated from builder.dockerfile --target binaries.
-#
-# Usage (after extracting binaries to binaries/):
-#   docker buildx build \
-#     --platform linux/amd64 \
-#     -f packaging/linux/deb/packager.dockerfile \
-#     --output type=local,dest=dist \
-#     .
-
 ARG DEBIAN_CODENAME=bookworm
 
 FROM debian:${DEBIAN_CODENAME}-slim AS packager

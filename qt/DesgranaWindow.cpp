@@ -315,7 +315,6 @@ void DesgranaWindow::buildReadyPage() {
     }
     m_snapHintLabel->setVisible(false);
 
-    // Snapshot found nearby: offer it, never auto-apply.
     m_snapSuggestLabel = new QLabel;
     m_snapSuggestLabel->setForegroundRole(QPalette::PlaceholderText);
     {
