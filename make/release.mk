@@ -31,10 +31,11 @@ ci:
 	open "https://github.com/$(GITHUB_REPO)/actions"
 
 tag: preflight
-	@TAG=v$(VERSION); \
+	@set -eu; \
+	 TAG=v$(VERSION); \
 	 git rev-parse "$$TAG" >/dev/null 2>&1 \
 	   && { echo "Tag $$TAG already exists."; exit 1; } || true; \
-	 git tag "$$TAG"; \
+	 git tag -m "$$TAG" "$$TAG"; \
 	 git push origin main "$$TAG"; \
 	 open "https://github.com/$(GITHUB_REPO)/actions"; \
 	 echo "Tagged and pushed $$TAG — opening Actions."
