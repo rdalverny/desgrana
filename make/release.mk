@@ -5,7 +5,7 @@ preflight:
 	 git diff --quiet && git diff --cached --quiet || fail "Uncommitted changes."; \
 	 git fetch --quiet origin; \
 	 [ "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" ] \
-	   || fail "HEAD is not origin/main — push or pull first."; \
+	   || fail "HEAD is not origin/main - push or pull first."; \
 	 grep -Eq "^## \[$(VERSION)\] (-|—) [0-9]{4}-[0-9]{2}-[0-9]{2}" CHANGELOG.md \
 	   || fail "CHANGELOG.md has no dated $(VERSION) entry."; \
 	 grep -q '^version *= *"$(VERSION)"' web/i18n/common.toml \
@@ -38,7 +38,7 @@ tag: preflight
 	 git tag -m "$$TAG" "$$TAG"; \
 	 git push origin main "$$TAG"; \
 	 open "https://github.com/$(GITHUB_REPO)/actions"; \
-	 echo "Tagged and pushed $$TAG — opening Actions."
+	 echo "Tagged and pushed $$TAG - opening Actions."
 
 
 retag:
@@ -54,7 +54,7 @@ define bump-version
 	 RFC_DATE=$$(date -R); \
 	 RPM_DATE=$$(LC_ALL=C date +"%a %b %d %Y"); \
 	 MAINT="Romain d'Alverny <rwx@romaindalverny.com>"; \
-	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] — $$DATE\n/" CHANGELOG.md; \
+	 sed -i '' "s/^# Changelog$$/# Changelog\n\n## [$$NEW] - $$DATE\n/" CHANGELOG.md; \
 	 { printf 'desgrana (%s-1) unstable; urgency=medium\n\n  * Release %s.\n\n -- %s  %s\n\n' \
 	     "$$NEW" "$$NEW" "$$MAINT" "$$RFC_DATE"; \
 	   cat packaging/linux/deb/debian/changelog; } > /tmp/_deb_changelog \
@@ -108,7 +108,18 @@ shasums: #fetch-artifacts
 	cd $(DIST) && shasum -a 256 *.dmg *.deb *.rpm *.exe 2>/dev/null > SHA256SUMS
 	@echo "SHA256SUMS → $(DIST)/SHA256SUMS"
 
-release: shasums verify-dmg
+RELEASE_NOTES := $(DIST)/RELEASE_NOTES.md
+
+release-notes:
+	@mkdir -p $(DIST)
+	@awk -v head="## [$(VERSION)] " \
+	  'index($$0, head) == 1 { on = 1; next } on && /^## \[/ { exit } on { print }' \
+	  CHANGELOG.md > $(RELEASE_NOTES)
+	@grep -q '[^[:space:]]' $(RELEASE_NOTES) \
+	  || { echo "✗ No CHANGELOG.md section for $(VERSION)."; exit 1; }
+	@echo "Release notes → $(RELEASE_NOTES)"
+
+release: shasums verify-dmg release-notes
 	gh release create "v$(VERSION)" \
 		--draft \
 		$(DIST)/Desgrana-$(VERSION).dmg \
@@ -117,7 +128,7 @@ release: shasums verify-dmg
 		$(DIST)/*-setup.exe \
 		$(DIST)/SHA256SUMS \
 		--title "Desgrana $(VERSION)" \
-		--notes-file CHANGELOG.md
+		--notes-file $(RELEASE_NOTES)
 
 shipit: check-ci notarize verify-dmg fetch-artifacts release
 	# sed -i '' \
