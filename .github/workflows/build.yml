@@ -134,7 +134,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: compnerd/gha-setup-swift@775d3f4111c5be58a0f62f2efdd353bb8fac15c7 # main, ahead of v0.5.1
+      - uses: compnerd/gha-setup-swift@57fe462cd3c7b05ae8fcff79b00719312e305257 # main, ahead of v0.5.1
         with:
           swift-version: swift-6.4.x-branch
           swift-build: 6.4.x-DEVELOPMENT-SNAPSHOT-2026-06-01-a
