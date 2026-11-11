@@ -3,7 +3,18 @@
 TEAM_ID        ?=
 SIGN_IDENTITY  ?= Developer ID Application: $(TEAM_ID)
 NOTARY_PROFILE ?=
-ENTITLEMENTS   := desgrana/Sources/App/$(NAME).entitlements
+
+# CI only: temporary keychain from ci-keychain.sh, App Store Connect API key.
+KEYCHAIN       ?=
+NOTARY_KEY     ?=
+NOTARY_KEY_ID  ?=
+NOTARY_ISSUER  ?=
+KEYCHAIN_OPT   := $(if $(KEYCHAIN),--keychain "$(KEYCHAIN)")
+NOTARY_AUTH    := $(if $(NOTARY_KEY_ID),--key "$(NOTARY_KEY)" --key-id "$(NOTARY_KEY_ID)" --issuer "$(NOTARY_ISSUER)",--keychain-profile "$(NOTARY_PROFILE)")
+
+DMG_VOLUME     := $(NAME)
+DMG_LAYOUT     := packaging/macos/dmg.DS_Store
+ENTITLEMENTS  := desgrana/Sources/App/$(NAME).entitlements
 APP            := $(NAME).app
 APP_BUILD      := $(BUILD)/$(APP)
 PLIST          := $(APP_BUILD)/Contents/Info.plist
@@ -12,7 +23,7 @@ SPM_APP_PRODUCT := DesgranaApp
 DMG             := $(DIST)/$(NAME)-$(VERSION).dmg
 
 .PHONY: cli-universal app app-universal bundle bundle-universal build build-universal \
-        run sign package shipit release notarize verify-dmg icon
+        run sign package shipit release notarize verify-dmg icon dmg-layout
 
 cli-universal: buildinfo
 	cd desgrana && swift build -c release --product desgrana --arch arm64 --arch x86_64
@@ -60,12 +71,12 @@ run: build
 sign: build-universal
 	codesign --deep --force --options runtime \
 		--entitlements $(ENTITLEMENTS) \
-		--sign "$(SIGN_IDENTITY)" \
+		--sign "$(SIGN_IDENTITY)" $(KEYCHAIN_OPT) \
 		$(APP_BUILD)
 	codesign --verify --verbose $(APP_BUILD)
 
 	codesign --force --options runtime \
-		--sign "$(SIGN_IDENTITY)" \
+		--sign "$(SIGN_IDENTITY)" $(KEYCHAIN_OPT) \
 		$(CLI_BUILD)
 	codesign --verify --verbose $(CLI_BUILD)
 	@echo "Signed → $(APP_BUILD), $(CLI_BUILD)"
@@ -75,17 +86,20 @@ package: sign
 	bash packaging/macos/make-dmg.sh \
 		"$(APP_BUILD)" \
 		"$(CLI_BUILD)" \
-		"$(VERSION)" \
+		"$(DMG_VOLUME)" \
 		"$(DMG)"
+
+dmg-layout:
+	bash packaging/macos/dmg-layout.sh "$(DMG_VOLUME)" "$(DMG_LAYOUT)"
 
 notarize: package
 	@set -eu; \
 	trap 'st=$$?; if [ $$st -ne 0 ]; then \
-		printf "\n\033[1;31m✗ NOTARIZATION FAILED\033[0m — removing %s so a broken build can never be shipped.\n" "$(DMG)"; \
+		printf "\n\033[1;31m✗ NOTARIZATION FAILED\033[0m - removing %s so a broken build can never be shipped.\n" "$(DMG)"; \
 		rm -f "$(DMG)"; \
 	fi; exit $$st' EXIT; \
 	echo "→ Submitting $(DMG) to Apple notary service..."; \
-	out=$$(xcrun notarytool submit "$(DMG)" --keychain-profile "$(NOTARY_PROFILE)" --wait 2>&1); \
+	out=$$(xcrun notarytool submit "$(DMG)" $(NOTARY_AUTH) --wait 2>&1); \
 	echo "$$out"; \
 	echo "$$out" | grep -q "status: Accepted" \
 		|| { echo "Notary service did not return status: Accepted."; exit 1; }; \
