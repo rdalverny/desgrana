@@ -1,3 +1,4 @@
+<!-- GENERATED, DO NOT EDIT BY HAND. See template.html.j2 -->
 <!DOCTYPE html>
 <html lang="{{ lang }}" dir="ltr">
 <head>
@@ -42,7 +43,7 @@
     "downloadUrl": "{{ releases_url }}",
     "softwareVersion": "{{ version }}",
     "license": "https://opensource.org/licenses/MIT",
-    "author": { "@type": "Person", "name": "Romain d'Alverny", "url": "https://romaindalverny.com/#romain" }
+    "author": { "@type": "Person", "@id": "https://romaindalverny.com/#romain", "name": "Romain d'Alverny", "url": "https://romaindalverny.com/" }
   }
   </script>
 
@@ -156,8 +157,9 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
       </svg>
       {{ download.linux_label.format(v=version_display) }}
     </a>
-
-    <br>&nbsp;<br>
+    <p class="download-meta">
+      {{ download.linux_meta.format(date=download_date, v=version_display) }}
+    </p>
 
     <a class="btn-download" href="{{ windows_url }}">
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
@@ -167,17 +169,14 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
           stroke-linecap="round"
           stroke-linejoin="round"/>
       </svg>
-      {{ download.windows_label }}
+      {{ download.windows_label.format(v=version_display) }}
     </a>
     <p class="download-meta">
       {{ download.windows_meta.format(date=download_date, v=version_display) }}
     </p>
-
-    <p class="download-meta" style="margin-top: 1rem;">{{ download.platforms_note }}</p>
   </div>
 
   <div class="section">
-    <h2>{{ situation.heading }}</h2>
     {% for p in situation.paragraphs %}
       <p>{{ p }}</p>
     {% endfor %}
@@ -209,12 +208,6 @@ video { display: block; max-width: 100%; height: auto; margin: 1.5rem auto 0; bo
   <div class="section" id="support">
     <h2>{{ help.heading }}</h2>
     <p>{{ help.intro_html }}</p>
-    <p>{{ help.checklist_intro }}</p>
-    <ul class="features">
-    {% for item in help.checklist %}
-      <li>{{ item }}</li>
-    {% endfor %}
-    </ul>
     <p>{{ help.outro_html }}</p>
   </div>
 

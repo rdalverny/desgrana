@@ -1,25 +1,23 @@
 # English
 
 [meta]
-title = "Desgrana — Split Behringer Wing/X32 multitrack WAV into named tracks"
+title = "Desgrana - Split Behringer Wing/X32 multitrack WAV into named tracks"
 keywords = "desgrana, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, multitrack, WAV, live recording, concert recording, session, audio extraction, split tracks, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux, debian, ubuntu, fedora, rpm, deb"
-description = "Free app for macOS and Linux to extract Behringer Wing and X32 multitrack recordings into separate named WAV tracks — ready for Logic Pro, Reaper, or any DAW. Open source, MIT license."
-og_title = "Desgrana — Behringer Wing/X32 multitrack extractor"
+description = "Free app for macOS and Linux to extract Behringer Wing and X32 multitrack recordings into separate named WAV tracks; ready for Logic Pro, Reaper, or any DAW. Open source, MIT license."
+og_title = "Desgrana - Behringer Wing/X32 multitrack extractor"
 
 jsonld_description = "Extract Behringer Wing/X32 multitrack WAV recordings into separate named mono or stereo tracks, ready for any DAW."
 
 [hero]
 title_main = "Desgrana"
-tagline    = "Extract a Behringer Wing or X32 live recording into named, DAW-ready tracks."
+tagline    = "Extract a multitrack WAV file into separate named, DAW-ready tracks."
 
 [download]
-macos_label = "Download Desgrana for macOS"
-macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 or later &nbsp;·&nbsp; <a href="#changelog">See what's new</a>'''
-linux_label = "for Linux"
-linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
-
-platforms_note = '''&nbsp;'''
-windows_label = "for Windows"
+macos_label = "Download Desgrana for macOS (13+)"
+macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; <a href="#changelog">See what's new</a>'''
+linux_label = "for Linux (Debian 12+, Ubuntu 24+, Fedora 41+)"
+linux_meta  = '''version {v}, {date}'''
+windows_label = "for Windows (10+)"
 windows_meta ="version {v}, {date} &middot; unsigned installer, please <a href='https://github.com/rdalverny/desgrana/issues/17'>report any feedback here</a>"
 
 [support]
@@ -55,23 +53,10 @@ heading = "Support"
 intro_html = '''If you hit an error, please get in touch.
       You can either <a href="https://github.com/rdalverny/desgrana/issues/new">open an issue on GitHub</a>
       or <a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Desgrana%20support">email me directly</a>.'''
-checklist_intro = "Please include this with your report:"
-checklist = [
-  "your operating system and its version,",
-  "your Desgrana version,",
-  "the steps to reproduce the error,",
-  "screenshots,",
-  "if it crashed and you can find it, the crash log.",
-]
 outro_html = 'Source code available on <a href="https://github.com/rdalverny/desgrana">GitHub</a>.'
 
 [faq]
 heading = "FAQ"
-
-[[faq.items]]
-id = "platforms"
-q = "Which platforms are supported?"
-a_html = '''<p>Desgrana is available for macOS 13+, Linux (Debian/Ubuntu 12+, Fedora 41+) and Windows 10+.</p>'''
 
 [[faq.items]]
 q = "Which consoles are supported?"
@@ -105,7 +90,7 @@ a_html = '''<p>No, it works on your computer.</p>
 [[faq.items]]
 q = "Can I rename tracks before extracting them?"
 a_html = '''<p>Names come from the console snapshot. Fix them on the console, or in your DAW after
-      import — Desgrana splits the session, it doesn't edit it.</p>'''
+      import - Desgrana splits the session, it doesn't edit it.</p>'''
 
 [[faq.items]]
 q = "I record directly into Reaper from my console: do I need Desgrana?"
@@ -192,7 +177,7 @@ notes_html = '''First public release on GitHub.<br>
 [[changelog.items]]
 version = "1.6"
 date = "Apr 24 2026"
-notes_html = '''Byte-exact extraction — no format conversion, no precision loss at any bit depth.<br>
+notes_html = '''Byte-exact extraction - no format conversion, no precision loss at any bit depth.<br>
           DMG installer.<br>
           Quietly checks for updates.<br>
           Open extracted session directly in Logic Pro or Reaper.'''
@@ -211,7 +196,7 @@ version = "1.2 – 1.4"
 date = "Apr 18–20 2026"
 notes_html = '''Split multichannel sessions into separate tracks.<br>
           Marker export: WAV cue chunks, CSV, Standard MIDI File
-          (SMF type 0, SMPTE 25 fps — imports in Logic Pro).<br>
+          (SMF type 0, SMPTE 25 fps; imports in Logic Pro).<br>
           SE_LOG.bin and Wing snapshot support, drag &amp; drop.<br>
           Cleaner UI. Split result breakdown shown after export.'''
 

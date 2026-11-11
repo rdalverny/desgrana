@@ -1,26 +1,24 @@
 # Français
 
 [meta]
-title = "Desgrana — Extraire un multipiste Behringer Wing/X32 en pistes nommées"
+title = "Desgrana - Extraire un multipiste Behringer Wing/X32 en pistes nommées"
 keywords = "desgrana, multipiste, demux, extraction, Behringer Wing, Wing Rack, Wing Compact, Behringer X32, Midas M32, WAV, enregistrement live, enregistrement concert, session, extraction audio, séparer pistes, post-production, Logic Pro, Reaper, DAW, open source, macOS, linux"
 description = "Application gratuite pour macOS et Linux qui extrait les enregistrements multipistes Behringer Wing et X32 en pistes WAV séparées et nommées, prêtes à l'emploi dans un DAW. Open source, licence MIT."
-og_title = "Desgrana — Extracteur multipiste Behringer Wing/X32"
+og_title = "Desgrana - Extracteur multipiste Behringer Wing/X32"
 
 jsonld_description = "Extrait les enregistrements multipistes WAV Behringer Wing/X32 en pistes mono ou stéréo séparées et nommées, prêtes pour n'importe quel DAW."
 
 [hero]
 title_main = "Desgrana"
-tagline    = "Extraire un enregistrement live Behringer Wing ou X32 en pistes nommées, prêtes pour votre DAW."
+tagline    = "Convertir un WAV multipiste en plusieurs fichiers nommés par piste, prêts pour votre DAW."
 
 [download]
-macos_label = "Télécharger Desgrana pour macOS"
-macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; macOS 13 ou ultérieur &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a>'''
-linux_label = "pour Linux"
-linux_meta  = '''Debian/Ubuntu 12+, Fedora 41+ &nbsp;·&nbsp; {date}'''
-#platforms_note = '''macOS et Linux uniquement. <a href="#platforms">Voir la FAQ</a>'''
-platforms_note = "&nbsp;"
-windows_label = "pour Windows"
-windows_meta ="version 1.12.0-beta, 1<sup>er</sup> juillet 2026 &middot; merci <a href='https://github.com/rdalverny/desgrana/issues/17'>pour vos retours</a>"
+macos_label = "Télécharger Desgrana pour macOS (13+)"
+macos_meta  = '''version {v}, {date} &nbsp;·&nbsp; <a href="#changelog">Nouveautés</a>'''
+linux_label = "pour Linux (Debian 12+, Ubuntu 24+, Fedora 41+)"
+linux_meta  = '''version {v}, {date}'''
+windows_label = "pour Windows (10+)"
+windows_meta = "version {v}, {date} &middot; installeur non signé, <a href='https://github.com/rdalverny/desgrana/issues/17'>vos retours ici</a>"
 
 [support]
 free = "Desgrana reste gratuit et Open Source."
@@ -55,23 +53,10 @@ heading = "Support"
 intro_html = '''En cas d'erreur,
       vous pouvez <a href="https://github.com/rdalverny/desgrana/issues/new">ouvrir un ticket sur GitHub</a>
       ou <a href="mailto:contact+desgranasupport@romaindalverny.com?subject=Support%20Desgrana">m'écrire directement</a>.'''
-checklist_intro = "Merci de joindre ces informations à votre rapport :"
-checklist = [
-  "le type et la version de votre système d'exploitation,",
-  "la version de Desgrana,",
-  "les étapes pour reproduire l'erreur,",
-  "des captures d'écran,",
-  "s'il s'agit d'un crash et que vous le trouvez, le journal de plantage (crash log).",
-]
 outro_html = 'Code source sur <a href="https://github.com/rdalverny/desgrana">GitHub</a>.'
 
 [faq]
 heading = "FAQ"
-
-[[faq.items]]
-id = "platforms"
-q = "Quelles plateformes sont supportées ?"
-a_html = '''<p>Desgrana est disponible pour macOS 13+, Linux (Debian/Ubuntu 12+, Fedora 41+) et Windows 10+.</p>'''
 
 [[faq.items]]
 q = "Quelles consoles sont supportées ?"
@@ -195,7 +180,7 @@ notes_html = '''Première version publique sur GitHub.<br>
 [[changelog.items]]
 version = "1.6"
 date = "24 avr. 2026"
-notes_html = '''Extraction byte-exact — aucune conversion, aucune perte de précision quelle que soit la profondeur de bits.<br>
+notes_html = '''Extraction byte-exact - aucune conversion, aucune perte de précision quelle que soit la profondeur de bits.<br>
           Installeur DMG.<br>
           Vérification silencieuse des mises à jour.<br>
           Ouvre la session extraite directement dans Logic Pro ou Reaper.'''
@@ -214,7 +199,7 @@ version = "1.2 – 1.4"
 date = "18–20 avr. 2026"
 notes_html = '''Séparation des sessions multicanal en pistes individuelles.<br>
           Export de marqueurs : chunks cue WAV, CSV, fichier MIDI standard
-          (SMF type 0, SMPTE 25 fps — s'importe dans Logic Pro).<br>
+          (SMF type 0, SMPTE 25 fps ; s'importe dans Logic Pro).<br>
           Support SE_LOG.bin et snapshot Wing, glisser-déposer.<br>
           Interface plus propre. Détail du résultat affiché après export.'''
 

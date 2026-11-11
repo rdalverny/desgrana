@@ -23,11 +23,6 @@ DIST = WEB / "dist"
 
 DIST_EXCLUDE = {"dist", "i18n", "template.html.j2", "NOTES.md", "demo.mov"}
 
-GENERATED_HEADER = (
-    "<!-- GENERATED from template.html.j2 + i18n/*.toml — do not edit by hand. "
-    "Run `make web` (uv run scripts/build_web.py) to regenerate. -->\n"
-)
-
 MONTHS = {
     "en": ["January", "February", "March", "April", "May", "June",
            "July", "August", "September", "October", "November", "December"],
@@ -124,7 +119,7 @@ def main() -> int:
         html = template.render(**ctx)
         out: Path = loc["out"]
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(GENERATED_HEADER + html, encoding="utf-8")
+        out.write_text(html, encoding="utf-8")
         print(f"  {name} -> {out.relative_to(ROOT)}")
 
     return 0
