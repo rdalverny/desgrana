@@ -17,7 +17,7 @@ public func buildOutputSpecs(
     for pair in activePairs {
         let suffix = channelNameSuffix(for: [pair.left, pair.right], names: channelNames)
         let filename = useShortFilenames
-            ? (suffix.isEmpty ? String(format: "ch%02d-%02d.wav", pair.left, pair.right) : "\(suffix.dropFirst()).wav")
+            ? (suffix.isEmpty ? String(format: "ch%02d-%02d.wav", pair.left, pair.right) : shortFilename(suffix))
             : String(format: "%@ch%02d-%02d\(suffix).wav", prefix, pair.left, pair.right)
         specs.append(OutputSpec(
             kind: .stereo(left: pair.left - 1, right: pair.right - 1),
@@ -28,7 +28,7 @@ public func buildOutputSpecs(
     for ch in 0 ..< numChannels where !pairedChannels.contains(ch + 1) {
         let suffix = channelNameSuffix(for: [ch + 1], names: channelNames)
         let filename = useShortFilenames
-            ? (suffix.isEmpty ? String(format: "ch%02d.wav", ch + 1) : "\(suffix.dropFirst()).wav")
+            ? (suffix.isEmpty ? String(format: "ch%02d.wav", ch + 1) : shortFilename(suffix))
             : String(format: "%@ch%02d\(suffix).wav", prefix, ch + 1)
         specs.append(OutputSpec(
             kind: .mono(ch: ch),
@@ -37,6 +37,22 @@ public func buildOutputSpecs(
         ))
     }
     return specs
+}
+
+/// Windows device names, unusable as file names even with an extension.
+private let windowsReservedNames: Set<String> = Set(
+    ["CON", "PRN", "AUX", "NUL"]
+        + (1...9).map { "COM\($0)" }
+        + (1...9).map { "LPT\($0)" }
+)
+
+/// "_Kick" -> "Kick.wav", "_CON" -> "CON_.wav".
+private func shortFilename(_ suffix: String) -> String {
+    let base = String(suffix.dropFirst())
+    if windowsReservedNames.contains(base.uppercased()) {
+        return "\(base)_.wav"
+    }
+    return "\(base).wav"
 }
 
 /// Removes silent output files and returns a `SplitResult`.

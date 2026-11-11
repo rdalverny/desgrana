@@ -146,7 +146,7 @@ public func channelNameSuffix(for channels: [Int], names: [Int: String]) -> Stri
 
 /// Strips characters unsafe for filenames and collapses whitespace to underscores.
 func sanitizeChannelName(_ raw: String) -> String {
-    let unsafe = CharacterSet(charactersIn: "/\\:*?\"<>|")
+    let unsafe = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters)
     return raw
         .components(separatedBy: unsafe).joined()
         .trimmingCharacters(in: .whitespaces)

@@ -114,4 +114,31 @@ final class SanitizeChannelNameTests: XCTestCase {
         XCTAssertEqual(sanitizeChannelName("Kick Drum"), "Kick_Drum")
         XCTAssertEqual(sanitizeChannelName("Kick  Drum"), "Kick_Drum")
     }
+
+    func testControlCharsRemoved() {
+        XCTAssertEqual(sanitizeChannelName("Ki\u{0}ck\u{7}\u{1B}"), "Kick")
+    }
+}
+
+// MARK: - Short filenames
+
+final class ShortFilenameTests: XCTestCase {
+    private func shortNames(_ names: [Int: String]) -> [String] {
+        buildOutputSpecs(
+            activePairs: [], pairedChannels: [], numChannels: names.count,
+            channelNames: names, outputDir: URL(fileURLWithPath: "/out"),
+            prefix: "", useShortFilenames: true
+        ).map { $0.url.lastPathComponent }
+    }
+
+    func testWindowsReservedNamesSuffixed() {
+        XCTAssertEqual(
+            shortNames([1: "CON", 2: "aux", 3: "Com1", 4: "LPT9"]),
+            ["CON_.wav", "aux_.wav", "Com1_.wav", "LPT9_.wav"]
+        )
+    }
+
+    func testRegularNamesUnchanged() {
+        XCTAssertEqual(shortNames([1: "Console", 2: "COM10"]), ["Console.wav", "COM10.wav"])
+    }
 }
