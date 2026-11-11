@@ -21,6 +21,17 @@ private func openReader(_ url: URL) throws -> WAVReader {
     }
 }
 
+/// First output whose path names an input. Case-insensitive: macOS and Windows
+/// volumes default to it, so "live.wav" would overwrite "Live.wav".
+private func firstClash(_ specs: [OutputSpec], _ inputs: [URL]) -> URL? {
+    func key(_ url: URL) -> String {
+        url.resolvingSymlinksInPath().standardizedFileURL.path.lowercased()
+    }
+
+    let inputKeys = Set(inputs.map(key))
+    return specs.first { inputKeys.contains(key($0.url)) }?.url
+}
+
 // swiftlint:disable function_body_length cyclomatic_complexity
 /// Splits a multichannel WAV session into mono (and optionally stereo) WAV files.
 @discardableResult
@@ -72,6 +83,10 @@ public func splitSession(
         activePairs: activePairs, pairedChannels: pairedChannels, numChannels: numChannels,
         channelNames: channelNames, outputDir: outputDir, prefix: pfx, useShortFilenames: useShortFilenames
     )
+
+    if let clash = firstClash(specs, wavFiles) {
+        throw SplitError.outputOverwritesInput(clash.path)
+    }
 
     // Metadata (bext/iXML/cue) embedded before `data` at file creation.
     let meta = outputMetadata(for: specs, sourceBext: sourceBext,

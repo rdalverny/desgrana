@@ -88,6 +88,7 @@ public enum SplitError: Error, CustomStringConvertible {
     case readError(Int32)                  // AudioToolbox OSStatus (macOS only)
     case writeError(Int32)                 // AudioToolbox OSStatus (macOS only)
     case channelMismatch(expected: Int, got: Int, file: String)
+    case outputOverwritesInput(String)     // file path
     public var description: String {
         switch self {
         case .noWavFiles:
@@ -106,13 +107,15 @@ public enum SplitError: Error, CustomStringConvertible {
             return "Write error (OSStatus \(s))"
         case .channelMismatch(let exp, let got, let f):
             return "\(f): expected \(exp) channels, got \(got)"
+        case .outputOverwritesInput(let f):
+            return "Output '\(f)' would overwrite an input file"
         }
     }
 
     public var exitCode: Int32 {
         switch self {
         case .noWavFiles, .cannotOpenInput, .cannotCreateOutput,
-             .readError, .writeError:                               return 2
+             .readError, .writeError, .outputOverwritesInput:       return 2
         case .cannotGetFormat, .cannotSetClientFormat,
              .channelMismatch:                                      return 3
         }
