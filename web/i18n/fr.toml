@@ -132,7 +132,7 @@ date = "12 octobre 2026"
 notes_html = '''Build Windows testé sur de vraies machines, avec une fenêtre de préférences partagée avec Linux.<br>
           Propose un snapshot console trouvé près du dossier de session.<br>
           Le rapport JSON inclut les performances d'extraction.<br>
-          La vérification des mises à jour est désormais désactivée par défaut sur toutes les plateformes.'''
+          La vérification des mises à jour est désormais optionnelle sur toutes les plateformes.'''
 
 [[changelog.items]]
 version = "1.12.0"

@@ -1,5 +1,5 @@
 {
-  "version": "1.12.0",
-  "notes": "Wing Live card recorder routing, optional JSON extraction report, experimental Windows build, fixes",
-  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.12.0"
+  "version": "1.13.0",
+  "notes": "Windows build tested, nearby snapshot suggestion, extraction performance in JSON report, optional update check",
+  "url": "https://github.com/rdalverny/desgrana/releases/tag/v1.13.0"
 }

@@ -129,7 +129,7 @@ date = "Oct 12 2026"
 notes_html = '''Windows build tested on real machines, with a preferences dialog shared with Linux.<br>
           Suggests a console snapshot found near the session folder.<br>
           JSON report includes extraction performance.<br>
-          Update check is now opt-in on all platforms.'''
+          Update check is now optional on all platforms.'''
 
 [[changelog.items]]
 version = "1.12.0"

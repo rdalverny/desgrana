@@ -119,7 +119,7 @@ release: shasums verify-dmg
 		--title "Desgrana $(VERSION)" \
 		--notes-file CHANGELOG.md
 
-shipit: check-ci notarize fetch-artifacts release
+shipit: check-ci notarize verify-dmg fetch-artifacts release
 	# sed -i '' \
 	# 	-e 's|href="[^"]*Desgrana-[0-9.]*\.dmg"|href="$(GITHUB_BASE)/v$(VERSION)/Desgrana-$(VERSION).dmg"|' \
 	# 	-e 's|Download Desgrana [0-9.]* ([^)]*)|Download Desgrana $(VERSION) ($(DATE))|' \

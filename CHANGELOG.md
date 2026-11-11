@@ -11,7 +11,7 @@ Features:
 
 - Suggest a console snapshot if found near the session folder
 - JSON report includes extraction performance
-- Update check is now opt-in on all platforms
+- Update check is now optional on all platforms
 
 Fixes & internal:
 
